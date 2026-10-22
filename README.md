@@ -14,7 +14,6 @@
 | `Box/` | **电视版**（Android TV / 遥控器）。`assembleArm64GenericNormalRelease` |
 | `Box-phone/` | **手机版**。UI 主体是 `app/src/main/assets/phone/` 下的 HTML/CSS/JS，通过 `PhoneBridge` 暴露原生能力 |
 | `TV-fongmi/` | 另一个 TV 分支（Fongmi 内核）。**缺私有依赖，本仓库编不出来**，仅作参考 |
-| `ui-design/` | 前端设计稿 + 自动化验证脚本（Playwright），不是 App 的一部分 |
 | `dist/` | 打包输出的 APK（**不入库**） |
 
 手机版前端的三个文件：
@@ -89,16 +88,18 @@ $BT/apksigner sign --ks <你的.jks> --ks-key-alias <alias> \
 
 ---
 
-## 前端自测
+## 前端自测（脚本不在本仓库）
+
+手机版界面是纯前端，改 `assets/phone/` 下的文件后建议跑一遍 Playwright 断言。
+脚本（`_verify_app.js` 等）体积大、含大量截图，**未入库**，在本地设计稿目录里：
 
 ```bash
-cd ui-design
-node _verify_app.js      # 156 条断言 + 截图到 shots-app/
-node _diag_api.js        # 接口配置页 18 项
+cd <本地设计稿目录>
+node _verify_app.js      # 全量断言 + 截图
+node _diag_api.js        # 接口配置页
 ```
 
-`_verify_app.js` 用 Playwright 直接加载 `assets/phone/index.html`，mock 掉 `AndroidPhone` 桥。
-**改 UI 后必须跑**，截图会输出到 `shots-app/`。
+`_verify_app.js` 直接加载 `assets/phone/index.html`，mock 掉 `AndroidPhone` 桥。
 
 ---
 
@@ -110,9 +111,10 @@ node _diag_api.js        # 接口配置页 18 项
 |---|---|
 | `*.jks` / 签名口令 | 安全。自己生成一个 keystore 即可打包 |
 | `dist/*.apk` | 构建产物，见 Release 页 |
+| `ui-design/` | 设计稿 HTML 原型 + 截图外壳工程 + Playwright 脚本，148MB |
 | `Box*/xwalk/*.zip` | 4 个 Crosswalk 预编译包共 208MB，只有 `python` 玩法模块用到（而那个模块本来就编不出来） |
 | `build/` `.gradle/` `local.properties` | 构建缓存与机器相关配置 |
-| `ui-design/shots*/` | 验证脚本生成的截图，跑一遍就有 |
+| 根目录 `*.md` | 只保留 `README.md`，说明/排查类文档本地留档 |
 
 ---
 
