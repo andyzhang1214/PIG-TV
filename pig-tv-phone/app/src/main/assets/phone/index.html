@@ -305,6 +305,9 @@
       <div class="cfgSub" id="cfgNameSub">起个自己认得出来的名字，列表里显示的就是它</div>
     </div>
     <div id="cfgUrlWrap">
+      <!-- 内置推荐源：一键填入并保存。都是实测能拉到配置、组件也下得来的地址。
+           盒子迷写的是 /禁止贩卖（配置 JSON），不是 /饭太硬（那个是导航网页，解析不出内容）。 -->
+      <div class="cfgQuick" id="cfgQuick"></div>
       <textarea id="cfgIn" class="cfgIn" rows="4" placeholder="https://example.com/api.json"></textarea>
       <div class="cfgRow" style="margin-top:10px">
         <div class="cfgBtn ghost" onclick="cfgPaste()">从剪贴板粘贴</div>
@@ -674,6 +677,10 @@ function emptyErrHTML(){
     (ST.source ? '<div class="emptyS" style="margin-top:4px">当前接口：' + esc(ST.source) + '</div>' : '') +
     errDiagHTML() +
     '<div class="retryBtn" onclick="retrySource()">重新加载</div>' +
+    /* 源站死掉是最常见的「没拿到内容」（域名过期 / 变成域名出售页 / 爬虫站点全挂）。
+       这时候点「重新加载」一万次也没用，必须能直接换个源，
+       所以这里给一个直达配置的入口，不用用户自己翻「我的 → 片源接口」。 */
+    '<div class="retryBtn ghost" onclick="openCfgForm(\'api\')">换个源</div>' +
     '</div>';
 }
 
@@ -1991,11 +1998,54 @@ function openCfgForm(mode, isAdd, editUrl, editName){
     });
   }
   document.getElementById('cfg').classList.add('on');
+  renderQuick(mode);   // 推荐源胶囊：只有「填地址」的场景才有
 }
 
 function cfgClose(){
   document.getElementById('cfg').classList.remove('on');
 }
+
+/* 内置推荐源。标准：配置 JSON 能拉到 + 组件（spider jar）下得来 + 站点本身活着。
+   盒子迷这里写的是 /禁止贩卖（真的配置 JSON，91 站）；
+   /饭太硬 是它的导航网页（返回 7870 字节 HTML，标题「TVBOX 影视仓 CatBox」），
+   填进去只会解析失败，别放进来。 */
+var QUICK_SRC = [
+  {n:'qist 综合', d:'153 站 · 首选', u:'https://qist.wyfc.qzz.io/jsm.json'},
+  {n:'盒子迷',   d:'91 站',        u:'https://盒子迷.top/禁止贩卖'},
+  {n:'肥猫',     d:'40 站 · 备选',  u:'http://肥猫.net/tv'}
+];
+
+/* 只在「填接口地址」的场景出现；直播源和改名模式清空 */
+function renderQuick(mode){
+  var box = document.getElementById('cfgQuick');
+  if (!box) return;
+  box.innerHTML = '';
+  if (mode === 'live' || mode === 'name') return;
+  for (var i = 0; i < QUICK_SRC.length; i++){
+    (function(s){
+      var b = document.createElement('div');
+      b.className = 'q';
+      var t1 = document.createElement('b'); t1.textContent = s.n;
+      var t2 = document.createElement('span'); t2.textContent = s.d;
+      b.appendChild(t1); b.appendChild(t2);
+      b.onclick = function(){ cfgQuickPick(s); };
+      box.appendChild(b);
+    })(QUICK_SRC[i]);
+  }
+}
+
+/* 点一下就填入 + 直接走保存流程，省掉「填完再点保存」这一步 */
+function cfgQuickPick(s){
+  var elIn = document.getElementById('cfgIn');
+  if (!elIn) return;
+  elIn.value = s.u;
+  var elName = document.getElementById('cfgName');
+  if (elName && !elName.value.trim()) elName.value = s.n;
+  var msg = document.getElementById('cfgMsg');
+  if (msg){ msg.className = 'cfgS busy'; msg.textContent = '已填入「' + s.n + '」，正在加载…'; }
+  cfgSave();
+}
+
 function cfgPaste(){
   ncall('readClipboard', [], function(d){
     var t = (d && d.text) || '';

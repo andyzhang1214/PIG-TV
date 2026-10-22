@@ -629,6 +629,17 @@
 .cfgBtn.ghost{background:var(--card2);color:rgba(var(--ink),.75)}
 .cfgBtn:active{transform:scale(.98)}
 
+/* 内置推荐源：一排胶囊，点一下填入地址并直接保存。
+   空容器不占位（直播源/改名模式会把它清空） */
+.cfgQuick{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.cfgQuick:empty{display:none}
+.cfgQuick .q{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:12px;
+  background:var(--card2);border:1px solid var(--line);cursor:pointer;line-height:1}
+.cfgQuick .q:active{transform:scale(.97)}
+.cfgQuick .q b{font-size:12.5px;font-weight:650;color:var(--tx)}
+.cfgQuick .q span{font-size:10.5px;color:var(--tx3);font-weight:400}
+.cfgQuick + .cfgIn{margin-top:10px}
+
 /* 二次确认弹层（清缓存 / 重置 App 这类不可逆操作） */
 #ask{position:fixed;inset:0;z-index:96;display:none;align-items:center;justify-content:center;padding:0 26px}
 #ask.on{display:flex}
@@ -771,6 +782,8 @@ html[data-theme="light"] .logo.g{color:#1F8E63}
   border-radius:18px;background:var(--card);border:1px solid var(--line);
   font-size:12.5px;font-weight:650;color:var(--ac)}
 .retryBtn:active{background:var(--card2)}
+/* 空态里的次要动作（换个源）：弱化配色，别跟「重新加载」抢 */
+.retryBtn.ghost{margin-left:8px;color:rgba(var(--ink),.72);font-weight:600}
 /* 下载细节：默认折成两行，点一下复制。字体小、颜色淡，不抢主信息的视线，
    但排查时它是唯一能说明「超时 / 拦截页 / 校验不符」的东西。 */
 .errDiag{margin:12px 10px 0;padding:8px 10px;border-radius:9px;
