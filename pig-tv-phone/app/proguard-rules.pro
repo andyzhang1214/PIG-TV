@@ -218,6 +218,25 @@
 }
 
 -keep class com.github.catvod.crawler.*{*;}
+##########################################################################
+# 这一条是「首页一条内容都拿不到」的根因，别删、也别缩小范围。
+#
+# spider jar 里的爬虫代码是拿宿主（本 App）提供的 API 编译的，运行时通过
+# DexClassLoader 里的类名直接调用：
+#     com.github.catvod.net.OkHttp      ← 几乎所有爬虫都用它发请求
+#     com.github.catvod.net.OkResult
+#     com.github.catvod.utils.Util / Path
+#     com.github.catvod.crawler.Spider / SpiderDebug
+# 以前只 keep 了 crawler.*，于是 R8 把 net.OkHttp 改成 androidx.base.do0、
+# utils.* 一并改名，jar 里第一句 OkHttp.get(...) 就抛 NoClassDefFoundError。
+# 这个异常又被 JarLoader.getSpider / Future.get 两层 catch 吞掉，用户侧只剩
+# 「接口没有返回任何分类」，看起来跟站点挂了完全一样。
+#
+# keep 整包而不是逐个类：爬虫用到的 API 会随 catvod 版本增加，漏一个就又白屏。
+# 代价只有几十个类，几十 KB。
+##########################################################################
+-keep class com.github.catvod.** { *; }
+-dontwarn com.github.catvod.**
 
 # magnet：解决模拟器推送 磁力链接 闪退
 -keep class com.xunlei.downloadlib.** {*;}

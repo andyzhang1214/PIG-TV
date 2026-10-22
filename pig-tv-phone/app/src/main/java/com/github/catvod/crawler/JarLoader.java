@@ -126,28 +126,37 @@ public class JarLoader {
                 }
             }
         }
+        // 站点自带 jar（config 里每个 site 的 "jar" 字段）走的是这条分支。
+        // 以前这里用 OkGo 直下：10 秒读超时、没有续传，慢站/断流就是
+        // 「这个站点一直是空的」，而且失败没有任何提示。统一交给 JarFetcher。
         try {
-            Response response = OkGo.<File>get(jar).execute();
-            assert response.body() != null;
-            InputStream is = response.body().byteStream();
-            OutputStream os = new FileOutputStream(cache);
-            try {
-                byte[] buffer = new byte[2048];
-                int length;
-                while ((length = is.read(buffer)) > 0) {
-                    os.write(buffer, 0, length);
+            File part = new File(cache.getAbsolutePath() + ".part");
+            com.pigtv.api.JarFetcher.Result r = com.pigtv.api.JarFetcher.fetch(jar, part, md5);
+            if (r.file != null && r.file.exists() && r.file.length() > 0) {
+                if (cache.exists()) cache.delete();
+                if (!r.file.renameTo(cache)) {
+                    // 跨挂载点 rename 会失败，退化成复制
+                    java.io.FileInputStream in = new java.io.FileInputStream(r.file);
+                    FileOutputStream out = new FileOutputStream(cache);
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+                    out.flush();
+                    out.close();
+                    in.close();
+                    r.file.delete();
                 }
-            } finally {
-                try {
-                    is.close();
-                    os.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
+                if (loadClassLoader(cache.getAbsolutePath(), key)) {
+                    com.pigtv.api.SpiderDiag.clear();
+                    return classLoaders.get(key);
                 }
+                com.pigtv.api.SpiderDiag.set("站点组件已下载但加载失败（可能不是 jar）");
+            } else {
+                com.pigtv.api.SpiderDiag.set("下载站点组件失败：" + r.err
+                        + (r.diag == null || r.diag.isEmpty() ? "" : "（" + r.diag + "）"));
             }
-            loadClassLoader(cache.getAbsolutePath(), key);
-            return classLoaders.get(key);
         } catch (Throwable e) {
+            com.pigtv.api.SpiderDiag.fail("下载站点组件", e);
             e.printStackTrace();
         }
         return null;
@@ -173,7 +182,10 @@ public class JarLoader {
         recentJarKey = jarKey;
         assert jarKey != null;
         DexClassLoader classLoader = jarKey.equals("main")? classLoaders.get("main"):loadJarInternal(jarUrl, jarMd5, jarKey);
-        if (classLoader == null) return new SpiderNull();
+        if (classLoader == null) {
+            com.pigtv.api.SpiderDiag.set("播放组件没有加载成功，站点 " + clsKey + " 用不了");
+            return new SpiderNull();
+        }
         try {
             Log.i("JarLoader", "echo-getSpider 加载spider: " + key);
             Spider sp = (Spider) classLoader.loadClass("com.github.catvod.spider." + clsKey).newInstance();
@@ -184,6 +196,9 @@ public class JarLoader {
             spiders.put(key, sp);
             return sp;
         } catch (Throwable th) {
+            // 这里最常抓到的是 NoClassDefFoundError: com.github.catvod.net.OkHttp ——
+            // 也就是「R8 把宿主给 jar 用的 API 改名了」，报给前端才能看出来。
+            com.pigtv.api.SpiderDiag.fail("加载站点 " + clsKey, th);
             th.printStackTrace();
         }
         return new SpiderNull();

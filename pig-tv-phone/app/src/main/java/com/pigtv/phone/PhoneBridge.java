@@ -13,6 +13,7 @@ import android.widget.Toast;
 import com.github.catvod.crawler.Spider;
 import com.bumptech.glide.Glide;
 import com.pigtv.api.ApiConfig;
+import com.pigtv.api.JarFetcher;
 import com.pigtv.bean.AbsJson;
 import com.pigtv.bean.AbsSortXml;
 import com.pigtv.bean.AbsXml;
@@ -221,7 +222,15 @@ public class PhoneBridge {
     private void resetSourceCaches(String reason) {
         sorts.clear();
         cacheClear();
+        // 取分类也要作废：旧站点的 AbsSortXml 结果和旧站点的 homeContent 缓存
+        // 一个都不能落到新站点上（否则切完线路首页还是上一个站的内容）
+        try {
+            vm.cancelSort();
+        } catch (Throwable ignored) {
+        }
         jarReady = false;           // 旧 jar 不一定对得上新接口
+        jarFailAt = 0;              // 换了片源就允许立刻重新尝试加载 jar
+        lastJarError = null;
         // 正在等结果的 config()/detail() 也要作废：它们的回包是旧接口的数据，
         // 落到新界面上就是「新接口里点开一个片，出来的是上一个接口的详情」。
         // 不回调（而不是回一条错误）：前端紧接着会自己再发一次请求，
@@ -254,6 +263,69 @@ public class PhoneBridge {
      * 同步等 jar 就绪。失败也放行：至少 json 直连的站点还能用，
      * 总比首页一片空白强。
      */
+    private volatile String lastJarError = null;   // 给前端显示「为什么没内容」
+    private volatile long jarFailAt = 0;           // 上次彻底失败的时间，用于冷却
+    private volatile boolean jarAutoRetry = false; // 已经排了一次后台续传，别排第二次
+    // 重试交给 JarFetcher 内部做（它会分段续传 + 换 https），这里不再叠外层重试，
+    // 否则一次点击会同时拉起好几条下载抢同一个 .part。
+    private static final int JAR_MAX_TRY = 1;
+    private static final long JAR_COOLDOWN_MS = 30_000L;  // 失败后 30 秒内不再尝试（避免每次切页都卡住）
+    /**
+     * 首页拿分类时最多等 jar 多久（只对真正依赖 jar 的爬虫站生效）。
+     * <p>20 秒：分段续传下 1MB 通常 10~20 秒够了。再久就先让页面出结果，
+     * 下载线程继续在后台跑，下完推一条 done 事件让页面自己刷新 —— 这是上游
+     * {@code HomeActivity.initData()} 那种「回调里重新进入」的思路，只是我们没有一个
+     * 可以反复重入的 Activity，只能在回包里补一次通知。</p>
+     */
+    private static final long JAR_WAIT_MS = 20_000L;
+
+    /**
+     * 把 jar 下载进度实时推给页面。
+     * <p>
+     * 用例：源站每次连接只给六十几 KB 就 RST，1MB 的组件要靠十几次续传才下得完，
+     * 整个过程几十秒。没有进度条时用户只看到「还没有内容」，会以为卡死了；
+     * 有进度条就能看出「一直在涨」，耐心等它下完。
+     */
+    private void bindJarProgress() {
+        JarFetcher.setProgressSink((got, total, noResume) -> {
+            try {
+                JSONObject o = new JSONObject();
+                o.put("got", got);
+                o.put("total", total);
+                // 服务器不认断点续传时，界面要换文案（否则「进度不涨」看起来像卡死）
+                o.put("nr", noResume ? 1 : 0);
+                emit("jar", o.toString());
+            } catch (Throwable ignored) {
+            }
+        });
+    }
+
+    /** 向前端推一个事件：window.__evt(name, jsonString) */
+    private void emit(String name, String json) {
+        final String js = "window.__evt&&window.__evt(" + JSONObject.quote(name) + ","
+                + JSONObject.quote(json == null ? "{}" : json) + ")";
+        main.post(() -> {
+            try {
+                web.evaluateJavascript(js, null);
+            } catch (Throwable ignored) {
+            }
+        });
+    }
+
+    /**
+     * 这个站点取分类时是否真的依赖 Spider jar。
+     * <p>判据和 {@code ApiConfig.getCSP()} 的分发条件保持一致：
+     * type=0/1 是 xml/json 直连；api 以 .js 结尾或含 .js? 走 QuickJS；含 .py 走 Python。
+     * 这三类都不会去加载全局 spider jar，也就没必要让用户陪着等下载。</p>
+     */
+    private static boolean needsJar(SourceBean sb) {
+        if (sb == null || sb.getType() != 3) return false;
+        String api = sb.getApi();
+        if (api == null || api.isEmpty()) return false;
+        if (api.endsWith(".js") || api.contains(".js?")) return false;
+        return !api.contains(".py");
+    }
+
     private void ensureJarBlocking(long maxWaitMs) {
         if (jarReady) return;
         String spider;
@@ -267,6 +339,8 @@ public class PhoneBridge {
             jarReady = true;
             return;
         }
+        // 刚失败过就别立刻再卡一轮：旧 jar 若已降级可用，这里本来也不会走到
+        if (jarFailAt > 0 && System.currentTimeMillis() - jarFailAt < JAR_COOLDOWN_MS) return;
 
         synchronized (jarLock) {
             if (jarReady) return;
@@ -287,36 +361,97 @@ public class PhoneBridge {
             jarLoading = true;
         }
 
-        final CountDownLatch latch = new CountDownLatch(1);
         try {
-            ApiConfig.get().loadJar(false, spider, new ApiConfig.LoadConfigCallback() {
-                @Override
-                public void success() {
-                    jarReady = true;
-                    latch.countDown();
-                }
+            // 2026-10-22：原来 error() 里直接 jarReady = true，等于「失败一次，整个进程内
+            // 40 个 type=3 站点全部当哑巴」，必须杀进程才可能恢复。现在改成失败可重试。
+            for (int attempt = 1; attempt <= JAR_MAX_TRY && !jarReady; attempt++) {
+                final CountDownLatch latch = new CountDownLatch(1);
+                final boolean[] done = {false};
+                // 等待窗口关闭后 jar 才下完：上游是「回调里重新 initData()」，
+                // 我们没法重入，就推一条 done 事件，让页面自己再拉一次数据。
+                final boolean[] late = {false};
+                try {
+                    ApiConfig.get().loadJar(false, spider, new ApiConfig.LoadConfigCallback() {
+                        @Override
+                        public void success() {
+                            done[0] = true;
+                            jarReady = true;
+                            latch.countDown();
+                            if (late[0]) {
+                                android.util.Log.i("PigBridge", "jar 迟到下载完成，通知页面刷新");
+                                emit("jar", "{\"got\":1,\"total\":1,\"done\":1}");
+                            }
+                        }
 
-                @Override
-                public void retry() {
-                    latch.countDown();
-                }
+                        @Override
+                        public void retry() {
+                            latch.countDown();
+                        }
 
-                @Override
-                public void error(String msg) {
-                    jarReady = true;
-                    latch.countDown();
+                        @Override
+                        public void error(String msg) {
+                            lastJarError = msg;
+                            latch.countDown();
+                        }
+                    });
+                } catch (Throwable th) {
+                    lastJarError = th.getMessage();
+                    break;
                 }
-            });
-        } catch (Throwable th) {
-            jarReady = true;
+                // 最多等调用方给的时长。以前这里是 Math.max(maxWaitMs, JAR_WAIT_MS)，
+                // 传 30s 进来实际等 60s —— 注释和代码对不上，冷启动白等半分钟。
+                try {
+                    latch.await(maxWaitMs, TimeUnit.MILLISECONDS);
+                } catch (Throwable ignored) {
+                }
+                if (!done[0]) late[0] = true;   // 等待窗口关闭，之后的成功算「迟到」
+                if (done[0]) break;
+                if (attempt < JAR_MAX_TRY) {
+                    try {
+                        Thread.sleep(1200L * attempt);
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            }
+        } finally {
             finishJarLoad();
-            return;
         }
-        try {
-            latch.await(maxWaitMs, TimeUnit.MILLISECONDS);
-        } catch (Throwable ignored) {
+        if (!jarReady) {
+            jarFailAt = System.currentTimeMillis();
+            android.util.Log.w("PigBridge", "jar 加载失败，30 秒后可重试: " + lastJarError);
+            armJarAutoRetry();
         }
-        finishJarLoad();
+    }
+
+    /**
+     * 组件下了一半就断了（源站限速 / 反复 RST）时，45 秒后自己再续一轮。
+     * <p>
+     * 这种站的毛病是「连一会儿就被掐」，靠用户手动点「重新加载」也能一点点下完
+     * （残包是保留的），但没人会点那么多次。后台静默续传到成功，再通知页面刷新，
+     * 用户只需要等，不需要操作。
+     */
+    private void armJarAutoRetry() {
+        String diag = ApiConfig.get().getJarDiag();
+        // 只有「确实下了东西但没下完」才值得自动续；连不上的站再试也是白试
+        boolean partial = diag != null && diag.contains("残包保留");
+        if (!partial || jarAutoRetry) return;
+        // 服务器不认断点续传时，后台再续一轮也是同样结果 —— 得靠用户换网络
+        if (diag.contains("不认断点续传")) return;
+        jarAutoRetry = true;
+        pool.execute(() -> {
+            try {
+                Thread.sleep(45_000L);
+                jarFailAt = 0;                 // 清掉冷却
+                ensureJarBlocking(60_000L);
+                if (jarReady) {
+                    android.util.Log.i("PigBridge", "jar 后台续传成功，通知页面刷新");
+                    emit("jar", "{\"got\":1,\"total\":1,\"done\":1}");
+                }
+            } catch (Throwable ignored) {
+            } finally {
+                jarAutoRetry = false;
+            }
+        });
     }
 
     private void finishJarLoad() {
@@ -330,6 +465,7 @@ public class PhoneBridge {
         this.act = a;
         this.web = w;
         this.vm = v;
+        bindJarProgress();
         initObservers();
     }
 
@@ -354,8 +490,26 @@ public class PhoneBridge {
                     }
                 }
                 SourceBean home = ApiConfig.get().getHomeSourceBean();
-                o.put("ok", 1);
+                // 分类为空说明这一趟什么都没拿到（接口挂了 / spider jar 没加载），
+                // 不能再无脑回 ok:1 —— 前端会把它当成「接口正常但内容为空」，
+                // 渲染成「还没有内容，先去配一个接口」，把真正的错误盖掉。
+                o.put("ok", arr.length() > 0 ? 1 : 0);
                 o.put("needConfig", 0);
+                o.put("jarError", lastJarError == null ? "" : lastJarError);
+                o.put("jarDiag", ApiConfig.get().getJarDiag());
+                o.put("jarReady", jarReady ? 1 : 0);
+                o.put("spiderError", ApiConfig.get().getSpiderError());
+                if (arr.length() == 0) {
+                    // 优先级：jar 没下下来 > jar 还没好 > 站点自己报的错 > 兜底文案
+                    String msg;
+                    if (lastJarError != null) msg = lastJarError;
+                    else if (!jarReady) msg = "播放组件还没准备好，正在重试…";
+                    else {
+                        String se = ApiConfig.get().getSpiderError();
+                        msg = (se == null || se.isEmpty()) ? "接口没有返回任何分类" : se;
+                    }
+                    o.put("msg", msg);
+                }
                 o.put("source", home != null && home.getName() != null ? home.getName() : "");
                 o.put("sorts", arr);
                 if (abs != null && abs.videoList != null && !abs.videoList.isEmpty()) {
@@ -426,11 +580,70 @@ public class PhoneBridge {
                     cb(cbId, o.toString());
                     return;
                 }
-                // 首次进入拿分类前先把 spider jar 备好，否则 type=3 站点直接空。
+                // 上游 takagen99/Box 的 initData() 是「状态机 + 回调重入」：loadJar 没回来
+                // 就不往下走，但它是异步重入，从不阻塞任何线程。我们这边是一次请求一次回包，
+                // 只能同步等 —— 那就只让「真的需要 jar」的站点等。
+                // xml / json 直连站点（以及 .js / .py 站点）取分类根本不碰 Spider，
+                // 让它们陪等 20 秒纯属白等，这正是上游异步写法感觉不到、我们会吃亏的地方。
+                //
                 // 必须放在挂 sortCb 之前：等待期间如果 LiveData 推了旧值会把回调提前消费掉。
-                ensureJarBlocking(12000L);
+                if (needsJar(home)) ensureJarBlocking(JAR_WAIT_MS);
                 sortCb = cbId;
                 vm.getSort(home.getKey());
+                armSortWatchdog(cbId);
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /**
+     * 取分类的看门狗。
+     * <p>
+     * 正常情况下 sortResult 一定会回一次（成功 / 空 / 异常都会 postValue），
+     * 但只要中间有一环没回 —— spider 挂在 native 里、线程池被占满、
+     * sortCb 被另一个请求顶掉 —— 前端那个 loadAll 就会永远停在「还没有内容」，
+     * 左上角站名也不会刷新。用户看到的正是「切了线路，首页没反应」。
+     * <p>
+     * 所以这里给一个硬兜底：35 秒还没回就自己回一条错误，让页面至少有话说。
+     * 真正的慢请求仍然会继续跑，结果若晚到会被 SourceViewModel 的代数机制丢弃。
+     */
+    private void armSortWatchdog(final String cbId) {
+        main.postDelayed(() -> {
+            try {
+                if (sortCb == null || !sortCb.equals(cbId)) return;   // 已经回过 / 已被新请求接管
+                sortCb = null;
+                JSONObject o = new JSONObject();
+                o.put("ok", 0);
+                o.put("needConfig", 0);
+                o.put("msg", "取分类超时（35 秒），站点没有响应");
+                o.put("source", sourceName());
+                o.put("sorts", new JSONArray());
+                o.put("rec", new JSONArray());
+                cb(cbId, o.toString());
+            } catch (Throwable ignored) {
+            }
+        }, 35_000L);
+    }
+
+    /**
+     * 手动重试 spider jar。首页空态里的「重试」按钮调它。
+     * <p>
+     * 存在的意义：jar 下载失败后为了不每次切页都卡 12 秒，加了 30 秒冷却，
+     * 但用户不该被迫等 —— 点一下就清掉冷却、立刻重来一轮。
+     */
+    @JavascriptInterface
+    public void jarRetry(String cbId) {
+        pool.execute(() -> {
+            try {
+                jarFailAt = 0;
+                jarReady = false;
+                lastJarError = null;
+                ensureJarBlocking(15000L);
+                JSONObject o = new JSONObject();
+                o.put("ok", jarReady ? 1 : 0);
+                o.put("msg", lastJarError == null ? "" : lastJarError);
+                cb(cbId, o.toString());
             } catch (Throwable th) {
                 cbErr(cbId, th);
             }
@@ -1393,6 +1606,28 @@ public class PhoneBridge {
                 JSONObject o = new JSONObject();
                 o.put("ok", 1);
                 o.put("text", text == null ? "" : text.trim());
+                cb(cbId, o.toString());
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /**
+     * 复制文本到剪贴板。首页加载失败时空态里有个「复制错误详情」，
+     * 用户贴回来就能直接看出是超时、拦截页还是 md5 不符。
+     */
+    @JavascriptInterface
+    public void copyText(String text, String cbId) {
+        main.post(() -> {
+            try {
+                android.content.ClipboardManager cm =
+                        (android.content.ClipboardManager) act.getSystemService(Activity.CLIPBOARD_SERVICE);
+                if (cm != null) {
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText("pigtv", text == null ? "" : text));
+                }
+                JSONObject o = new JSONObject();
+                o.put("ok", 1);
                 cb(cbId, o.toString());
             } catch (Throwable th) {
                 cbErr(cbId, th);

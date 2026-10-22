@@ -119,6 +119,48 @@ public class SourceViewModel extends ViewModel {
             return size() > 5;
         }
     };
+
+    /* ==================================================================
+       请求代数（generation）
+       ------------------------------------------------------------------
+       sortResult 只有**一条** LiveData，谁在等结果（PhoneBridge.sortCb）
+       和结果是谁请求的，结构上对不上号。切线路时会串台：
+
+         1. 旧站点 A 的 getSort 还在飞（spider 慢，或 20 秒超时兜底）；
+         2. 用户切到站点 B，PhoneBridge 清掉 sortCb、重新 config()；
+         3. A 的结果这时才回来 → 落到 B 的 sortCb 上 → 前端拿到的
+            「新站点配置」其实是 A 的，左上角站名不变、首页还是 A 的内容；
+         4. B 真正结果回来时 sortCb 已经被消费掉 → 直接丢弃，
+            于是 B 的首页永远是空的。
+
+       做法：每次 getSort 领一个递增的代数，只有当前代数的结果才准
+       postValue / 进缓存。cancelSort() 让所有在飞的请求全部作废。
+       ================================================================== */
+    private static volatile int sortGen = 0;
+
+    /** 换片源 / 换接口：作废在飞的取分类请求，并丢掉旧站点的缓存 */
+    public void cancelSort() {
+        sortGen++;
+        synchronized (sortCache) {
+            sortCache.clear();
+        }
+    }
+
+    private void postSort(AbsSortXml xml, int gen) {
+        if (gen != sortGen) {
+            LOG.i("echo--getSort-drop-stale--" + gen + "/" + sortGen);
+            return;
+        }
+        sortResult.postValue(xml);
+    }
+
+    private void cacheSort(String key, AbsSortXml xml, int gen) {
+        if (gen != sortGen) return;
+        synchronized (sortCache) {
+            sortCache.put(key, xml);
+        }
+    }
+
     // homeContent
     public void getSort(final String sourceKey) {
         LOG.i("echo--getSort-start");
@@ -126,6 +168,8 @@ public class SourceViewModel extends ViewModel {
             sortResult.postValue(null);
             return;
         }
+        // 领代数：从这一行开始，之前所有 getSort 的回包都算过期
+        final int gen = ++sortGen;
 
         // 优先检查缓存
         AbsSortXml cached = sortCache.get(sourceKey);
@@ -134,12 +178,19 @@ public class SourceViewModel extends ViewModel {
             int homeRec = Hawk.get(HawkConfig.HOME_REC, 0);
             boolean shouldUseCache = (homeRec != 1) || (cached.videoList != null && !cached.videoList.isEmpty());
             if (shouldUseCache) {
-                sortResult.postValue(cached);
+                postSort(cached, gen);
                 return;
             }
         }
 
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
+        if (sourceBean == null) {
+            // 换了接口之后旧 sort id 还可能被一个残留请求带进来，别让 NPE 冒到 PhoneBridge
+            com.pigtv.api.SpiderDiag.set("这个站点在当前接口里不存在（可能刚换过线路）");
+            postSort(null, gen);
+            return;
+        }
+        com.pigtv.api.SpiderDiag.clear();          // 新一轮请求，上一轮的错误作废
         final int type = sourceBean.getType();
         if (type == 3) {
             Runnable waitResponse = new Runnable() {
@@ -159,33 +210,43 @@ public class SourceViewModel extends ViewModel {
                     } catch (TimeoutException e) {
                         e.printStackTrace();
                         future.cancel(true);
+                        com.pigtv.api.SpiderDiag.set("取分类超时（20 秒），站点没有响应");
                     } catch (InterruptedException | ExecutionException e) {
                         e.printStackTrace();
+                        // 这里以前只有 printStackTrace：站点抛的 NoClassDefFoundError 全被吞了，
+                        // 用户侧只看到「接口没有返回任何分类」。
+                        com.pigtv.api.SpiderDiag.fail("取分类", e instanceof ExecutionException ? e.getCause() : e);
                     } finally {
                         if (sortJson != null) {
+                            if (sortJson.trim().isEmpty() || "{}".equals(sortJson.trim()))
+                                com.pigtv.api.SpiderDiag.set("站点返回了空内容（可能该站在维护或已停用）");
                             final AbsSortXml sortXml = sortJson(sortResult, sortJson);
+                            if (sortXml == null)
+                                com.pigtv.api.SpiderDiag.set("站点返回的分类解析不了（不是标准 JSON）");
                             if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
                                 AbsXml absXml = json(null, sortJson, sourceBean.getKey());
                                 if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
                                     sortXml.videoList = absXml.movie.videoList;
-                                    sortResult.postValue(sortXml);
-                                    sortCache.put(sourceKey, sortXml);
+                                    postSort(sortXml, gen);
+                                    cacheSort(sourceKey, sortXml, gen);
                                 } else {
                                     getHomeRecList(sourceBean, null, new HomeRecCallback() {
                                         @Override
                                         public void done(List<Movie.Video> videos) {
                                             sortXml.videoList = videos;
-                                            sortResult.postValue(sortXml);
-                                            sortCache.put(sourceKey, sortXml);
+                                            postSort(sortXml, gen);
+                                            cacheSort(sourceKey, sortXml, gen);
                                         }
                                     });
                                 }
                             } else {
-                                sortResult.postValue(sortXml);
-                                sortCache.put(sourceKey, sortXml);
+                                postSort(sortXml, gen);
+                                cacheSort(sourceKey, sortXml, gen);
                             }
                         } else {
-                            sortResult.postValue(null);
+                            if (com.pigtv.api.SpiderDiag.get() == null)
+                                com.pigtv.api.SpiderDiag.set("站点没有返回分类（首页接口是空的）");
+                            postSort(null, gen);
                         }
                         try {
                             executor.shutdown();
@@ -229,20 +290,24 @@ public class SourceViewModel extends ViewModel {
                                     @Override
                                     public void done(List<Movie.Video> videos) {
                                         finalSortXml.videoList = videos;
-                                        sortResult.postValue(finalSortXml);
-                                        sortCache.put(sourceKey, finalSortXml);
+                                        postSort(finalSortXml, gen);
+                                        cacheSort(sourceKey, finalSortXml, gen);
                                     }
                                 });
                             } else {
-                                sortResult.postValue(sortXml);
-                                sortCache.put(sourceKey, sortXml);
+                                postSort(sortXml, gen);
+                                cacheSort(sourceKey, sortXml, gen);
                             }
                         }
 
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
-                            sortResult.postValue(null);
+                            Throwable ex = response.getException();
+                            com.pigtv.api.SpiderDiag.set("取分类失败："
+                                    + (ex == null ? "网络错误" : ex.getClass().getSimpleName()
+                                    + (ex.getMessage() == null ? "" : " " + ex.getMessage())));
+                            postSort(null, gen);
                         }
                     });
         } else if (type == 4) {
@@ -271,35 +336,35 @@ public class SourceViewModel extends ViewModel {
                                     AbsXml absXml = json(null, sortJson, sourceBean.getKey());
                                     if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
                                         sortXml.videoList = absXml.movie.videoList;
-                                        sortResult.postValue(sortXml);
-                                        sortCache.put(sourceKey, sortXml);
+                                        postSort(sortXml, gen);
+                                        cacheSort(sourceKey, sortXml, gen);
                                     } else {
                                         getHomeRecList(sourceBean, null, new HomeRecCallback() {
                                             @Override
                                             public void done(List<Movie.Video> videos) {
                                                 sortXml.videoList = videos;
-                                                sortResult.postValue(sortXml);
-                                                sortCache.put(sourceKey, sortXml);
+                                                postSort(sortXml, gen);
+                                                cacheSort(sourceKey, sortXml, gen);
                                             }
                                         });
                                     }
                                 } else {
-                                    sortResult.postValue(sortXml);
-                                    sortCache.put(sourceKey, sortXml);
+                                    postSort(sortXml, gen);
+                                    cacheSort(sourceKey, sortXml, gen);
                                 }
                             } else {
-                                sortResult.postValue(null);
+                                postSort(null, gen);
                             }
                         }
 
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
-                            sortResult.postValue(null);
+                            postSort(null, gen);
                         }
                     });
         } else {
-            sortResult.postValue(null);
+            postSort(null, gen);
         }
     }
 

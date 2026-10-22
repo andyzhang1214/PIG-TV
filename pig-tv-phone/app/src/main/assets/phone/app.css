@@ -213,6 +213,16 @@
     text-shadow:0 1px 6px rgba(0,0,0,.45);
     font-variant-numeric:tabular-nums;letter-spacing:.5px}
   .heroBot{position:absolute;left:15px;right:15px;bottom:14px}
+  /* 占位态（没片 / 加载中 / 出错）：卡上没有海报，只有一层主题色底。
+     这种时候不能再套「恒白字 + 深色遮罩」——浅色主题下白字压米白底等于没有字。
+     文字/按钮全部换成跟主题走的变量，深色浅色都对。 */
+  .hero.ph{background:var(--card2);border:1px solid var(--line);box-shadow:var(--shadowCard)}
+  .hero.ph .heroT{color:var(--tx);text-shadow:none}
+  .hero.ph .heroM{color:var(--tx2)}
+  .hero.ph .heroD{color:var(--tx3)}
+  .hero.ph .heroRT{background:rgba(var(--ink),.06);border-color:rgba(var(--ink),.18);
+    color:var(--tx);backdrop-filter:none;-webkit-backdrop-filter:none}
+  .hero.ph .heroRT:active{background:rgba(var(--ink),.12)}
   /* hero 上的文字恒为白色：.heroScrim 是固定深色渐变（与主题无关），
      所以标题不能跟着 --tx 走，否则浅色主题下会变成深字压深底。 */
   .heroT{font-size:20px;font-weight:700;letter-spacing:.2px;color:#fff;
@@ -727,3 +737,30 @@ html[data-theme="light"] .logo.g{color:#1F8E63}
   :root:not([data-theme]) .logo.b{color:#3F63C8}
   :root:not([data-theme]) .logo.g{color:#1F8E63}
 }
+
+/* =====================================================================
+   首页「接口有响应但没内容」的重试入口（2026-10-22）
+   ---------------------------------------------------------------------
+   起因：接口配着、站点名也显示出来了，但 spider 组件下不下来 → 分类和列表全空。
+   原来这种情况下页面写的是「去配一个接口」，等于让用户去改一个本来就对的东西。
+   现在给出真实原因 + 重试按钮，不用再杀进程重开。
+   ===================================================================== */
+/* hero 里的按钮：压在图片上，文字恒白，别用 --tx */
+.heroRT{display:inline-flex;align-items:center;height:30px;padding:0 15px;margin-top:11px;
+  border-radius:15px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.24);
+  font-size:11.5px;font-weight:600;color:#fff;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.heroRT:active{background:rgba(255,255,255,.26)}
+/* 网格空态里的按钮：在卡片上，跟着主题走 */
+.retryBtn{display:inline-flex;align-items:center;height:36px;padding:0 20px;margin-top:16px;
+  border-radius:18px;background:var(--card);border:1px solid var(--line);
+  font-size:12.5px;font-weight:650;color:var(--ac)}
+.retryBtn:active{background:var(--card2)}
+/* 下载细节：默认折成两行，点一下复制。字体小、颜色淡，不抢主信息的视线，
+   但排查时它是唯一能说明「超时 / 拦截页 / 校验不符」的东西。 */
+.errDiag{margin:12px 10px 0;padding:8px 10px;border-radius:9px;
+  background:var(--card2);border:1px solid var(--line);
+  font-size:10.5px;line-height:1.55;color:var(--tx3);text-align:left;
+  word-break:break-all;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.errCopy{margin-top:6px;font-size:10.5px;color:var(--ac);opacity:.85}

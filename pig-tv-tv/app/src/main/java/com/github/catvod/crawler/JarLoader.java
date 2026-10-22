@@ -173,7 +173,10 @@ public class JarLoader {
         recentJarKey = jarKey;
         assert jarKey != null;
         DexClassLoader classLoader = jarKey.equals("main")? classLoaders.get("main"):loadJarInternal(jarUrl, jarMd5, jarKey);
-        if (classLoader == null) return new SpiderNull();
+        if (classLoader == null) {
+            com.pigtv.api.SpiderDiag.set("播放组件没有加载成功，站点 " + clsKey + " 用不了");
+            return new SpiderNull();
+        }
         try {
             Log.i("JarLoader", "echo-getSpider 加载spider: " + key);
             Spider sp = (Spider) classLoader.loadClass("com.github.catvod.spider." + clsKey).newInstance();
@@ -184,6 +187,9 @@ public class JarLoader {
             spiders.put(key, sp);
             return sp;
         } catch (Throwable th) {
+            // 这里最常抓到的是 NoClassDefFoundError: com.github.catvod.net.OkHttp ——
+            // 也就是「R8 把宿主给 jar 用的 API 改名了」，报给前端才能看出来。
+            com.pigtv.api.SpiderDiag.fail("加载站点 " + clsKey, th);
             th.printStackTrace();
         }
         return new SpiderNull();

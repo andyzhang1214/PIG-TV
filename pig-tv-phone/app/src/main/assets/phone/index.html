@@ -363,6 +363,21 @@ window.__cb = function(id, s){
   try{ f(d); }catch(e){ console.log('cb error', e); }
 };
 
+/* 原生主动推的事件（不需要前端先发请求）。目前只有 jar 下载进度：
+   慢站每次连接只给几十 KB，组件要靠十几次续传才下得完，没有进度条
+   用户会以为卡死在「还没有内容」上。 */
+window.__evt = function(name, s){
+  var d = {};
+  try{ d = JSON.parse(s) || {}; }catch(e){ return; }
+  try{
+    if (name === 'jar'){
+      /* 后台把组件续传完了：页面自己重新拉一次数据，用户不用点任何按钮 */
+      if (d.done){ if (!ST.hero.length) loadAll(); return; }
+      onJarProgress(d);
+    }
+  }catch(e){ console.log('evt error', e); }
+};
+
 /* =====================================================================
    状态
    ===================================================================== */
@@ -385,6 +400,11 @@ var ST = {
   loading: false,
   heroIdx: 0,
   heroSwiped: false,
+  /* 接口**有响应但一条数据都没拿到**时的错误原因（spider 组件下不下来 / 接口挂了）。
+     和「没配接口」必须分开：配了却空着还提示"去配接口"，只会让人以为配置没生效。 */
+  err: '',
+  diag: '',         // 原生给的下载细节：每轮尝试的字节数 / 异常类型
+  apiUrl: '',       // 当前接口地址，复制详情时带上
   source: ''
 };
 
@@ -506,12 +526,25 @@ function metaLine(v){
    ===================================================================== */
 function renderHero(){
   var el = document.getElementById('hero');
+  /* 占位态（没片 / 加载中 / 出错）没有海报，hero 就不该再套「深色渐变 + 恒白字」，
+     否则浅色主题下就是白字压米白底 —— 等于没有字。 */
+  el.classList.toggle('ph', !ST.hero.length);
   if (!ST.hero.length){
-    el.innerHTML = '<div class="heroArt" style="' + heroGrad() + '"></div>' +
-      '<div class="heroScrim"></div>' +
-      '<div class="heroBot"><div class="heroT">还没有内容</div>' +
-      '<div class="heroM">点右上角「我的 → 片源接口」添加一个接口</div>' +
-      '<div class="heroD">猪猪影视本身只是个播放器，内容全部来自你配置的接口。</div></div>';
+    /* 组件还在下载：把进度条接着显示出来，别切个 Tab 回来就退回「还没有内容」 */
+    if (!ST.err && jarProg.got){ onJarProgress(jarProg); return; }
+    el.innerHTML =
+      '<div class="heroBot">' +
+      (ST.err
+        /* 接口明明配着（站点名都显示出来了），却一条没拿到 —— 这时候再说
+           「去配一个接口」只会让人以为配置没生效，必须把真实原因摆出来。 */
+        ? '<div class="heroT">接口连上了，但没拿到内容</div>' +
+          '<div class="heroM">' + esc(ST.err) + '</div>' +
+          '<div class="heroD">配置本身是好的，卡在加载内容这一步。</div>' +
+          '<div class="heroRT" onclick="event.stopPropagation();retrySource()">重新加载</div>'
+        : '<div class="heroT">还没有内容</div>' +
+          '<div class="heroM">点右上角「我的 → 片源接口」添加一个接口</div>' +
+          '<div class="heroD">猪猪影视本身只是个播放器，内容全部来自你配置的接口。</div>') +
+      '</div>';
     return;
   }
   var v = ST.hero[ST.heroIdx % ST.hero.length];
@@ -575,6 +608,7 @@ function renderHot(){
   var grid = document.getElementById('gridHot');
   var pool = ST.hot;
   if (!pool.length){
+    if (ST.err){ grid.innerHTML = emptyErrHTML(); return; }
     // 片源自带推荐为空、正在从各分类凑池子的那一下，别急着喊「没有内容」
     grid.innerHTML = ST.sorts.length
       ? '<div class="loadmore">正在挑选推荐…</div>'
@@ -613,25 +647,144 @@ function emptyHTML(msg){
     '</div>';
 }
 
+/* 接口配了、但一条没拿到时的空态：必须给出原因 + 重试入口，
+   否则用户只能杀进程重开。
+   下面那行灰色小字是原生给的下载细节（每次尝试的字节数 / 超时 / 拦截页），
+   排查「到底是站点挂了、网络被掐、还是校验不过」全靠它。 */
+function errDiagHTML(){
+  if (!ST.diag) return '';
+  return '<div class="errDiag" onclick="copyDiag()">' + esc(ST.diag) + '</div>' +
+    '<div class="errCopy" onclick="copyDiag()">复制详情</div>';
+}
+function emptyErrHTML(){
+  return '<div class="emptyBox">' +
+    '<div class="emptyT">没拿到内容</div>' +
+    '<div class="emptyS">' + esc(ST.err) + '</div>' +
+    (ST.source ? '<div class="emptyS" style="margin-top:4px">当前接口：' + esc(ST.source) + '</div>' : '') +
+    errDiagHTML() +
+    '<div class="retryBtn" onclick="retrySource()">重新加载</div>' +
+    '</div>';
+}
+
+/* 把错误原因 + 下载细节拼成一段能直接发出去的文字 */
+function copyDiag(){
+  var txt = '接口：' + (ST.source || '') + '\n原因：' + (ST.err || '') + '\n详情：' + (ST.diag || '') +
+            '\n地址：' + (ST.apiUrl || '');
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).catch(function(){});
+    toast('已复制');
+    return;
+  }
+  ncall('copyText', [txt], function(){ toast('已复制'); });
+}
+window.copyDiag = copyDiag;
+
+/* 首页「重新加载」：先让原生清掉 jar 的失败冷却、重试一轮，再把整份数据重拉。
+   原生那边有 30 秒冷却，光切页面是不会重试的。 */
+var retrying = false;
+function retrySource(){
+  if (retrying) return;
+  retrying = true;
+  ST.err = '';
+  var hero = document.getElementById('hero');
+  hero.classList.add('ph');            // 占位态：跟着主题走，不然浅色下白字看不见
+  hero.innerHTML =
+    '<div class="heroBot"><div class="heroT">正在重新加载…</div>' +
+    '<div class="heroM">如果一直停在这里，多半是接口的组件下载不下来</div></div>';
+  document.getElementById('gridHot').innerHTML = '<div class="loadmore">正在重新加载…</div>';
+  ncall('jarRetry', [], function(){
+    retrying = false;
+    resetSourceState();
+    loadAll();
+  });
+}
+window.retrySource = retrySource;
+
 /* =====================================================================
    数据加载
    ===================================================================== */
+/* 每次 loadAll 递增，晚到的旧回包和超时提示都靠它作废 */
+var loadSeq = 0, slowTimer = null;
+/* 组件下载进度（原生 __evt('jar') 推过来的），只在首页还没有内容时占位显示 */
+var jarProg = {got: 0, total: -1, nr: 0};
+
+function onJarProgress(d){
+  if (typeof d.nr !== 'undefined') jarProg.nr = d.nr;
+  if (typeof d.got !== 'undefined') jarProg.got = d.got;
+  if (typeof d.total !== 'undefined') jarProg.total = d.total;
+  /* 已经有内容、或者已经明确报错，就别再拿进度条盖掉用户正在看的东西 */
+  if (ST.err || ST.hero.length || ST.hot.length) return;
+  if (!jarProg.got) return;
+  var hero = document.getElementById('hero');
+  if (!hero) return;
+  clearTimeout(slowTimer);
+  var kb = Math.floor(jarProg.got / 1024);
+  var tot = jarProg.total > 0 ? Math.floor(jarProg.total / 1024) : 0;
+  hero.classList.add('ph');
+  /* nr = 源站不认断点续传，只能整包重来。这时候数字是不动的，
+     必须换成解释文案，否则用户以为卡死。 */
+  if (jarProg.nr){
+    hero.innerHTML =
+      '<div class="heroBot"><div class="heroT">组件下载卡住了 ' + kb +
+        (tot ? ' / ' + tot : '') + 'KB</div>' +
+      '<div class="heroM">这个源站不支持断点续传，每次只能拿到这么多就被掐断</div>' +
+      '<div class="heroD">换成 Wi-Fi、或者关掉手机上的代理/VPN 再点「重新加载」，通常就好了。</div>' +
+      '<div class="heroRT" onclick="event.stopPropagation();retrySource()">重新加载</div></div>';
+    return;
+  }
+  hero.innerHTML =
+    '<div class="heroBot"><div class="heroT">正在下载播放组件 ' + kb +
+      (tot ? ' / ' + tot : '') + 'KB</div>' +
+    '<div class="heroM">网络不稳，断了会自动接着下，进度只增不减</div>' +
+    '<div class="heroD">首次启动要下约 1~2MB 的组件，下完自动进首页，不用管它。</div></div>';
+}
+window.onJarProgress = onJarProgress;
+
 function loadAll(){
   /* 片源换了，直播分组也跟着换（直播列表就挂在接口配置里） */
   resetLive();
+  var seq = ++loadSeq;
+  clearTimeout(slowTimer);
+  jarProg.got = 0; jarProg.total = -1;
+  /* 冷启动要先把 spider 组件下下来（1~2MB），慢网可能几十秒。
+     这段时间页面不该一声不响地停在「还没有内容」上 —— 那是「没配接口」的文案。 */
+  slowTimer = setTimeout(function(){
+    if (seq !== loadSeq || ST.err) return;
+    if (ST.hero.length) return;
+    /* 下载进度已经在刷了，就别用这条笼统的提示盖掉具体进度 */
+    if (jarProg.got) return;
+    var hero = document.getElementById('hero');
+    hero.classList.add('ph');
+    hero.innerHTML =
+      '<div class="heroBot"><div class="heroT">正在准备播放组件…</div>' +
+      '<div class="heroM">首次启动要从接口下载组件，网络慢可能要等半分钟</div>' +
+      '<div class="heroD">超过一分钟还停在这里，点下面的「重新加载」会重新尝试。</div>' +
+      '<div class="heroRT" onclick="event.stopPropagation();retrySource()">重新加载</div></div>';
+  }, 9000);
   ncall('config', [], function(d){
+    clearTimeout(slowTimer);
+    if (seq !== loadSeq) return;          // 已经切到别的片源了，这个回包作废
     if (d.needConfig){
       showCfg(0);
       return;
     }
+    /* 站名以原生回的为准，但**空值不覆盖**：
+       原生理论上一定带 source，可真机上出现过回包缺字段（旧版本残留、
+       或切换瞬间读到的还是空 home），这时候把左上角写成「猪猪影视」
+       反而像是切换没生效。有值才刷。 */
+    applySourceName(d.source);
     if (!d.ok && !(d.sorts || []).length){
-      toast(d.msg || '片源加载失败');
+      // 接口有响应但什么都没拿到：把原因留在页面上，别只弹一个 toast 就完事
+      ST.err = d.msg || d.jarError || '接口没有返回内容';
+      ST.diag = [d.jarDiag, d.spiderError].filter(Boolean).join(' · ');
+      ST.sorts = [];
+      renderHero();
+      renderHot();
       return;
     }
+    ST.err = '';
+    ST.diag = '';
     ST.sorts = d.sorts || [];
-    ST.source = d.source || '';
-    document.getElementById('srcName').textContent = ST.source || '猪猪影视';
-    document.getElementById('siteHint').textContent = ST.source || '—';
     // 「片源接口」那行显示当前主机名（存了多个时显示数量），站点名交给「线路切换」
     refreshApiHint();
 
@@ -773,6 +926,7 @@ var catSeq = 0;
 function resetSourceState(){
   ST.hero = []; ST.items = []; ST.hot = []; ST.sorts = [];
   ST.curSort = null; ST.filt = {}; filtInit = {};
+  ST.err = '';                               // 上一份片源的错误不能带到新片源
   catSeq++;                                  // 作废还在飞的分类请求
   hotSeq++;                                  // 作废还在飞的推荐池请求
   catLoading = false; catDone = false;
@@ -1315,12 +1469,31 @@ window.pickSite = function(i){
   closeAlt();
   ncall('setSite', [x.key], function(r){
     if (!r || !r.ok){ toast((r && r.msg) || '切换失败'); return; }
-    toast('已切换到「' + (r.name || x.name) + '」');
+    var nm = r.name || x.name || '';
+    toast('已切换到「' + nm + '」');
+    /* 站名先用 setSite 的回包立刻写死。
+       以前只有 loadAll() 里那个 config 回调会写 #srcName —— 而 config 要先等
+       spider jar、再等站点返回分类，快则几秒、慢则几十秒（失败还可能是永远），
+       这段时间首页左上角一直挂着上一个线路的名字，看起来就像「没切换成功」。
+       这里先落一次，loadAll 拿到真结果后会再刷一次（内容与站名同时到位）。 */
+    applySourceName(nm);
     go('home');   // 分类/详情都是旧站点的数据，先退回首页再重载
     resetSourceState();
     loadAll();
   });
 };
+
+/* 统一改「当前站名」：首页左上角 + 我的「线路切换」那行。
+   空值绝不覆盖已有名字 —— 拿不到新名字时保持旧的总比变成「—」或 App 名强。 */
+function applySourceName(nm){
+  nm = (nm || '').trim();
+  if (nm) ST.source = nm;
+  var cur = nm || ST.source || '';
+  var a = document.getElementById('srcName');
+  if (a && cur) a.textContent = cur;
+  var b = document.getElementById('siteHint');
+  if (b && cur) b.textContent = cur;
+}
 
 /* =====================================================================
    搜索
@@ -1745,6 +1918,7 @@ function cfgSave(){
         ? '接口已生效，但没能记入列表，下次还得重新输入。'
         : '配置成功，正在刷新…';
       var wasAdd = cfgIsAdd;
+      applySourceName(d.source);          // 站名先落一次，别等 loadAll 的 config
       setTimeout(function(){
         cfgClose();
         resetSourceState();
@@ -1876,6 +2050,9 @@ window.pickApi = function(i){
       return;
     }
     toast('已切换到「' + (d.name || d.source || label) + '」');
+    /* 同理：站名先按回包落一次。这里只用 d.source（站点名），
+       d.name 是接口名 —— 写进左上角会闪一下不是站名的东西。 */
+    applySourceName(d.source);
     go('home');   // 分类/详情都是旧接口的数据，先退回首页再重载
     resetSourceState();
     loadAll();
@@ -1906,6 +2083,7 @@ function applyApiHint(list){
   for (var i = 0; i < list.length; i++){
     if (list[i].cur){ cur = list[i]; break; }
   }
+  if (cur) ST.apiUrl = cur.url || '';
   if (list.length > 1){ el.textContent = list.length + ' 个接口'; return; }
   if (cur){ el.textContent = cur.name || addrOf(cur.url); return; }
   el.textContent = '未配置';

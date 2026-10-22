@@ -296,103 +296,225 @@ public class ApiConfig {
                 });
     }
 
+    /** 最近一次 jar 下载的技术细节（给首页空态展示「为什么没内容」） */
+    private volatile String lastJarDiag = "";
+    /** 最近一次 jar 失败的一句话原因；成功时清空 */
+    private volatile String lastJarError = null;
+    /** 同一时刻只允许一轮 jar 下载 */
+    private static final Object JAR_DL_LOCK = new Object();
+    private static boolean jarDownloading = false;
+
+    public String getJarDiag() {
+        return lastJarDiag;
+    }
+
+    public String getJarError() {
+        return lastJarError;
+    }
+
+    /** 站点（jar 里的爬虫）最后一次报的错，见 {@link SpiderDiag} */
+    public String getSpiderError() {
+        return SpiderDiag.get() == null ? "" : SpiderDiag.get();
+    }
+
+    /**
+     * 加载 spider 组件。
+     *
+     * <p>缓存命中就直接用；接口换过包（md5 对不上）时<b>先把旧包降级跑起来</b>，
+     * 后台再悄悄换新包 —— 否则接口一升级 jar，所有老用户当场白屏。
+     *
+     * <p>真正的下载交给 {@link JarFetcher}：那个客户端专门为「1MB 二进制、慢站、
+     * 会断线」调过（30 秒读超时 / 强制 HTTP/1.1 / Range 续传 / 拦截页识别），
+     * 全局 OkGo 那套 10 秒超时的配置下不完这种文件。
+     */
     public void loadJar(boolean useCache, String spider, LoadConfigCallback callback) {
         String[] urls = spider.split(";md5;");
-        String jarUrl = urls[0];
-        String md5 = urls.length > 1 ? urls[1].trim() : "";
-        File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp/"+MD5.string2MD5(jarUrl)+".jar");
-        if (!md5.isEmpty() || useCache) {
-            if (cache.exists() && (useCache || MD5.getFileMd5(cache).equalsIgnoreCase(md5))) {
-                if (jarLoader.load(cache.getAbsolutePath())) {
-                    callback.success();
-                } else {
-                    callback.error("从缓存加载jar失败");
-                }
+        String jarUrl = urls[0].trim();
+        final String md5 = urls.length > 1 ? urls[1].trim() : "";
+        final File cache = new File(App.getInstance().getFilesDir().getAbsolutePath()
+                + "/csp/" + MD5.string2MD5(jarUrl) + ".jar");
+        final File part = new File(cache.getAbsolutePath() + ".part");
+        final File dir = cache.getParentFile();
+        if (dir != null && !dir.exists()) dir.mkdirs();
+
+        // ---------------------------------------------------------------
+        // 1. 缓存
+        // ---------------------------------------------------------------
+        boolean degraded = false;
+        if (cache.exists()) {
+            boolean md5Match = md5.isEmpty()
+                    ? !FileUtils.isWeekAgo(cache)     // 接口没给版本号：一周内算新
+                    : md5.equalsIgnoreCase(MD5.getFileMd5(cache));
+            boolean loaded = jarLoader.load(cache.getAbsolutePath());
+            if (loaded && (useCache || md5Match)) {
+                lastJarDiag = "命中缓存 " + (cache.length() / 1024) + "KB";
+                lastJarError = null;
+                callback.success();
                 return;
             }
-        }else {
-            if (Boolean.parseBoolean(jarCache) && cache.exists() && !FileUtils.isWeekAgo(cache)) {
-                if (jarLoader.load(cache.getAbsolutePath())) {
-                    callback.success();
-                    return;
-                }
+            if (loaded) {
+                degraded = true;                       // 旧包能用，先让页面有内容
+                lastJarDiag = "版本已过期，先用旧包（" + (cache.length() / 1024) + "KB）顶上";
+                callback.success();
+            } else {
+                cache.delete();                        // 缓存本身坏了，留着只会反复失败
             }
         }
 
-        boolean isJarInImg = jarUrl.startsWith("img+");
-        jarUrl = jarUrl.replace("img+", "");
-        // spider 地址经常也是中文域名（如 http://肥猫.net/spider.php;md5;...）
-        jarUrl = toAsciiUrl(jarUrl);
-        OkGo.<File>get(jarUrl)
-                .headers("User-Agent", userAgent)
-                .headers("Accept", requestAccept)
-                .execute(new AbsCallback<File>() {
+        // ---------------------------------------------------------------
+        // 2. 下载（放独立线程，不能占着调用方）
+        // ---------------------------------------------------------------
+        final boolean useOld = degraded;
+        final boolean isImg = jarUrl.startsWith("img+");
+        final String realUrl = isImg ? jarUrl.substring(4) : jarUrl;
 
-                    @Override
-                    public File convertResponse(okhttp3.Response response){
-                        File cacheDir = cache.getParentFile();
-                        assert cacheDir != null;
-                        if (!cacheDir.exists()) cacheDir.mkdirs();
-                        if (cache.exists()) cache.delete();
-                        // 3. 使用 try-with-resources 确保流关闭
-                        assert response.body() != null;
-                        try (FileOutputStream fos = new FileOutputStream(cache)) {
-                            if (isJarInImg) {
-                                String respData = response.body().string();
-                                LOG.i("echo---jar Response: " + respData);
-                                byte[] imgJar = getImgJar(respData);
-                                if (imgJar == null || imgJar.length == 0) {
-                                    LOG.e("echo---Generated JAR data is empty");
-                                    callback.error("JAR data is empty");
-                                }
-                                fos.write(imgJar);
-                            } else {
-                                // 使用流式传输避免内存溢出
-                                InputStream inputStream = response.body().byteStream();
-                                byte[] buffer = new byte[4096];
-                                int bytesRead;
-                                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                                    fos.write(buffer, 0, bytesRead);
-                                }
-                            }
-                            fos.flush();
-                        } catch (IOException e) {
-                            return null;
-                        }
-                        return cache;
+        // 已经有一轮在下载：等它，绝不并发拉同一个 .part
+        synchronized (JAR_DL_LOCK) {
+            if (jarDownloading) {
+                long deadline = System.currentTimeMillis() + 90_000L;
+                while (jarDownloading && System.currentTimeMillis() < deadline) {
+                    try {
+                        JAR_DL_LOCK.wait(500L);
+                    } catch (InterruptedException ignored) {
+                        break;
                     }
+                }
+                final String m = lastJarError;
+                if (m == null) post(callback::success);
+                else if (!useOld) post(() -> callback.error(m));
+                return;
+            }
+            jarDownloading = true;
+        }
 
-                    @Override
-                    public void onSuccess(Response<File> response) {
-                        File file = response.body();
-                        if (file != null && file.exists()) {
-                            try {
-                                if (jarLoader.load(file.getAbsolutePath())) {
-                                    callback.success();
-                                } else {
-                                    LOG.e("echo---jar Loader returned false");
-                                    callback.error("从网络上加载jar写入缓存后加载失败");
-                                }
-                            } catch (Exception e) {
-                                LOG.e("echo---jar Loader threw exception: " + e.getMessage());
-                                callback.error("JAR加载异常: " + e.getMessage());
-                            }
-                        } else {
-                            LOG.e("echo---jar File not found");
-                            callback.error("从网络上加载jar地址字节数据为空");
-                        }
+        Thread t = new Thread(() -> {
+            JarFetcher.Result r;
+            if (isImg) {
+                r = new JarFetcher.Result();
+                try {
+                    String txt = JarFetcher.fetchText(realUrl);
+                    byte[] data = getImgJar(txt);
+                    if (data == null || data.length == 0) {
+                        r.err = "组件地址里没有解出有效数据";
+                    } else {
+                        FileOutputStream fos = new FileOutputStream(part);
+                        fos.write(data);
+                        fos.flush();
+                        fos.close();
+                        r.file = part;
+                        r.bytes = data.length;
+                        r.expected = data.length;
+                        r.ok = md5.isEmpty() || md5.equalsIgnoreCase(MD5.getFileMd5(part));
                     }
+                } catch (Throwable th) {
+                    r.err = "组件数据解包失败：" + th.getMessage();
+                }
+            } else {
+                // 残包跨天就别续了：站点可能已经换了新包，接在旧字节后面拼出来的文件
+                // 一定是坏的，还会一直校验不过。
+                if (part.exists()
+                        && System.currentTimeMillis() - part.lastModified() > 12 * 3600_000L) {
+                    part.delete();
+                }
+                r = JarFetcher.fetch(realUrl, part, md5);
+            }
 
-                    @Override
-                    public void onError(Response<File> response) {
-                        Throwable ex = response.getException();
-                        if (ex != null) {
-                            LOG.i("echo---jar Request failed: " + ex.getMessage());
+            lastJarDiag = r.diag == null ? "" : r.diag;
+            LOG.i("echo---jar fetch: ok=" + r.ok + " bytes=" + r.bytes
+                    + " expected=" + r.expected + " " + lastJarDiag);
+
+            // -----------------------------------------------------------
+            // 3. 落地：先用 JarLoader 真的 load 一遍，能跑才替换缓存。
+            //    不先信 md5：站点把 md5 写错 / 缓存页脏了的情况很常见，
+            //    包本身是好的却因为一个字符串被丢掉，用户只能干瞪眼。
+            // -----------------------------------------------------------
+            boolean installed = false;
+            if (r.file != null && r.file.exists() && r.file.length() > 0) {
+                String got = MD5.getFileMd5(r.file);
+                boolean md5Ok = md5.isEmpty() || md5.equalsIgnoreCase(got);
+                try {
+                    installed = jarLoader.load(r.file.getAbsolutePath());
+                } catch (Throwable th) {
+                    LOG.e("echo---jar Loader threw: " + th.getMessage());
+                }
+                if (installed) {
+                    if (!md5Ok)
+                        LOG.i("echo---jar md5 不符但能加载，接受 want=" + md5 + " got=" + got);
+                    File old = cache.exists() ? cache : null;
+                    if (old != null) old.delete();
+                    if (!r.file.renameTo(cache)) {
+                        // 极少数机型跨挂载点 rename 会失败，退化成复制
+                        if (copy(r.file, cache)) r.file.delete();
+                        else {
+                            installed = false;
+                            LOG.e("echo---jar 写入缓存失败");
                         }
-                        if(cache.exists())jarLoader.load(cache.getAbsolutePath());
-                        callback.error(ex != null ? "从网络上加载jar失败：" + ex.getMessage() : "未知网络错误");
                     }
-                });
+                    if (installed) lastJarDiag = lastJarDiag + " 已生效";
+                } else {
+                    // 关键：**半截的包要留着**。下一轮 Range 续传就靠它，
+                    // 删掉等于每次失败都从 0 开始，慢网永远下不完。
+                    boolean complete = r.expected > 0 && r.file.length() >= r.expected;
+                    if (complete) {
+                        r.file.delete();                   // 长度够了还 load 不起来：确实是坏包
+                    } else {
+                        lastJarDiag = lastJarDiag + " 残包保留(" + r.file.length() / 1024
+                                + "KB)，下次接着下";
+                    }
+                }
+            }
+
+            final boolean ok = installed;
+            final String msg = ok ? "" : (r.err == null || r.err.isEmpty() ? "组件下载失败" : r.err);
+            lastJarError = ok ? null : msg;
+            synchronized (JAR_DL_LOCK) {
+                jarDownloading = false;
+                JAR_DL_LOCK.notifyAll();
+            }
+            post(() -> {
+                if (ok) {
+                    LOG.i("echo---jar 新包已生效");
+                    if (!useOld) callback.success();
+                } else if (!useOld) {
+                    callback.error(msg);
+                }
+            });
+        }, "jar-fetch");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private static void post(Runnable r) {
+        try {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
+        } catch (Throwable th) {
+            r.run();
+        }
+    }
+
+    private static boolean copy(File src, File dst) {
+        FileInputStream in = null;
+        FileOutputStream out = null;
+        try {
+            in = new FileInputStream(src);
+            out = new FileOutputStream(dst);
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+            out.flush();
+            return true;
+        } catch (Throwable th) {
+            return false;
+        } finally {
+            try {
+                if (in != null) in.close();
+            } catch (Throwable ignored) {
+            }
+            try {
+                if (out != null) out.close();
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     private void parseJson(String apiUrl, File f) throws Throwable {

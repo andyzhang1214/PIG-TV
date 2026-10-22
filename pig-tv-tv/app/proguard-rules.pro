@@ -216,6 +216,10 @@
 }
 
 -keep class com.github.catvod.crawler.*{*;}
+# spider jar 运行时按类名直接调宿主 API（OkHttp / Util / Path …），
+# 只 keep crawler.* 会被 R8 改名成 androidx.base.*，jar 里一调就 NoClassDefFoundError。
+-keep class com.github.catvod.** { *; }
+-dontwarn com.github.catvod.**
 
 # magnet：解决模拟器推送 磁力链接 闪退
 -keep class com.xunlei.downloadlib.** {*;}
