@@ -69,6 +69,10 @@
 
   <!-- ================= 分类 ================= -->
   <section id="pC" class="page">
+    <!-- 和其它页一样有一个「分类」标题：纯粹是为了把 chips 从状态栏底下顶下来。
+         没有标题时 chips 会贴在 y=14px，被状态栏的时间和挖孔屏前摄压住
+         （.hdr 自带 calc(26px + var(--sat))，安全区由原生注入）。 -->
+    <div class="hdr"><div><span class="htitle">分类</span></div></div>
     <!-- 分类 chips 和筛选条直接排在页面顶部（不吸顶、不做「更多」收纳）：
          片源给十几个分类时宁可让这一行横向滚，也别把它们藏起来。 -->
     <div class="chips" id="catChips"></div>
