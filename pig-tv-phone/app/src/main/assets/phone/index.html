@@ -47,6 +47,10 @@
 
     <div class="hero" id="hero" onclick="heroClick()"></div>
 
+    <!-- 冷启动先铺上一次的首页数据时，必须让用户知道「这是旧的」。
+         否则接口已经换了内容 / 已经挂了，用户还以为看到的是最新的。 -->
+    <div class="staleTip" id="staleTip" style="display:none"></div>
+
     <!-- 分类入口已移除：底部 Tab 里就是分类，首页不再重复一排图标 -->
 
     <div id="contWrap" style="display:none">
@@ -371,8 +375,10 @@ window.__evt = function(name, s){
   try{ d = JSON.parse(s) || {}; }catch(e){ return; }
   try{
     if (name === 'jar'){
-      /* 后台把组件续传完了：页面自己重新拉一次数据，用户不用点任何按钮 */
-      if (d.done){ if (!ST.hero.length) loadAll(); return; }
+      /* 后台把组件续传完了：页面自己重新拉一次数据，用户不用点任何按钮。
+         有缓存时 ST.hero 不为空，但那时候屏幕上摆的是旧内容 —— 也要重拉，
+         否则组件下完了页面还停在「上次的内容」上不动。 */
+      if (d.done){ if (!ST.hero.length || homeCacheStale) loadAll(); return; }
       onJarProgress(d);
     }
   }catch(e){ console.log('evt error', e); }
@@ -641,6 +647,7 @@ function shuffleHome(){
   var rot = ST.hot.slice(off).concat(ST.hot.slice(0, off));
   ST.hot = rot;
   renderHot();
+  homeCacheSaveSoon();   // 下次打开还是这一批，别一开 App 就跳回原顺序
   toast('换了一批');
 }
 
@@ -744,6 +751,103 @@ function onJarProgress(d){
 }
 window.onJarProgress = onJarProgress;
 
+/* =====================================================================
+   首页缓存（上一次关掉 App 前看到的内容）
+   ---------------------------------------------------------------------
+   冷启动要先下 1~2MB 的 spider 组件，这段时间首页只能显示「组件下载卡住
+   493 / 1024KB」这种错误卡 —— 明明昨天还看得好好的，一开 App 就像坏了。
+   所以把最后一次成功展示的首页（站名 + 分类 + 推荐池 + 当前 banner 下标）
+   落一份到 localStorage，启动时先原样铺出来，config 回包后再换成新的。
+
+   三条纪律：
+   1) 缓存只负责「先垫一下」，任何真实回包都比它新，一律覆盖；
+   2) 换片源 / 换接口 / 清缓存时必须删掉 —— 否则会拿 A 站的海报点进 B 站；
+   3) 存不下（配额满、WebView 关了 DomStorage）就静默跳过。
+      所有 localStorage 访问都包了 try：缓存坏了不能让首页本身跟着挂。
+   ===================================================================== */
+var HC_KEY = 'pig.home.v1';
+var HC_TTL = 7 * 24 * 3600e3;   // 超过一周的内容不再当「上次」用
+var HC_MAX = 300 * 1024;        // 单条缓存的软上限，超了先砍推荐条数
+var homeCacheStale = false;     // 现在屏幕上是不是缓存内容（还没被新回包换掉）
+var hcTimer = null;
+
+/* 只留首页真正用到的字段：actor / director 这种长文本存进缓存没意义，
+   24 条一起存只会白白撑大 localStorage。 */
+function hcItem(v){
+  if (!v || !nz(v.name)) return null;
+  return {
+    id: nz(v.id), name: nz(v.name), pic: nz(v.pic), note: nz(v.note),
+    type: nz(v.type), year: v.year || 0, area: nz(v.area), key: nz(v.key),
+    des: nz(v.des).slice(0, 160)
+  };
+}
+
+function homeCacheSave(){
+  try{
+    if (!ST.sorts.length && !ST.hot.length && !ST.hero.length) return;
+    var data = {
+      v: 1, ts: Date.now(),
+      source: ST.source || '', api: ST.apiUrl || '',
+      heroIdx: ST.heroIdx || 0,
+      sorts: ST.sorts,
+      hero: ST.hero.slice(0, 5).map(hcItem).filter(Boolean),
+      hot: ST.hot.slice(0, 24).map(hcItem).filter(Boolean)
+    };
+    var s = JSON.stringify(data);
+    /* 分类自带的 filters 有时特别长。真超了就砍推荐条数 —— 写不进去
+       （QuotaExceeded）等于整份缓存失效，那才是白忙。 */
+    if (s.length > HC_MAX) data.hot = data.hot.slice(0, 12);
+    localStorage.setItem(HC_KEY, JSON.stringify(data));
+  }catch(e){}
+}
+/* 热池是一条条补进来的，每条都写一次 localStorage 太浪费，合并一下 */
+function homeCacheSaveSoon(){
+  clearTimeout(hcTimer);
+  hcTimer = setTimeout(homeCacheSave, 800);
+}
+
+function homeCacheClear(){
+  clearTimeout(hcTimer);
+  try{ localStorage.removeItem(HC_KEY); }catch(e){}
+  homeCacheStale = false;
+  showStaleTip(0);
+}
+
+function homeCacheLoad(){
+  try{
+    var raw = localStorage.getItem(HC_KEY);
+    if (!raw) return false;
+    var d = JSON.parse(raw);
+    if (!d || d.v !== 1) return false;
+    if (!d.ts || Date.now() - d.ts > HC_TTL) return false;
+    var hot = d.hot || [], hero = d.hero || [];
+    if (!hot.length && !hero.length) return false;
+    ST.sorts = d.sorts || [];
+    ST.hero = hero;
+    ST.hot = hot.length ? hot : hero.slice();
+    ST.heroIdx = d.heroIdx || 0;
+    if (d.source) applySourceName(d.source);
+    if (d.api) ST.apiUrl = d.api;
+    homeCacheStale = true;
+    return true;
+  }catch(e){ return false; }
+}
+
+/* mode: 0 隐藏 / 1 正在更新 / 2 接口连不上，只能用旧的 */
+function showStaleTip(mode){
+  var el = document.getElementById('staleTip');
+  if (!el) return;
+  if (!mode){ el.style.display = 'none'; el.className = 'staleTip'; return; }
+  el.className = 'staleTip' + (mode === 2 ? ' warn' : '');
+  el.textContent = mode === 2
+    ? '接口暂时连不上，先显示上次的内容 · 点下面的「重新加载」可以再试'
+    : '显示的是上次的内容，正在更新…';
+  el.style.display = 'flex';
+}
+window.showStaleTip = showStaleTip;
+/* 回归脚本 / 排查时用得上，业务代码不要依赖它 */
+window.__homeCache = {load: homeCacheLoad, save: homeCacheSave, clear: homeCacheClear};
+
 function loadAll(){
   /* 片源换了，直播分组也跟着换（直播列表就挂在接口配置里） */
   resetLive();
@@ -784,8 +888,11 @@ function loadAll(){
       /* 已经显示着内容时，一次刷新失败绝不把页面擦掉。
          后台续传、晚到的第二次 config、切页面回来……任何一个失败回包都能
          把用户正在看的首页换成空态，这是最像「App 坏了」的行为。
-         有内容就留着，只用一条 toast 说明刷新失败。 */
+         有内容就留着，只用一条 toast 说明刷新失败。
+         如果这份内容是上次缓存的，还要把提示条换成「连不上」——
+         不然用户会以为看到的是今天的新片。 */
       if (ST.hero.length || ST.hot.length){
+        if (homeCacheStale) showStaleTip(2);
         toast('刷新失败：' + (d.msg || d.jarError || '接口没有返回内容') + '（内容保持不动）');
         return;
       }
@@ -826,12 +933,24 @@ function loadAll(){
     // 先用片源自带的推荐打底，再让 fillHotPool() 用「全部分类」补齐：
     // 很多源的首页推荐只覆盖某一个分类（往往就是某个地区），
     // 直接展示等于整个首页被那个分类占满。
-    ST.hero = (d.rec || []).slice(0, 5);
-    ST.hot = (d.rec || []).slice();
+    /* 新回包带了推荐就整份换掉；没带（不少源的 homeContent 只给分类）时，
+       缓存内容先留着当打底，等 fillHotPool 从各分类补上来 ——
+       否则首页会先塌成「正在挑选推荐…」，缓存等于白存。 */
+    var rec = d.rec || [];
+    if (rec.length || !homeCacheStale){
+      ST.hero = rec.slice(0, 5);
+      ST.hot = rec.slice();
+    }
+    /* 接口已经给了真实回包（分类拿到了），提示条可以收了。
+       哪怕内容还是缓存里的，也说明网络是通的，不该继续挂「正在更新」。 */
+    homeCacheStale = false;
+    showStaleTip(0);
     renderHero();
     renderHot();
     fillHotPool();
     loadHist();
+    /* 换片源后「下次打开看到什么」就是这一次的结果，落盘 */
+    homeCacheSaveSoon();
   });
 }
 
@@ -910,6 +1029,7 @@ function fillHotPool(){
         renderHero();
       }
       renderHot();
+      homeCacheSaveSoon();   // 池子又长了一截，攒着写一次
     });
   });
 }
@@ -974,6 +1094,9 @@ function resetSourceState(){
   hotSeq++;                                  // 作废还在飞的推荐池请求
   catLoading = false; catDone = false;
   hotBase = []; hotBucket = [];              // 推荐池的中间状态也是旧片源的
+  /* 缓存跟着一起删：换片源后还留着上一个站的首页，
+     冷启动就会拿 A 站的海报点进 B 站，取到的详情全是错的。 */
+  homeCacheClear();
   resetLive();                               // 直播分组挂在接口配置里，一起重来
 }
 
@@ -2297,6 +2420,7 @@ function clearCacheNow(){
     toast('正在清理…');
     ncall('clearCache', [], function(d){
       if (d && d.ok){
+        homeCacheClear();      // 首页缓存也属于「缓存」，说了清就得清干净
         var el = document.getElementById('cacheHint');
         if (el) el.textContent = fmtSize(d.bytes);
         var freed = (d.before || 0) - (d.bytes || 0);
@@ -2452,12 +2576,27 @@ window.addEventListener('resize', function(){
   window.__onResize();
 });
 
+/* 离开前把当前首页落盘。pagehide / 切后台都会走：安卓上直接杀进程时
+   可能收不到 pagehide，所以 loadAll 成功和热池补完时也各存了一次，
+   这里只是补一份「最后一次看到的样子」（比如用户点了「换一批」）。 */
+window.addEventListener('pagehide', homeCacheSave);
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden) homeCacheSave();
+});
+
 /* 初始化 */
 (function init(){
+  /* 先把上次关掉前看到的那一屏铺出来，再去等原生 —— 冷启动下组件要下
+     1~2MB，这几十秒里屏幕上是昨天的内容，而不是「组件下载卡住 493KB」。 */
+  var restored = homeCacheLoad();
   renderHero();
+  renderHot();
+  if (restored) showStaleTip(1);
   bindHeroSwipe();
   loadPlayPref();
   refreshSettings();   // 「我的」里的缓存大小 / 站点数 / DNS 先填上，进页面不闪
+  /* 继续观看来自原生数据库，不依赖 spider 组件，冷启动也能立刻显示 */
+  loadHist();
 })();
 </script>
 </body>
