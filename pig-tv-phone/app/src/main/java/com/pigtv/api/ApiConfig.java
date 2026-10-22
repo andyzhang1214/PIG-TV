@@ -419,6 +419,18 @@ public class ApiConfig {
         // 直播播放请求头
         livePlayHeaders = infoJson.getAsJsonArray("livePlayHeaders");
         // 远端站点源
+        //
+        // 【必须先清空】sourceBeanList 是 final LinkedHashMap，原来这里只 put 不 clear，
+        // 换接口时上一份配置的站点**原样留在表里**，于是：
+        //   1) 「线路切换」里还能看到上一个接口的线路（用户报的"换了接口线路没变"）；
+        //   2) 更糟的是 Hawk 里的 HOME_API 还是旧接口的 site key，下面
+        //      getSource(home) 依然能命中旧站点 → setSourceBean(旧站点) →
+        //      首页/分类/搜索全部继续走旧接口。而 spider 字段早就换成新接口的，
+        //      jar 也跟着换了，旧站点里 type=3 的站点没有对应 class →
+        //      列表全是空的（用户报的"线路里的片源显示不出来"）。
+        // 两个症状同一个根因，都在这一行。
+        sourceBeanList.clear();
+        mHomeSource = null;
         SourceBean firstSite = null;
         JsonArray sites = infoJson.has("video") ? infoJson.getAsJsonObject("video").getAsJsonArray("sites") : infoJson.get("sites").getAsJsonArray();
         for (JsonElement opt : sites) {

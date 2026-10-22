@@ -48,6 +48,15 @@
     --bgVig:radial-gradient(120% 78% at 50% 34%,transparent 42%,rgba(0,0,0,.58) 100%);
     --ease:cubic-bezier(.22,1,.36,1);
     --tabh:62px;
+    /* 底部 Dock（iOS 悬浮玻璃条）。背景/描边/顶部高光/落影/选中态全在这几个变量里，
+       深色是默认值，两套浅色在下面各自覆盖 —— 别在 #tabs 里写死颜色，
+       否则浅色模式下会出现「浅底上压一块黑玻璃」。 */
+    --dockBg:rgba(20,20,26,.78);
+    --dockLine:rgba(255,255,255,.10);
+    --dockHi:rgba(255,255,255,.20);   /* 顶边那道高光，玻璃质感主要靠它 */
+    --dockShadow:0 14px 34px rgba(0,0,0,.52),0 2px 8px rgba(0,0,0,.38);
+    --dockSel:rgba(255,122,69,.17);
+    --dockSelLine:rgba(255,122,69,.30);
     /* 状态栏 / 导航栏高度：Android WebView 的 env(safe-area-inset-*) 恒为 0，
        实际值由原生 PhoneActivity 在页面加载后注入（--sat / --sab）。 */
     --sat:env(safe-area-inset-top,0px);
@@ -90,6 +99,12 @@
         radial-gradient(700px 520px at 50% 106%,rgba(150,160,205,.24),transparent 74%),
         linear-gradient(172deg,#FDF9F4 0%,#F6F2EC 44%,#EFEAE3 100%);
       --bgVig:radial-gradient(120% 78% at 50% 34%,transparent 50%,rgba(150,135,120,.22) 100%);
+      --dockBg:rgba(255,255,255,.82);
+      --dockLine:rgba(23,24,28,.09);
+      --dockHi:rgba(255,255,255,.90);
+      --dockShadow:0 12px 28px rgba(70,45,30,.16),0 1px 3px rgba(70,45,30,.10);
+      --dockSel:rgba(226,90,30,.12);
+      --dockSelLine:rgba(226,90,30,.26);
     }
   }
   /* 原生兜底：老 WebView 不认识 prefers-color-scheme 时靠这个属性切 */
@@ -127,6 +142,12 @@
       radial-gradient(700px 520px at 50% 106%,rgba(150,160,205,.24),transparent 74%),
       linear-gradient(172deg,#FDF9F4 0%,#F6F2EC 44%,#EFEAE3 100%);
     --bgVig:radial-gradient(120% 78% at 50% 34%,transparent 50%,rgba(150,135,120,.22) 100%);
+    --dockBg:rgba(255,255,255,.82);
+    --dockLine:rgba(23,24,28,.09);
+    --dockHi:rgba(255,255,255,.90);
+    --dockShadow:0 12px 28px rgba(70,45,30,.16),0 1px 3px rgba(70,45,30,.10);
+    --dockSel:rgba(226,90,30,.12);
+    --dockSelLine:rgba(226,90,30,.26);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{
@@ -149,9 +170,11 @@
     background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
 
   /* ---------- 滚动容器 ---------- */
+  /* Dock 是悬空的（离底 10dp + 安全区），滚动区要按「Dock 顶边」再留白，
+     否则最后一行内容会被玻璃条压住 */
   #scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;overflow-x:hidden;
     -webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;
-    padding-bottom:calc(var(--tabh) + 26px);scrollbar-width:none}
+    padding-bottom:calc(var(--tabh) + var(--sab) + 36px);scrollbar-width:none}
   #scroll::-webkit-scrollbar{display:none}
 
   .page{display:none}
@@ -349,17 +372,41 @@
     border-right:1.5px solid rgba(var(--ink),.24);border-bottom:1.5px solid rgba(var(--ink),.24);
     transform:rotate(-45deg) translateY(-1px)}
 
-  /* ---------- 底部 Tab ---------- */
-  #tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;height:calc(var(--tabh) + var(--sab));
-    padding-bottom:var(--sab);display:flex;
-    background:var(--tabBg);border-top:1px solid var(--divider);
-    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
-  .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:3px;color:var(--tx3);transition:color .16s}
-  .tab .ic{width:21px;height:21px}
-  .tab span{font-size:9.5px;letter-spacing:.2px}
+  /* ---------- 底部 Dock（iOS 悬浮玻璃条）----------
+     原来是贴底通栏 + 上边框，现在换成悬空的胶囊玻璃条：
+       · 左右各缩进 14dp、离底 10dp（再叠安全区），四周全圆角
+       · 半透明底 + 大模糊 + 细描边 + 顶边高光 + 落影 → 玻璃质感
+       · 选中项是「图标+文字」外面一块圆角药丸，图标轻微上浮并带一点橙色辉光
+     高度仍然只由 --tabh 决定，pad.css 里改 --tabh 就能整体缩放，
+     别在这里写死像素高度，否则两套样式会打架。 */
+  #tabs{position:fixed;left:14px;right:14px;bottom:calc(10px + var(--sab));
+    z-index:40;height:var(--tabh);display:flex;align-items:stretch;padding:0 8px;
+    border-radius:calc(var(--tabh) / 2);
+    background:var(--dockBg);
+    border:1px solid var(--dockLine);
+    box-shadow:var(--dockShadow),inset 0 1px 0 var(--dockHi);
+    /* saturate 压到 150%：默认值再高一点，海报底色会透成一片绿/紫，
+       玻璃条看着发脏；150% 还留着"透"，但主体仍偏中性。 */
+    backdrop-filter:blur(26px) saturate(150%);
+    -webkit-backdrop-filter:blur(26px) saturate(150%)}
+  .tab{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:2px;color:var(--tx3);transition:color .18s var(--ease)}
+  /* 选中态药丸画在 ::after 上，图标和文字各自抬一层盖住它 —— 
+     不这么做的话定位元素会盖住静态的 svg。
+     左右只留 4dp：药丸跟着 dock 自身的圆角做内嵌胶囊，这种「双曲线」是
+     现在 iOS 的原生观感，缩太窄反而像老式标签栏。 */
+  .tab.on::after{content:'';position:absolute;left:4px;right:4px;top:8px;bottom:8px;
+    z-index:0;border-radius:calc(var(--tabh) / 2 - 12px);
+    background:var(--dockSel);border:1px solid var(--dockSelLine)}
+  .tab .ic{position:relative;z-index:1;width:22px;height:22px;
+    transition:transform .26s var(--ease),filter .26s var(--ease)}
+  .tab span{position:relative;z-index:1;font-size:9.5px;letter-spacing:.2px;
+    transition:font-weight .18s}
+  /* 按下反馈走图标缩放，比整块变色更接近 iOS 的手感 */
+  .tab:active .ic{transform:scale(.88)}
   .tab.on{color:var(--ac)}
-  .tab.on .ic{filter:drop-shadow(0 0 8px rgba(255,122,69,.5))}
+  .tab.on .ic{transform:translateY(-1px);filter:drop-shadow(0 4px 10px rgba(255,122,69,.40))}
+  .tab.on span{font-weight:600}
 
   /* ---------- 详情弹层 ----------
      z-index 必须高于搜索层 #sov(70)：从搜索结果点进详情时搜索层没有关闭，
@@ -429,7 +476,7 @@
     border:1px solid var(--line);color:rgba(var(--ink),.75)}
 
   /* ---------- Toast ---------- */
-  #toast{position:fixed;left:50%;bottom:calc(var(--tabh) + 30px);transform:translate(-50%,14px);
+  #toast{position:fixed;left:50%;bottom:calc(var(--tabh) + var(--sab) + 34px);transform:translate(-50%,14px);
     z-index:90;max-width:78%;padding:11px 16px;border-radius:13px;background:rgba(30,30,38,.96);
     border:1px solid rgba(255,255,255,.12);font-size:12px;line-height:1.45;color:#fff;
     opacity:0;pointer-events:none;transition:opacity .2s,transform .24s var(--ease);
@@ -615,3 +662,68 @@
   border-radius:9px;background:rgba(var(--ink),.05)}
 .apiRen:active{background:rgba(var(--ink),.12)}
 .altRow.add .altN{color:var(--ac)}
+
+/* =====================================================================
+   直播页（#pLive）
+   ---------------------------------------------------------------------
+   2026-10-22 新增：原来直播只有「我的」里一个横屏入口，现在独立成页。
+   全部颜色走上面的 token，深浅色自动适配；不要在这段里写死白/黑色值，
+   否则浅色模式下文字会隐形。
+   ===================================================================== */
+/* 右上角「更换源」胶囊 */
+.srcBtn{flex:0 0 auto;display:flex;align-items:center;gap:5px;height:30px;padding:0 11px;
+  margin-top:2px;border-radius:15px;background:var(--card);border:1px solid var(--line);
+  font-size:11.5px;color:var(--tx2)}
+.srcBtn:active{background:var(--card2)}
+.srcBtn .ic{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* 统计行：小圆点 + 「128 个频道 · 8 个分组」 */
+.liveStat{display:flex;align-items:center;gap:6px;padding:10px 16px 0;
+  font-size:12px;color:var(--tx3)}
+.dot{width:6px;height:6px;border-radius:3px;background:var(--ac);flex:0 0 auto;
+  box-shadow:0 0 0 3px rgba(255,122,69,.16)}
+
+/* 两列频道卡片 */
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 16px 0}
+.lch{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;
+  background:var(--card);border:1px solid var(--line);min-width:0}
+.lch:active{background:var(--card2)}
+.logo{width:40px;height:40px;border-radius:11px;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;letter-spacing:-.4px;
+  background:linear-gradient(145deg,rgba(255,122,69,.22),rgba(255,180,84,.10));
+  color:var(--ac)}
+/* 三色轮换只是让一屏几十个方块不显得死板，没有语义 */
+.logo.b{background:linear-gradient(145deg,rgba(90,140,255,.20),rgba(120,90,255,.10));color:#7FA3FF}
+.logo.g{background:linear-gradient(145deg,rgba(70,200,150,.20),rgba(40,160,190,.10));color:#46C896}
+.lmeta{flex:1 1 auto;min-width:0}
+.lname{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lsub{margin-top:3px;font-size:10.5px;color:var(--tx3);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+
+/* 空态：没有直播源时的引导 */
+.empty{padding:72px 34px 0;text-align:center}
+.empty .ico{width:64px;height:64px;margin:0 auto 20px;border-radius:20px;
+  background:var(--card);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center}
+.empty .ico svg{width:28px;height:28px;stroke:var(--tx3);fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+.empty h3{font-size:16.5px;font-weight:700;margin-bottom:9px}
+.empty p{font-size:12.5px;color:var(--tx3);line-height:1.62}
+.empty .btn{display:inline-flex;align-items:center;height:42px;padding:0 24px;
+  margin-top:22px;border-radius:21px;background:var(--btnSolid);color:var(--btnInk);
+  font-size:13.5px;font-weight:650}
+.empty .btn:active{opacity:.82}
+
+/* 头像色块在浅色下要压深：--ac 会跟着主题变，但 .logo.b/.logo.g 的蓝绿是写死的，
+   直接用 #7FA3FF / #46C896 在白卡上几乎看不见。
+   两条规则缺一不可：
+     1) data-theme="light"  → 用户手动选浅色（系统可能是深色）
+     2) :root:not([data-theme]) + media → 跟随系统且系统是浅色 */
+html[data-theme="light"] .logo.b{color:#3F63C8}
+html[data-theme="light"] .logo.g{color:#1F8E63}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme]) .logo.b{color:#3F63C8}
+  :root:not([data-theme]) .logo.g{color:#1F8E63}
+}

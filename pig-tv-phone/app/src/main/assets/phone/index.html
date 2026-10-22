@@ -42,9 +42,7 @@
     <div class="search" onclick="openSearch()">
       <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
       <div class="ph">搜片名、演员、类型</div>
-      <div class="mic" onclick="event.stopPropagation();go('ai')">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.2l1.9 4.9 4.9 1.9-4.9 1.9L12 16.8l-1.9-4.9L5.2 10l4.9-1.9z"/></svg>
-      </div>
+      <!-- 右侧原来有个「问 AI」圆钮，2026-10-22 整页删除 AI 后这里也一起去掉 -->
     </div>
 
     <div class="hero" id="hero" onclick="heroClick()"></div>
@@ -83,50 +81,42 @@
     <div style="height:6px"></div>
   </section>
 
-  <!-- ================= 问 AI ================= -->
-  <section id="pA" class="page">
-    <div class="aitop">
-      <div class="back" onclick="go('home')">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7"/></svg>
-      </div>
-      <div>
-        <div class="aitopT">问 AI</div>
-        <div class="aitopS">说一句人话，我来帮你找</div>
-      </div>
-    </div>
-
-    <div class="aiin">
-      <textarea class="aiinQ" id="aiQ" rows="2" placeholder="比如：90 年代的香港爱情片"></textarea>
-      <div class="aiinBar">
-        <div class="aiinHint">
-          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.2l1.9 4.9 4.9 1.9-4.9 1.9L12 16.8l-1.9-4.9L5.2 10l4.9-1.9z"/></svg>
-          本地语义解析 · 解析后走全站搜索
-        </div>
-        <div class="send" onclick="aiRun()">
-          <svg class="ic" viewBox="0 0 24 24"><path d="M4.5 11.6L20 4.5l-6.2 15-2.2-6.3z"/></svg>
-        </div>
+  <!-- ================= 直播 ================= -->
+  <!-- 2026-10-22 新开的一页：原来「问 AI」占着第三个 Tab，用户要求去掉 AI，
+       把电视直播从「我的」里提出来单独成页（两列频道卡片 + 分组 chips）。
+       数据全部来自当前片源接口自带的直播列表，桥方法 liveGroups(cbId)。 -->
+  <section id="pLive" class="page">
+    <div class="hdr">
+      <div><span class="htitle">直播</span></div>
+      <!-- 右上角「更换源」和「我的 → 直播源」进的是同一个配置页 -->
+      <div class="srcBtn" onclick="openLiveCfg()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 9h12l-3-3"/><path d="M20 15H8l3 3"/></svg>
+        更换源
       </div>
     </div>
 
-    <div id="aiBefore">
-      <div class="exlab">试试这些</div>
-      <div class="ex" id="aiEx"></div>
-      <div class="cap">
-        <div class="capH">能听懂这些</div>
-        <div class="capR"><b>类型</b><span>动作、悬疑、科幻、喜剧、犯罪、动画、战争、纪录、都市</span></div>
-        <div class="capR"><b>地区</b><span>内地、香港、台湾、美国、日本、韩国、欧洲</span></div>
-        <div class="capR"><b>年代</b><span>九十年代、1994、2020 到 2024、这两年、去年</span></div>
-        <div class="capR"><b>演员</b><span>说「刘德华演的」这类句式</span></div>
-        <div class="capR"><b>片名</b><span>用书名号《流浪地球》最准</span></div>
-      </div>
+    <!-- 统计行：有频道时才显示 -->
+    <div class="liveStat" id="liveStat" style="display:none">
+      <span class="dot"></span><span id="liveStatT"></span>
     </div>
 
-    <div id="aiAfter" style="display:none">
-      <div class="parse" id="parse"></div>
-      <div class="sec"><div><span class="secT">为你找到</span><span class="secS" id="aiCnt"></span></div></div>
-      <div class="grid2" id="gridAi"></div>
-      <div id="aiRel"></div>
+    <!-- 分组 chips：第一个永远是「全部」，后面按片源给的 groupIndex 顺序铺 -->
+    <div class="chips" id="liveChips" style="display:none"></div>
+
+    <div class="lgrid" id="liveGrid"></div>
+
+    <!-- 空态：接口没有直播、用户还没填直播源、或者填的是「自定义直播源」
+         （后者频道要播放器自己去拉，这里拿不到，所以文案和按钮都不一样） -->
+    <div class="empty" id="liveEmpty" style="display:none">
+      <div class="ico">
+        <svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2.2"/><path d="M8 8V5.6M16 8V5.6"/><path d="M9 14h6"/></svg>
+      </div>
+      <h3 id="liveEmptyT">还没有直播源</h3>
+      <p id="liveEmptyP">当前片源接口没有自带直播，<br>或者你还没填过直播源地址。</p>
+      <div class="btn" id="liveEmptyCfg" onclick="openLiveCfg()">去配置直播源</div>
+      <div class="btn" id="liveEmptyPlay" style="display:none" onclick="openLivePlayer()">进入播放器</div>
     </div>
+
     <div style="height:6px"></div>
   </section>
 
@@ -147,10 +137,7 @@
         <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.5V12l3.2 2"/></svg>
         观看历史<span class="v" id="histCnt">0</span>
       </div>
-      <div class="meitem" onclick="AndroidPhone.openLive()">
-        <svg class="ic" viewBox="0 0 24 24"><rect x="3.6" y="5.6" width="16.8" height="12.8" rx="3"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><path d="M7 3.4l2 2.2M17 3.4l-2 2.2"/></svg>
-        电视直播<span class="v">横屏播放</span>
-      </div>
+      <!-- 「电视直播」入口已移到独立页面（底部 Tab 第三个），这里不再重复 -->
       <div class="meitem" onclick="openSearch()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
         全站搜索<span class="v">多源聚合</span>
@@ -241,13 +228,16 @@
     <svg class="ic" viewBox="0 0 24 24"><path d="M3.5 10.5L12 3.6l8.5 6.9"/><path d="M6 9.6V20h12V9.6"/></svg>
     <span>首页</span>
   </div>
+  <!-- data-p 仍然是 'cat'，只改文案：内部路由（go('cat') / ST.curSort）全都靠 cat，
+       改 key 会牵连 openSort/reloadCat 一整片逻辑，收益为零。 -->
   <div class="tab" data-p="cat" onclick="go('cat')">
     <svg class="ic" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg>
-    <span>分类</span>
+    <span>影视</span>
   </div>
-  <div class="tab" data-p="ai" onclick="go('ai')">
-    <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.2l1.9 4.9 4.9 1.9-4.9 1.9L12 16.8l-1.9-4.9L5.2 10l4.9-1.9z"/><path d="M18.4 15.4l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/></svg>
-    <span>问 AI</span>
+  <!-- 第三个 Tab 原来是「问 AI」，2026-10-22 整页删除 AI，位置让给「直播」 -->
+  <div class="tab" data-p="live" onclick="go('live')">
+    <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2.2"/><path d="M8 8V5.6M16 8V5.6"/><circle cx="12" cy="14" r="2.1" fill="currentColor" stroke="none"/></svg>
+    <span>直播</span>
   </div>
   <div class="tab" data-p="me" onclick="go('me')">
     <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.6-3.6 3.6-5.6 7.2-5.6s6.6 2 7.2 5.6"/></svg>
@@ -464,7 +454,11 @@ var ACTS = {
   sort:     function(v){ openSort(v); },             // 分类 chips
   flt:      function(v){ openFlt(v); },              // 筛选条上某一组
   aw:       function(v){ sPick(v); },                // 搜索热词
-  aifill:   function(v){ aiFill(v); }                // AI 示例问句
+  lg:       function(v){ livePick(v); },              // 直播页分组 chips（v='' 表示全部）
+  lch:      function(v){                              // 直播页频道卡片（v="分组下标,频道下标"）
+              var a = String(v).split(',');
+              openLiveChannel(+a[0], +a[1]);
+            }
 };
 document.addEventListener('click', function(e){
   var el = e.target;
@@ -623,6 +617,8 @@ function emptyHTML(msg){
    数据加载
    ===================================================================== */
 function loadAll(){
+  /* 片源换了，直播分组也跟着换（直播列表就挂在接口配置里） */
+  resetLive();
   ncall('config', [], function(d){
     if (d.needConfig){
       showCfg(0);
@@ -778,7 +774,10 @@ function resetSourceState(){
   ST.hero = []; ST.items = []; ST.hot = []; ST.sorts = [];
   ST.curSort = null; ST.filt = {}; filtInit = {};
   catSeq++;                                  // 作废还在飞的分类请求
+  hotSeq++;                                  // 作废还在飞的推荐池请求
   catLoading = false; catDone = false;
+  hotBase = []; hotBucket = [];              // 推荐池的中间状态也是旧片源的
+  resetLive();                               // 直播分组挂在接口配置里，一起重来
 }
 
 /* 分类 chips：片源给多少就铺多少，横向滚动。
@@ -1369,7 +1368,7 @@ function doSearch(query){
     var list = d.list || [];
     state.style.display = 'block';
     if (!list.length){
-      state.innerHTML = '没有找到「' + esc(q) + '」<br><span style="font-size:11px;color:rgba(var(--ink),.42)">换个词，或者去「问 AI」描述一下</span>';
+      state.innerHTML = '没有找到「' + esc(q) + '」<br><span style="font-size:11px;color:rgba(var(--ink),.42)">换个词，或者只搜片名里的一两个字</span>';
       return;
     }
     state.textContent = '在 ' + (d.sites || 0) + ' 个站点里找到 ' + list.length + ' 部';
@@ -1381,173 +1380,169 @@ function doSearch(query){
 }
 
 /* =====================================================================
-   问 AI（本地语义解析 + 真搜索）
+   直播页
+   数据来自「当前片源接口自带的直播列表」，等同原生
+   ApiConfig.get().getChannelGroupList()，一次全量给前端（几十到几百条，很小）。
+   桥方法两个：
+     liveGroups(cbId)                     → {groups:[{index,name,channels:[{index,num,name,urls,srcs}]}]}
+     openLiveAt(groupIndex, channelIndex) → 直接进 LivePlayActivity 并定位到该频道
    ===================================================================== */
-var EX = ['90 年代的香港爱情片','这两年的国产悬疑','刘德华演的警匪片','适合孩子看的动画','2020 到 2024 的科幻大片'];
-function renderEx(){
-  document.getElementById('aiEx').innerHTML = EX.map(function(t){
-    return '<div class="exc" data-act="aifill" data-val="' + esc(t) + '">' +
-      '<svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>' +
-      '<span>' + esc(t) + '</span></div>';
-  }).join('');
-}
-function aiFill(t){
-  document.getElementById('aiQ').value = t;
-  aiRun();
-}
+var liveSt = {loaded:false, loading:false, seq:0, groups:[], flat:[], g:null, proxy:false};
 
-var AI_G = ['动作','爱情','科幻','喜剧','悬疑','犯罪','动画','战争','纪录','古装','都市','恐怖','奇幻'];
-var AI_ALIAS = [[/警匪|黑帮/,'犯罪'],[/武侠|功夫|打斗/,'动作'],[/搞笑|逗比/,'喜剧'],[/恐怖|惊悚/,'悬疑'],[/谈恋爱的/,'爱情']];
-var AI_RMAP = [[/港片|港剧|香港/,'香港'],[/台湾|台剧|台片/,'台湾'],[/日剧|日影|日本|日漫/,'日本'],
-  [/韩剧|韩国/,'韩国'],[/好莱坞|欧美|美剧|美片|美国/,'美国'],[/国产|国剧|大陆|内地/,'内地'],
-  [/泰国|泰剧/,'泰国'],[/欧洲|英剧|法剧/,'欧洲']];
-var AI_RWORD = /港片|港剧|港产|香港|台剧|台片|台湾|日剧|日影|日漫|日本|韩剧|韩片|韩影|韩国|好莱坞|欧美|美剧|美片|美国|国产|国剧|大陆|内地|泰剧|泰国|英剧|法剧|欧洲/g;
-var AI_VERB = /^\s*(?:我想看|我要看|我想找|我想搜|我想|帮我找一下|帮我找|帮我搜|给我找|想看|要看|找一下|找一部|找一个|找点|找|有没有|推荐一下|推荐|来点|来一部)\s*/;
-var AI_STOP = ['最近很火','很火的','火爆','热门','高分','评分高','口碑好','经典','好看的','好看的片','一部','几部','片','剧',
-  '随便看看','随便','都行','看看','看点什么','不知道','有啥好看','什么好看'];
+/* 桥万一不回话（原生线程卡住、Activity 已经在销毁），20 秒后要把 loading 放开，
+   否则 liveSt.loading 永远是 true，这一页就永远停在「正在读取直播源…」再也不动。 */
+var LIVE_TIMEOUT = 12000;
 
-function aiNorm(s){ return String(s).replace(/[，。！？、,.!?~～\s]+/g, ' ').trim(); }
+function loadLive(force){
+  if (liveSt.loading) return;
+  if (liveSt.loaded && !force){ renderLive(); return; }
+  liveSt.loading = true;
+  var grid = document.getElementById('liveGrid');
+  grid.innerHTML = '<div class="loadmore" style="grid-column:1/-1;padding:34px 0">正在读取直播源…</div>';
+  document.getElementById('liveEmpty').style.display = 'none';
 
-function aiParse(raw){
-  var q = aiNorm(raw);
-  var r = {g:null, r:null, y0:null, y1:null, kw:null, act:null};
-  var now = new Date().getFullYear();
-  var work = q, m;
+  /* liveSeq 作废迟到的回调：连着点两次「更换源」回来，第一次的结果不能盖掉第二次 */
+  var seq = ++liveSt.seq;
+  var settled = false;
+  var timer = setTimeout(function(){
+    if (settled) return;
+    settled = true;
+    liveSt.loading = false;
+    /* 只放开 loading，不置 loaded：下次再进这一页会自动重试 */
+    if (seq === liveSt.seq) renderLive();
+  }, LIVE_TIMEOUT);
 
-  if ((m = q.match(/《([^》]{1,30})》/))) r.kw = m[1].trim();
-  work = work.replace(/《[^》]*》/g, ' ');
-  work = work.replace(AI_VERB, ' ');
+  ncall('liveGroups', [], function(d){
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    if (seq !== liveSt.seq) return;
+    liveSt.loading = false;
 
-  AI_G.forEach(function(x){
-    if (work.indexOf(x) >= 0){ if (!r.g) r.g = x; work = work.split(x).join(' '); }
+    var groups = (d && d.groups) || [];
+    liveSt.proxy = !!(d && d.proxy);
+    /* 读失败 / 一个频道都没有 → 不置 loaded。留给下次进页面重试，
+       否则「刚启动就点直播」拿到空结果会一直空到用户手动换源为止。 */
+    liveSt.loaded = !!(d && d.ok) && (groups.length > 0 || liveSt.proxy);
+    liveSt.groups = groups;
+    liveSt.flat = [];
+    groups.forEach(function(g){
+      (g.channels || []).forEach(function(c){
+        liveSt.flat.push({
+          gi: g.index, gn: g.name,
+          ci: c.index, num: c.num, name: c.name, srcs: c.srcs || 0
+        });
+      });
+    });
+    /* 换源后 groupIndex 会重新编号，旧选中项可能已经不存在 */
+    if (liveSt.g != null && !groups.some(function(g){ return g.index === liveSt.g; })) liveSt.g = null;
+    renderLive();
   });
-
-  work = work.replace(/电视剧|电影|剧集|影片|片子|动漫|动画片|综艺|节目|美剧|日剧|韩剧|港剧|剧/g, ' ');
-
-  if ((m = work.match(/(二十|三十|四十|五十|六十|七十|八十|九十)\s*年代/))){
-    var dec = {'二十':1920,'三十':1930,'四十':1940,'五十':1950,'六十':1960,'七十':1970,'八十':1980,'九十':1990};
-    r.y0 = dec[m[1]]; r.y1 = r.y0 + 9; work = work.replace(m[0], ' ');
-  } else if ((m = work.match(/((?:19|20)\d{2})\s*年代/))){
-    r.y0 = Math.floor(+m[1] / 10) * 10; r.y1 = r.y0 + 9; work = work.replace(m[0], ' ');
-  } else if ((m = work.match(/(?:^|[^\d])(\d{2})\s*年代/))){
-    var hh = +m[1];
-    r.y0 = hh >= 30 ? 1900 + hh : 2000 + hh;
-    r.y1 = r.y0 + 9;
-    work = work.replace(/\d{2}\s*年代/, ' ');
-  }
-
-  if (r.y0 == null){
-    if ((m = work.match(/((?:19|20)\d{2})\s*年?\s*(?:到|至|-|~)\s*((?:19|20)\d{2})/))){
-      r.y0 = +m[1]; r.y1 = +m[2]; work = work.replace(m[0], ' ');
-    } else if ((m = work.match(/((?:19|20)\d{2})\s*年?\s*(?:以后|之后|以来)/))){
-      r.y0 = +m[1]; work = work.replace(m[0], ' ');
-    } else if ((m = work.match(/((?:19|20)\d{2})\s*年?\s*(?:以前|之前)/))){
-      r.y1 = +m[1]; work = work.replace(m[0], ' ');
-    } else if ((m = work.match(/((?:19|20)\d{2})\s*年/))){
-      r.y0 = r.y1 = +m[1]; work = work.replace(m[0], ' ');
-    } else if (/这两年|最近两年|近两年/.test(work)){
-      r.y0 = now - 2; r.y1 = now; work = work.replace(/这两年|最近两年|近两年/g, ' ');
-    } else if (/最近|近年|新片|今年|最新的/.test(work)){
-      r.y0 = now - 3; r.y1 = now; work = work.replace(/最近|近年|新片|今年|最新的/g, ' ');
-    } else if (/去年/.test(work)){
-      r.y0 = r.y1 = now - 1; work = work.replace(/去年/g, ' ');
-    }
-  }
-
-  if (!r.g){
-    for (var i = 0; i < AI_ALIAS.length; i++){
-      if (AI_ALIAS[i][0].test(work)){ r.g = AI_ALIAS[i][1]; work = work.replace(AI_ALIAS[i][0], ' '); break; }
-    }
-  }
-  if (/孩子|儿童|亲子|小孩|少儿|宝宝|小朋友/.test(q)){
-    if (!r.g) r.g = '动画';
-    work = work.replace(/孩子|儿童|亲子|小孩|少儿|宝宝|小朋友|适合|看的|能看/g, ' ');
-  }
-
-  for (var j = 0; j < AI_RMAP.length; j++){
-    if (AI_RMAP[j][0].test(q)){ if (!r.r) r.r = AI_RMAP[j][1]; break; }
-  }
-  work = work.replace(AI_RWORD, ' ');
-
-  if ((m = q.match(/([\u4e00-\u9fa5]{2,4})(?:主演|出演|演的|饰)/))){
-    r.act = m[1];
-    work = work.replace(m[1], ' ');
-  }
-
-  if (!r.kw){
-    var rest = work;
-    AI_STOP.forEach(function(w){ rest = rest.split(w).join(' '); });
-    rest = rest.replace(/\s+/g, ' ').trim().replace(/^[的了和与及或\s]+|[的了和与及或\s]+$/g, '');
-    if (rest.length >= 2) r.kw = rest;
-  }
-  r.blank = !r.kw && !r.g && !r.r && r.y0 == null && r.y1 == null;
-  return r;
 }
 
-function aiPills(p){
-  var out = [];
-  if (p.kw) out.push('<span>关键词 <b>' + esc(p.kw) + '</b></span>');
-  if (p.g) out.push('<span>类型 <b>' + esc(p.g) + '</b></span>');
-  if (p.r) out.push('<span>地区 <b>' + esc(p.r) + '</b></span>');
-  if (p.y0 != null && p.y1 != null) out.push('<span>年份 <b>' + p.y0 + '–' + p.y1 + '</b></span>');
-  else if (p.y0 != null) out.push('<span>年份 <b>' + p.y0 + ' 以后</b></span>');
-  else if (p.y1 != null) out.push('<span>年份 <b>' + p.y1 + ' 以前</b></span>');
-  if (p.act) out.push('<span>演员 <b>' + esc(p.act) + '</b></span>');
-  if (p.blank) out.push('<span class="alt">没听懂，先给你看热门</span>');
-  return out.join('');
+/* 频道名 → 头像方块里的两三个字。CCTV-5 这类给 "C5"，其余取第一个有意义的字。 */
+function liveLogo(name){
+  var s = String(name || '');
+  var m = /cctv[\s\-]*(\d+)/i.exec(s);
+  if (m) return 'C' + m[1];
+  var t = s.replace(/高清|标清|超清|频道|电视台|卫视|综合|[\s\-（）()]/g, '').trim();
+  return (t.charAt(0) || s.charAt(0) || '·');
 }
 
-function aiRun(){
-  var raw = document.getElementById('aiQ').value.trim();
-  if (!raw){ toast('先说一句想看什么'); return; }
-  var p = aiParse(raw);
+function renderLive(){
+  var chips = document.getElementById('liveChips');
+  var grid = document.getElementById('liveGrid');
+  var stat = document.getElementById('liveStat');
+  var empty = document.getElementById('liveEmpty');
 
-  document.getElementById('aiBefore').style.display = 'none';
-  document.getElementById('aiAfter').style.display = 'block';
-  document.getElementById('parse').innerHTML =
-    '<div class="parseH"><span>我理解为</span><span class="parseQ">' + esc(raw) + '</span></div>' +
-    '<div class="pills">' + aiPills(p) +
-      '<span class="alt" onclick="aiReset()">换个说法</span></div>';
-  document.getElementById('aiCnt').textContent = '搜索中…';
-  document.getElementById('gridAi').innerHTML = '<div class="loadmore" style="padding:30px 0">正在全站搜索…</div>';
-
-  var keyword = p.kw || p.g || p.act || '';
-  if (!keyword && !p.g && !p.r){
-    document.getElementById('aiCnt').textContent = '没听懂';
-    document.getElementById('gridAi').innerHTML = emptyHTML('没听懂你想找什么');
+  if (!liveSt.flat.length){
+    chips.style.display = 'none';
+    stat.style.display = 'none';
+    grid.innerHTML = '';
+    grid.style.display = 'none';
+    /* 空态分两种，文案和按钮都不一样：
+       ① 真没有直播源 → 引导去配置
+       ② 用户填过「自定义直播源」→ 频道列表只有播放器能拉到（ApiConfig 只留了个
+          http://127.0.0.1:9978/proxy 占位组），这里就别再说"还没配"，免得用户以为没生效 */
+    var isProxy = !!liveSt.proxy;
+    document.getElementById('liveEmptyT').textContent =
+      isProxy ? '已设置自定义直播源' : '还没有直播源';
+    document.getElementById('liveEmptyP').innerHTML = isProxy
+      ? '频道列表由播放器按需加载，<br>点下面直接进播放器浏览。'
+      : '当前片源接口没有自带直播，<br>或者你还没填过直播源地址。';
+    document.getElementById('liveEmptyCfg').style.display = isProxy ? 'none' : 'inline-flex';
+    document.getElementById('liveEmptyPlay').style.display = isProxy ? 'inline-flex' : 'none';
+    empty.style.display = 'block';
     return;
   }
+  empty.style.display = 'none';
+  grid.style.display = 'grid';
 
-  ncall('search', [keyword], function(d){
-    var list = d.list || [];
-    // 客户端二次过滤：类型 / 地区 / 年份 / 演员
-    var hit = list.filter(function(v){
-      var t = nz(v.type) + ' ' + nz(v.name) + ' ' + nz(v.note);
-      if (p.g && t.indexOf(p.g) < 0) return false;
-      if (p.r && (nz(v.area) + t).indexOf(p.r) < 0) return false;
-      if (p.act && nz(v.actor).indexOf(p.act) < 0) return false;
-      if (p.y0 != null && v.year && v.year < p.y0) return false;
-      if (p.y1 != null && v.year && v.year > p.y1) return false;
-      return true;
-    });
-    var fell = false;
-    if (!hit.length && list.length){ hit = list.slice(0, 12); fell = true; }
-    document.getElementById('aiCnt').textContent = hit.length
-      ? (fell ? '没有完全匹配，先看这些' : hit.length + ' 部')
-      : '没找到';
-    document.getElementById('gridAi').innerHTML = hit.length
-      ? hit.map(function(v, i){ return posterHTML(v, i); }).join('')
-      : emptyHTML('没找到，换个说法试试');
-    ST.items = hit;
+  /* 统计行：「N 个频道 · M 个分组」 */
+  var gCnt = liveSt.groups.filter(function(g){ return (g.channels || []).length; }).length;
+  document.getElementById('liveStatT').textContent =
+    liveSt.flat.length + ' 个频道 · ' + gCnt + ' 个分组';
+  stat.style.display = 'flex';
+
+  /* 分组 chips：第一个固定「全部」 */
+  var html = '<div class="chip' + (liveSt.g == null ? ' on' : '') +
+    '" data-act="lg" data-val="">全部</div>';
+  liveSt.groups.forEach(function(g){
+    if (!(g.channels || []).length) return;
+    html += '<div class="chip' + (liveSt.g === g.index ? ' on' : '') +
+      '" data-act="lg" data-val="' + esc(String(g.index)) + '">' + esc(g.name) + '</div>';
   });
+  chips.innerHTML = html;
+  chips.style.display = 'flex';
+  centerChip(chips);
+
+  /* 频道卡片：两列。带参点击一律走 data-act 委托，不往 onclick 里拼字符串 */
+  var list = liveSt.g == null
+    ? liveSt.flat
+    : liveSt.flat.filter(function(c){ return c.gi === liveSt.g; });
+
+  var cls = ['', ' b', ' g'];
+  grid.innerHTML = list.map(function(c, i){
+    var sub = liveSt.g == null ? c.gn : ('频道 ' + c.num);
+    if (c.srcs > 1) sub += ' · ' + c.srcs + ' 路';
+    return '<div class="lch" data-act="lch" data-val="' + c.gi + ',' + c.ci + '">' +
+      '<div class="logo' + cls[i % 3] + '">' + esc(liveLogo(c.name)) + '</div>' +
+      '<div class="lmeta">' +
+        '<div class="lname">' + esc(c.name) + '</div>' +
+        '<div class="lsub">' + esc(sub) + '</div>' +
+      '</div></div>';
+  }).join('');
 }
 
-function aiReset(){
-  document.getElementById('aiQ').value = '';
-  document.getElementById('aiBefore').style.display = 'block';
-  document.getElementById('aiAfter').style.display = 'none';
-  document.getElementById('aiQ').focus();
+function livePick(v){
+  liveSt.g = (v === '' || v == null) ? null : +v;
+  renderLive();
+  /* 换分组后列表整体换掉，回到顶部再让用户往下看 */
+  var sc = document.getElementById('scroll');
+  if (sc && sc.scrollTop > 0){ scrollLockUntil = Date.now() + 400; sc.scrollTop = 0; }
 }
+
+function openLiveChannel(gi, ci){
+  try{
+    if (window.AndroidPhone && typeof AndroidPhone.openLiveAt === 'function'){
+      // 参数按字符串传（和这个桥里其它方法一致），原生侧再 parseInt
+      AndroidPhone.openLiveAt(String(gi), String(ci));
+    } else {
+      openLivePlayer();
+    }
+  }catch(e){ toast('当前接口没有直播源'); }
+}
+
+/* 空态里的「进入播放器」按钮：自定义直播源的频道只有原生播放器能加载 */
+function openLivePlayer(){
+  try{
+    AndroidPhone.openLive();
+  }catch(e){ toast('不在 App 内运行'); }
+}
+
+/* 如果用户从「我的 → 直播源」改了地址，或者切了片源接口，回来要重新拉一遍。
+   seq + 1 是为了把「正在飞的那次请求」作废掉，否则它回来还会把旧分组画上去。 */
+function resetLive(){ liveSt = {loaded:false, loading:false, seq:liveSt.seq + 1, groups:[], flat:[], g:null, proxy:false}; }
 
 /* =====================================================================
    收藏 / 历史 列表页
@@ -1582,6 +1577,11 @@ var cfgIsAdd = false;  // 这次打开表单是不是「添加新接口」
 var cfgEditUrl = '';   // 'name' 模式下改的是哪条接口
 
 function showCfg(isManual){ openCfgForm('api'); }
+
+/* 「我的 → 直播源」和直播页右上角「更换源」都调它。
+   注意：这个函数原来只在 HTML 里被 onclick 引用过，从来没有定义过，
+   点「直播源」那一行会直接抛 ReferenceError（看起来像点了没反应），这里补上。 */
+window.openLiveCfg = function(){ openCfgForm('live'); };
 
 function openCfgForm(mode, isAdd, editUrl, editName){
   cfgMode = mode;
@@ -1704,6 +1704,7 @@ function cfgSave(){
         setTimeout(function(){
           cfgClose();
           refreshSettings();
+          resetLive();   // 直播源换了，直播页下次进来要重新拉分组
           toast(url ? '直播源已更新' : '已恢复为接口自带直播源');
         }, 400);
       } else {
@@ -2134,12 +2135,12 @@ function askYes(){
 var state = {page:'home'};
 /* scrollLockUntil 在「状态」那一节声明（scrollCatTop / reloadCat 都在它前面用） */
 function go(p){
-  var map = {home:'pH', cat:'pC', ai:'pA', me:'pM', list:'pL'};
+  var map = {home:'pH', cat:'pC', live:'pLive', me:'pM', list:'pL'};
   Object.keys(map).forEach(function(k){
     var el = document.getElementById(map[k]);
     if (el) el.classList.toggle('on', k === p);
   });
-  var tabOf = {home:'home', cat:'cat', ai:'ai', me:'me', list:'me'};
+  var tabOf = {home:'home', cat:'cat', live:'live', me:'me', list:'me'};
   document.querySelectorAll('.tab').forEach(function(t){
     t.classList.toggle('on', t.dataset.p === tabOf[p]);
   });
@@ -2154,6 +2155,9 @@ function go(p){
     if (ST.sorts.length && !ST.curSort) openSort(ST.sorts[0].id);
   }
   if (p === 'me'){ loadHist(); refreshSettings(); }
+  /* 直播页：第一次进来才拉，之后靠 liveSt.loaded 复用（分组和频道不会中途变，
+     真正换了直播源时 openLiveCfg() 那边的回调会清掉这个标记）。 */
+  if (p === 'live') loadLive(false);
 }
 
 var toastT = null;
@@ -2226,7 +2230,6 @@ window.addEventListener('resize', function(){
 
 /* 初始化 */
 (function init(){
-  renderEx();
   renderHero();
   bindHeroSwipe();
   loadPlayPref();
