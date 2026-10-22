@@ -800,6 +800,23 @@ function loadAll(){
     ST.err = '';
     ST.diag = '';
     ST.sorts = d.sorts || [];
+    /* d.sorts 每次 config 都是全新对象。curSort 如果还指着上一份数组里的那个
+       对象，它带的 filters 就永远停在第一次解析出来的那一份上 —— 而筛选条只认
+       ST.curSort（不是按 id 去 ST.sorts 里重新找），于是会出现「分类 chips 正常、
+       筛选条却一直不出现」。这里按 id 重新绑到新对象上，找不到（换源了）就清空。 */
+    if (ST.curSort){
+      var kept = null;
+      for (var ci = 0; ci < ST.sorts.length; ci++){
+        if (ST.sorts[ci].id === ST.curSort.id){ kept = ST.sorts[ci]; break; }
+      }
+      ST.curSort = kept;
+    }
+    /* 停在分类页时，这次回包带来的新分类 / 新筛选要立刻反映出来 */
+    if (state.page === 'cat'){
+      renderCatChips();
+      renderCatFilt();
+      if (!ST.curSort && ST.sorts.length) openSort(ST.sorts[0].id);
+    }
     // 「片源接口」那行显示当前主机名（存了多个时显示数量），站点名交给「线路切换」
     refreshApiHint();
 
