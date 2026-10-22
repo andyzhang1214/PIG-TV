@@ -2005,14 +2005,15 @@ function cfgClose(){
   document.getElementById('cfg').classList.remove('on');
 }
 
-/* 内置推荐源。标准：配置 JSON 能拉到 + 组件（spider jar）下得来 + 站点本身活着。
+/* 内置推荐源。标准：配置 JSON 能拉到 + 组件（spider jar）能拿到 + 站点本身活着。
    盒子迷这里写的是 /禁止贩卖（真的配置 JSON，91 站）；
    /饭太硬 是它的导航网页（返回 7870 字节 HTML，标题「TVBOX 影视仓 CatBox」），
-   填进去只会解析失败，别放进来。 */
+   填进去只会解析失败，别放进来。
+   肥猫（http://肥猫.net/tv）曾经能用，但现在不可推荐：它的 jar 放在自家限流节点上，
+   实测只能拿到 61KB / 1048KB、且无视 Range，组件永远拼不完整。 */
 var QUICK_SRC = [
   {n:'qist 综合', d:'153 站 · 首选', u:'https://qist.wyfc.qzz.io/jsm.json'},
-  {n:'盒子迷',   d:'91 站',        u:'https://盒子迷.top/禁止贩卖'},
-  {n:'肥猫',     d:'40 站 · 备选',  u:'http://肥猫.net/tv'}
+  {n:'盒子迷',   d:'91 站',        u:'https://盒子迷.top/禁止贩卖'}
 ];
 
 /* 只在「填接口地址」的场景出现；直播源和改名模式清空 */
