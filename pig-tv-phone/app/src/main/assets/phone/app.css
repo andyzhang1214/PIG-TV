@@ -511,6 +511,21 @@
 
 /* 加载 / 空态 */
 .loadmore{padding:26px 16px;text-align:center;font-size:11.5px;color:var(--tx3)}
+/* 首页「这是上次的内容」提示条：夹在 hero 和「继续观看」之间。
+   只是说明，不是错误 —— 用弱化的灰，别做成红色横幅抢戏；
+   接口最终连不上时切到 .warn（用 --err），那才是需要用户动手的状态。 */
+.staleTip{
+  margin:10px 16px 2px;padding:9px 12px;border-radius:12px;
+  background:var(--card);border:1px solid var(--line);
+  font-size:11.5px;line-height:1.5;color:var(--tx2);
+  display:flex;align-items:center;gap:8px;
+}
+.staleTip::before{
+  content:"";width:5px;height:5px;border-radius:50%;
+  background:var(--ac);flex:0 0 auto;
+}
+.staleTip.warn{color:var(--err);border-color:rgba(255,107,107,.28)}
+.staleTip.warn::before{background:var(--err)}
 .emptyBox{padding:46px 18px;text-align:center}
 /* 空态是塞进 .grid2 里的一个 grid item，不横跨所有列就只占左边一列，
    文案看着像没居中 —— 分类、搜索、首页都会踩到，统一在这里管 */
