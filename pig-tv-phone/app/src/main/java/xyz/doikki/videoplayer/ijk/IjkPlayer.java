@@ -8,7 +8,7 @@ import android.os.Bundle;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
-import com.pigtv.util.PlayerHelper;
+import com.github.tvbox.osc.util.PlayerHelper;
 
 import java.io.IOException;
 import java.util.Map;

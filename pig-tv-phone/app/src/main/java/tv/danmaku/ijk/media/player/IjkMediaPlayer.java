@@ -42,8 +42,8 @@ import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
-import com.pigtv.base.App;
-import com.pigtv.util.FileUtils;
+import com.github.tvbox.osc.base.App;
+import com.github.tvbox.osc.util.FileUtils;
 
 import java.io.BufferedReader;
 import java.io.File;
