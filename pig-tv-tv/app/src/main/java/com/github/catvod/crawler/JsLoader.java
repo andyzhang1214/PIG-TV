@@ -3,13 +3,13 @@ package com.github.catvod.crawler;
 
 import android.util.Log;
 
-import com.github.tvbox.osc.base.App;
+import com.pigtv.base.App;
 
-import com.github.tvbox.osc.util.FileUtils;
-import com.github.tvbox.osc.util.LOG;
-import com.github.tvbox.osc.util.MD5;
+import com.pigtv.util.FileUtils;
+import com.pigtv.util.LOG;
+import com.pigtv.util.MD5;
 
-import com.github.tvbox.osc.util.js.JsSpider;
+import com.pigtv.util.js.JsSpider;
 import com.lzy.okgo.OkGo;
 
 import java.io.File;

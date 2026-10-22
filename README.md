@@ -18,8 +18,16 @@
 | **手机版** | 全新：TVBox 原本只有电视一套 UI，本项目的手机版是独立 Activity + WebView 前端（`assets/phone/` 下的 HTML/CSS/JS），原生能力通过 `PhoneBridge` 以 `@JavascriptInterface` 暴露 |
 | 品牌 | 猪猪影视 / PIG-TV，图标、启动图、应用名全部替换 |
 
-包名仍是 `com.github.tvbox.osc.tk`（电视版）/ `com.github.tvbox.osc.tk.phone`（手机版），
-**故意不改** —— 改了会被系统当成新应用，旧版配好的片源和观看历史都继承不过来。
+包名已经改为本项目自己的：
+
+| | 包名 |
+|---|---|
+| 电视版 | `com.pigtv.tv`（海信定制 flavor：`com.pigtv.tv.hisense`） |
+| 手机版 | `com.pigtv.phone`（海信定制 flavor：`com.pigtv.phone.hisense`） |
+| 代码根包 | `com.pigtv` |
+
+⚠️ **这是一款全新的应用**，和旧版 TVBox 签名的包不共存：装上新版后，旧版配好的片源、
+观看历史、设置都不会继承过来，需要重新配置。旧版可以单独留着不用卸载。
 
 ---
 
