@@ -197,11 +197,16 @@ public class SourceViewModel extends ViewModel {
                 @Override
                 public void run() {
                     ExecutorService executor = Executors.newSingleThreadExecutor();
+                    // spider 没加载起来（jar 没下完 / 下载失败 / 类名不对）时，
+                    // JarLoader 给的是 SpiderNull，它的 homeContent() 直接返回 ""。
+                    // 记下来，好在下面给出「组件没加载好」而不是「站点返回的不是 JSON」。
+                    final boolean[] noSpider = {false};
                     Future<String> future = executor.submit(new Callable<String>() {
                         @Override
                         public String call() throws Exception {
                             Spider sp = ApiConfig.get().getCSP(sourceBean);
-                            return sp.homeContent(true);
+                            if (sp == null || sp instanceof com.github.catvod.crawler.SpiderNull) noSpider[0] = true;
+                            return sp == null ? "" : sp.homeContent(true);
                         }
                     });
                     String sortJson = null;
@@ -217,11 +222,18 @@ public class SourceViewModel extends ViewModel {
                         // 用户侧只看到「接口没有返回任何分类」。
                         com.github.tvbox.osc.api.SpiderDiag.fail("取分类", e instanceof ExecutionException ? e.getCause() : e);
                     } finally {
+                        // 组件没加载好时 homeContent 只会给空串，下面那两个分支会先把原因
+                        // 写成「站点返回了空内容」、再被「不是标准 JSON」覆盖掉 —— 用户看到的是
+                        // 「站点坏了」，实际是「组件没下下来」。所以这里先按真实情况定性，
+                        // 后面两步只在还没有原因时才补兜底文案。
+                        if (noSpider[0] && com.github.tvbox.osc.api.SpiderDiag.get() == null)
+                            com.github.tvbox.osc.api.SpiderDiag.set("播放组件（spider.jar）还没加载好，这个站点取不到内容");
                         if (sortJson != null) {
-                            if (sortJson.trim().isEmpty() || "{}".equals(sortJson.trim()))
+                            if ((sortJson.trim().isEmpty() || "{}".equals(sortJson.trim()))
+                                    && com.github.tvbox.osc.api.SpiderDiag.get() == null)
                                 com.github.tvbox.osc.api.SpiderDiag.set("站点返回了空内容（可能该站在维护或已停用）");
                             final AbsSortXml sortXml = sortJson(sortResult, sortJson);
-                            if (sortXml == null)
+                            if (sortXml == null && com.github.tvbox.osc.api.SpiderDiag.get() == null)
                                 com.github.tvbox.osc.api.SpiderDiag.set("站点返回的分类解析不了（不是标准 JSON）");
                             if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
                                 AbsXml absXml = json(null, sortJson, sourceBean.getKey());
