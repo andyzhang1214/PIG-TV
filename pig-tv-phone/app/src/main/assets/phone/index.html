@@ -534,16 +534,20 @@ function renderHero(){
     if (!ST.err && jarProg.got){ onJarProgress(jarProg); return; }
     el.innerHTML =
       '<div class="heroBot">' +
+      /* 分类已经拿到了，只是推荐还没铺满：这时候喊「去配接口」是错的，
+         用户明明配了、也连上了。 */
       (ST.err
-        /* 接口明明配着（站点名都显示出来了），却一条没拿到 —— 这时候再说
-           「去配一个接口」只会让人以为配置没生效，必须把真实原因摆出来。 */
         ? '<div class="heroT">接口连上了，但没拿到内容</div>' +
           '<div class="heroM">' + esc(ST.err) + '</div>' +
           '<div class="heroD">配置本身是好的，卡在加载内容这一步。</div>' +
           '<div class="heroRT" onclick="event.stopPropagation();retrySource()">重新加载</div>'
-        : '<div class="heroT">还没有内容</div>' +
-          '<div class="heroM">点右上角「我的 → 片源接口」添加一个接口</div>' +
-          '<div class="heroD">猪猪影视本身只是个播放器，内容全部来自你配置的接口。</div>') +
+        : (ST.sorts.length
+            ? '<div class="heroT">正在挑选推荐…</div>' +
+              '<div class="heroM">接口已经连上，正在从各个分类里取内容</div>' +
+              '<div class="heroD">慢源可能要十几秒，下面的推荐会陆续出现。</div>'
+            : '<div class="heroT">还没有内容</div>' +
+              '<div class="heroM">点右上角「我的 → 片源接口」添加一个接口</div>' +
+              '<div class="heroD">猪猪影视本身只是个播放器，内容全部来自你配置的接口。</div>')) +
       '</div>';
     return;
   }
@@ -771,9 +775,20 @@ function loadAll(){
     /* 站名以原生回的为准，但**空值不覆盖**：
        原生理论上一定带 source，可真机上出现过回包缺字段（旧版本残留、
        或切换瞬间读到的还是空 home），这时候把左上角写成「猪猪影视」
-       反而像是切换没生效。有值才刷。 */
-    applySourceName(d.source);
+       反而像是切换没生效。有值才刷。
+       另外：失败回包（ok=0）的 source 也不能覆盖已有的名字 —— 切站点的瞬间
+       home 可能已经指向另一个站，把用户刚选的「聚玩盒子4K」盖成别的名字，
+       看起来就像自己乱跳。没有名字时（冷启动）才允许失败回包补一个。 */
+    if (d.ok || !ST.source) applySourceName(d.source);
     if (!d.ok && !(d.sorts || []).length){
+      /* 已经显示着内容时，一次刷新失败绝不把页面擦掉。
+         后台续传、晚到的第二次 config、切页面回来……任何一个失败回包都能
+         把用户正在看的首页换成空态，这是最像「App 坏了」的行为。
+         有内容就留着，只用一条 toast 说明刷新失败。 */
+      if (ST.hero.length || ST.hot.length){
+        toast('刷新失败：' + (d.msg || d.jarError || '接口没有返回内容') + '（内容保持不动）');
+        return;
+      }
       // 接口有响应但什么都没拿到：把原因留在页面上，别只弹一个 toast 就完事
       ST.err = d.msg || d.jarError || '接口没有返回内容';
       ST.diag = [d.jarDiag, d.spiderError].filter(Boolean).join(' · ');
@@ -821,13 +836,19 @@ var hotBucket = [];      // 每个分类一桶
 function hotMerge(){
   var out = [], seenId = {}, seenName = {}, i = 0, more = true;
   function take(v){
-    if (!v || !v.id) return;
-    var nm = nz(v.name).trim();
+    /* 没给 id 的条目以前直接丢掉 —— 结果就是这样：片源的首页推荐里
+       vod_id 是空串（有些爬虫就是这么返回的），首页先按 rec 铺了 5 张卡，
+       第一个分类的请求一回来把池子重算一次，5 张卡瞬间只剩 1 张，
+       用户看到的就是「加载出来了，过一会儿自己没了」。
+       没有 id 也让它留着（按片名去重），最多是点开时提示换源。 */
+    var nm = nz(v && v.name).trim();
+    if (!v || !nm) return;
+    if (v.id && seenId[v.id]) return;
     // 同一个 vod_id 在多个分类里出现是常态；不同分类给不同 id 但片名相同
     // 也要挡掉，否则推荐墙上会出现两张一模一样的卡。
-    if (seenId[v.id] || (nm && seenName[nm])) return;
-    seenId[v.id] = 1;
-    if (nm) seenName[nm] = 1;
+    if (seenName[nm]) return;
+    if (v.id) seenId[v.id] = 1;
+    seenName[nm] = 1;
     out.push(v);
   }
   hotBase.forEach(take);
@@ -861,7 +882,12 @@ function fillHotPool(){
       if (seq !== hotSeq) return;         // 已换片源 / 已重新加载，丢弃旧结果
       hotBucket[bi] = (d && d.list) || [];
       if (!hotBucket[bi].length) return;
-      ST.hot = hotMerge();
+      var merged = hotMerge();
+      /* 允许重排（后续分类会插进更均匀的位置），但**绝不接受比现在少** ——
+         池子少一张，屏幕上就是「内容自己没了」。原来是无条件覆盖：
+         片源的首页推荐里 vod_id 是空串时，第一个分类的请求一回来就把
+         已经显示着的 5 张卡重算成 1 张。 */
+      if (merged.length >= ST.hot.length) ST.hot = merged;
       if (!ST.hero.length && ST.hot.length){
         ST.hero = ST.hot.slice(0, 5);
         renderHero();
@@ -1214,6 +1240,9 @@ function openDetailByVod(v, histIdx, keepEp){
     var ae = document.activeElement;
     if (ae && ae.blur) ae.blur();
   }catch(e){}
+  /* 首页推荐池里允许没有 vod_id 的条目（见 hotMerge），那种卡点开是取不到详情的，
+     直接说清楚，别让详情面板空着转圈。 */
+  if (!v || !nz(v.id)){ toast('这个站点没给这部片编号，换个源或者在分类里找它'); return; }
   var sheet = document.getElementById('dSheet');
   sheet.innerHTML = '<div class="loadmore" style="padding:60px 0">正在读取详情…</div>';
   document.getElementById('detail').classList.add('on');

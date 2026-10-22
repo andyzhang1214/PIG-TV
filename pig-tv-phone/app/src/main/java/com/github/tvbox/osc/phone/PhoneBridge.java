@@ -230,6 +230,9 @@ public class PhoneBridge {
         }
         jarReady = false;           // 旧 jar 不一定对得上新接口
         jarFailAt = 0;              // 换了片源就允许立刻重新尝试加载 jar
+        jarAutoTry = 0;             // 自动续传的名额也重算（新站点可能另一份包）
+        jarWarmAt = 0;              // 新站点的自带 jar 立刻预热
+        jarWarmKey = null;
         lastJarError = null;
         // 正在等结果的 config()/detail() 也要作废：它们的回包是旧接口的数据，
         // 落到新界面上就是「新接口里点开一个片，出来的是上一个接口的详情」。
@@ -266,6 +269,19 @@ public class PhoneBridge {
     private volatile String lastJarError = null;   // 给前端显示「为什么没内容」
     private volatile long jarFailAt = 0;           // 上次彻底失败的时间，用于冷却
     private volatile boolean jarAutoRetry = false; // 已经排了一次后台续传，别排第二次
+    private volatile int jarAutoTry = 0;           // 后台自动续传一共试了几轮（上限 3）
+    /** 站点自带 jar 的预热：独立线程池，不能和 pool(6) 抢线程（config 自己就占着一个） */
+    private final ExecutorService jarWarmPool = Executors.newCachedThreadPool();
+    private volatile String jarWarmKey = null;     // 正在预热的 jar 地址
+    private volatile long jarWarmAt = 0;           // 上次预热时间（失败冷却 30 秒）
+    /**
+     * 本次取分类「请求时」的站点名，以及这个站点是不是真的依赖 spider 组件。
+     * <p>
+     * 回包时绝不能再读一次 {@code getHomeSourceBean()}：切站点的瞬间它会指向新站点，
+     * 于是「内容还是 A 站的、名字已经变成 B 站」。首页那行名字就是这么乱跳的。
+     */
+    private volatile String sortSrcName = null;
+    private volatile boolean sortNeedJar = false;
     // 重试交给 JarFetcher 内部做（它会分段续传 + 换 https），这里不再叠外层重试，
     // 否则一次点击会同时拉起好几条下载抢同一个 .part。
     private static final int JAR_MAX_TRY = 1;
@@ -424,6 +440,59 @@ public class PhoneBridge {
     }
 
     /**
+     * 站点自带组件（配置里每个 site 的 {@code "jar"} 字段）的预热。
+     * <p>
+     * 为什么需要：这类站点的主组件不是配置顶层的 spider，而是自己带一份 jar。
+     * 原来的路径是「getSort → getCSP → JarLoader 现下」，而 getSort 外面套着
+     * {@code future.get(20s)}：1MB 的包在限速源上 20 秒根本下不完，超时就把
+     * 下载线程 cancel 掉 —— 于是这个站点永远是空的，而且报的还是
+     * 「站点返回的分类解析不了」，看起来像站点坏了。
+     * <p>
+     * 这里在取分类之前先单独把这个 jar 弄好（JarFetcher 有 210 秒预算、分段续传），
+     * 等不到就先让页面出结果，下完再推一条 jar done 让页面自己重拉。
+     */
+    private void warmSiteJar(final SourceBean sb, long maxWaitMs) {
+        final String jar = siteJar(sb);
+        if (jar.isEmpty()) return;
+        if (jar.equals(jarWarmKey)) return;                  // 同一份已经在弄
+        long now = System.currentTimeMillis();
+        if (jarWarmAt > 0 && now - jarWarmAt < 30_000L) return;   // 失败冷却，别每次 config 都卡 20 秒
+        jarWarmKey = jar;
+        jarWarmAt = now;
+        final CountDownLatch latch = new CountDownLatch(1);
+        jarWarmPool.execute(() -> {
+            boolean ok = false;
+            try {
+                // getCSP 内部把站点 jar 交给 JarFetcher 下到 csp/ 并建好 DexClassLoader。
+                // 成功之后 getSort 里的 getCSP 直接命中缓存，20 秒超时就不会再掐断下载。
+                com.github.catvod.crawler.Spider sp = ApiConfig.get().getCSP(sb);
+                ok = sp != null && !(sp instanceof com.github.catvod.crawler.SpiderNull);
+            } catch (Throwable ignored) {
+            } finally {
+                jarWarmKey = null;
+                latch.countDown();
+            }
+            if (ok) {
+                android.util.Log.i("PigBridge", "站点组件准备好了，通知页面重拉");
+                emit("jar", "{\"got\":1,\"total\":1,\"done\":1}");
+            }
+        });
+        try {
+            latch.await(maxWaitMs, TimeUnit.MILLISECONDS);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static String siteJar(SourceBean sb) {
+        try {
+            String j = sb == null ? null : sb.getJar();
+            return j == null ? "" : j.trim();
+        } catch (Throwable th) {
+            return "";
+        }
+    }
+
+    /**
      * 组件下了一半就断了（源站限速 / 反复 RST）时，45 秒后自己再续一轮。
      * <p>
      * 这种站的毛病是「连一会儿就被掐」，靠用户手动点「重新加载」也能一点点下完
@@ -432,12 +501,14 @@ public class PhoneBridge {
      */
     private void armJarAutoRetry() {
         String diag = ApiConfig.get().getJarDiag();
-        // 只有「确实下了东西但没下完」才值得自动续；连不上的站再试也是白试
-        boolean partial = diag != null && diag.contains("残包保留");
-        if (!partial || jarAutoRetry) return;
+        if (jarAutoRetry || jarAutoTry >= 3) return;
         // 服务器不认断点续传时，后台再续一轮也是同样结果 —— 得靠用户换网络
-        if (diag.contains("不认断点续传")) return;
+        if (diag != null && diag.contains("不认断点续传")) return;
+        // 以前只认「残包保留」这一种措辞，整包模式失败（“连续 N 次都没超过 X KB”）
+        // 和从来没下过（diag 为空）就完全不会自动重试，用户只能自己反复点。
+        // 现在只要不是「明确白搭」，都排队续一轮，最多 3 次。
         jarAutoRetry = true;
+        jarAutoTry++;
         pool.execute(() -> {
             try {
                 Thread.sleep(45_000L);
@@ -499,18 +570,24 @@ public class PhoneBridge {
                 o.put("jarDiag", ApiConfig.get().getJarDiag());
                 o.put("jarReady", jarReady ? 1 : 0);
                 o.put("spiderError", ApiConfig.get().getSpiderError());
+                boolean needJar = sortNeedJar;
                 if (arr.length() == 0) {
-                    // 优先级：jar 没下下来 > jar 还没好 > 站点自己报的错 > 兜底文案
+                    // 优先级：组件确实没就绪 > 站点自己报的错 > 兜底文案。
+                    // 只有「这个站点真的要用组件」时才可以把锅甩给组件 ——
+                    // xml/json 直连站本来就不碰 jar，一句「组件还没准备好」纯属误导。
                     String msg;
-                    if (lastJarError != null) msg = lastJarError;
-                    else if (!jarReady) msg = "播放组件还没准备好，正在重试…";
+                    if (needJar && lastJarError != null) msg = lastJarError;
+                    else if (needJar && !jarReady) msg = "播放组件还没下载完，正在后台续传…";
                     else {
                         String se = ApiConfig.get().getSpiderError();
                         msg = (se == null || se.isEmpty()) ? "接口没有返回任何分类" : se;
                     }
                     o.put("msg", msg);
                 }
-                o.put("source", home != null && home.getName() != null ? home.getName() : "");
+                // 站名用「发请求那一刻」的，别在回调里重读（切站点瞬间会串台）
+                String nm = sortSrcName;
+                if (TextUtils.isEmpty(nm) && home != null) nm = home.getName();
+                o.put("source", nm == null ? "" : nm);
                 o.put("sorts", arr);
                 if (abs != null && abs.videoList != null && !abs.videoList.isEmpty()) {
                     o.put("rec", videoArray(abs.videoList));
@@ -587,12 +664,18 @@ public class PhoneBridge {
                 // 让它们陪等 20 秒纯属白等，这正是上游异步写法感觉不到、我们会吃亏的地方。
                 //
                 // 必须放在挂 sortCb 之前：等待期间如果 LiveData 推了旧值会把回调提前消费掉。
-                if (needsJar(home)) ensureJarBlocking(JAR_WAIT_MS);
+                // 先把「这次是为哪个站点取的」记下来，回包时按它回答（见 sortSrcName 注释）
+                sortSrcName = home.getName();
+                sortNeedJar = needsJar(home);
+                if (sortNeedJar) ensureJarBlocking(JAR_WAIT_MS);
+                // 站点自带的 jar（site 的 "jar" 字段）也要先弄好，否则 getSort 里
+                // 那个 20 秒超时会把下载掐在半路（详见 warmSiteJar 注释）
+                warmSiteJar(home, JAR_WAIT_MS);
                 // jar 没就绪就跑 getSort，spider 还是 SpiderNull，返回的东西不是标准 JSON，
                 // SourceViewModel 会把「组件没下完」写成「站点返回的分类解析不了（不是标准 JSON）」——
                 // 用户看到的是一句假诊断，还会以为站点坏了。这里直接回真实状态：
                 // 后台下载完成后 emit jar done，页面自己会重新拉一次。
-                if (needsJar(home) && !jarReady) {
+                if (sortNeedJar && !jarReady && siteJar(home).isEmpty()) {
                     JSONObject o = new JSONObject();
                     o.put("ok", 0);
                     o.put("needConfig", 0);
@@ -602,7 +685,7 @@ public class PhoneBridge {
                     o.put("msg", lastJarError != null
                             ? lastJarError
                             : "播放组件还没下载完，正在后台续传…");
-                    o.put("source", home.getName() == null ? "" : home.getName());
+                    o.put("source", sortSrcName == null ? "" : sortSrcName);
                     o.put("sorts", new JSONArray());
                     o.put("rec", new JSONArray());
                     cb(cbId, o.toString());
