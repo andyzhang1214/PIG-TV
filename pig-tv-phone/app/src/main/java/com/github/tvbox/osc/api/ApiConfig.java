@@ -3,6 +3,7 @@ package com.github.tvbox.osc.api;
 import static com.github.tvbox.osc.util.RegexUtils.getPattern;
 import android.app.Activity;
 import android.net.Uri;
+import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Base64;
 
@@ -362,6 +363,30 @@ public class ApiConfig {
         }
 
         // ---------------------------------------------------------------
+        // 1.5 本地导入的组件
+        // ---------------------------------------------------------------
+        // 为什么要这条：源站一旦对 jar 做「限速 + 短连接」，代码层怎么续传都没用 ——
+        // 实测某个 CDN 是 70KB/s、7 秒必断、且无视 Range（永远回 200 全量），
+        // 1MB 的文件每一轮都只拿得到 400~500KB，数学上拼不出完整包。
+        // 给用户留一条「自己把 jar 放进手机的 Download 目录」的路，
+        // 比让他对着空首页、还以为是 App 坏了要强。
+        File imported = findImportedJar();
+        if (imported != null) {
+            if (jarLoader.load(imported.getAbsolutePath())) {
+                if (copy(imported, cache)) {
+                    lastJarDiag = "使用本地导入的组件（" + (imported.length() / 1024) + "KB，已写入缓存）";
+                } else {
+                    lastJarDiag = "使用本地导入的组件（" + (imported.length() / 1024) + "KB，写入缓存失败）";
+                }
+                lastJarError = null;
+                post(callback::success);
+                return;
+            } else {
+                lastJarDiag = "Download 里的 spider.jar 加载不了（很可能没下完整）";
+            }
+        }
+
+        // ---------------------------------------------------------------
         // 2. 下载（放独立线程，不能占着调用方）
         // ---------------------------------------------------------------
         final boolean useOld = degraded;
@@ -515,6 +540,37 @@ public class ApiConfig {
             } catch (Throwable ignored) {
             }
         }
+    }
+
+    /**
+     * 用户在手机里手动放的组件包。
+     * <p>
+     * 源站把 jar 限速掐断时（实测某 CDN 70KB/s + 7 秒断 + 无视 Range，1MB 永远只到 400~500KB），
+     * 任何下载代码都补不齐，只能让用户从别的网络/电脑上下下来再放进手机。
+     * 放在 Download 根目录（微信「保存到手机」也落在附近），文件名固定几个常见写法。
+     */
+    private File findImportedJar() {
+        String[] names = {"spider.jar", "tvbox_spider.jar", "tv_spider.jar", "spider(1).jar", "spider_1.jar"};
+        try {
+            File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            if (dl != null) {
+                for (String n : names) {
+                    File f = new File(dl, n);
+                    // 64KB 以下肯定是坏包/占位文件，别拿去 load
+                    if (f.exists() && f.isFile() && f.length() > 64 * 1024) return f;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            File dir = App.getInstance().getExternalFilesDir(null);
+            if (dir != null) {
+                File f = new File(dir, "spider.jar");
+                if (f.exists() && f.isFile() && f.length() > 64 * 1024) return f;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     private void parseJson(String apiUrl, File f) throws Throwable {
