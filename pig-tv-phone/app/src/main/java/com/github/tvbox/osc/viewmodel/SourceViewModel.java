@@ -943,17 +943,91 @@ public class SourceViewModel extends ViewModel {
 
     }
 
-    private MovieSort.SortFilter getSortFilter(JsonObject obj) {
-        String key = obj.get("key").getAsString();
-        String name = obj.get("name").getAsString();
-        JsonArray kv = obj.getAsJsonArray("value");
-        LinkedHashMap<String, String> values = new LinkedHashMap<>();
-        for (JsonElement ele : kv) {
-            JsonObject ele_obj = ele.getAsJsonObject();
-            String values_key=ele_obj.has("n")?ele_obj.get("n").getAsString():"";
-            String values_value=ele_obj.has("v")?ele_obj.get("v").getAsString():"";
-            values.put(values_key, values_value);
+    /** JsonObject 里取字符串，缺字段 / null 都返回空串，绝不抛异常 */
+    private static String strOf(JsonObject obj, String name) {
+        if (obj == null || !obj.has(name)) return "";
+        JsonElement el = obj.get(name);
+        if (el == null || el.isJsonNull()) return "";
+        try {
+            return el.getAsString();
+        } catch (Throwable th) {
+            return "";
         }
+    }
+
+    /**
+     * 单个筛选组。真实片源里这个结构的写法五花八门，原来只要有一处不合
+     * 预期（缺 name、value 不是对象数组）就抛异常，而外层是
+     * {@code catch (Throwable) {}} —— 于是**所有分类的筛选一起消失**，
+     * 前端看起来就是「筛选条不见了」，而分类本身还正常。
+     * <p>
+     * 这里把见过的几种形态都认下来，并且一项解析失败只丢那一项：
+     * <pre>
+     *   {"key":"area","name":"地区","value":[{"n":"全部","v":""}]}   标准
+     *   {"key":"area","name":"地区","values":[{...}]}                字段名是 values
+     *   {"key":"area","name":"地区","value":[["全部",""]]}           二维数组
+     *   {"key":"area","name":"地区","value":{"全部":"","内地":"内地"}} 对象（名字→值）
+     *   {"name":"地区","value":["全部","内地"]}                     纯字符串数组 / 没有 key
+     * </pre>
+     */
+    private MovieSort.SortFilter getSortFilter(JsonObject obj) {
+        if (obj == null) return null;
+        String key = strOf(obj, "key");
+        String name = strOf(obj, "name");
+        if (TextUtils.isEmpty(name)) name = key;
+        if (TextUtils.isEmpty(key)) key = name;
+        if (TextUtils.isEmpty(key) && TextUtils.isEmpty(name)) return null;
+
+        LinkedHashMap<String, String> values = new LinkedHashMap<>();
+        JsonElement ve = obj.get("value");
+        if (ve == null || ve.isJsonNull()) ve = obj.get("values");
+        if (ve != null && !ve.isJsonNull()) {
+            if (ve.isJsonArray()) {
+                for (JsonElement ele : ve.getAsJsonArray()) {
+                    try {
+                        if (ele == null || ele.isJsonNull()) continue;
+                        String n, v;
+                        if (ele.isJsonObject()) {
+                            JsonObject eo = ele.getAsJsonObject();
+                            n = strOf(eo, "n");
+                            if (TextUtils.isEmpty(n)) n = strOf(eo, "name");
+                            v = strOf(eo, "v");
+                            if (TextUtils.isEmpty(v)) v = strOf(eo, "value");
+                        } else if (ele.isJsonArray()) {
+                            // ["显示名","提交值"]
+                            JsonArray kv = ele.getAsJsonArray();
+                            n = kv.size() > 0 && !kv.get(0).isJsonNull() ? kv.get(0).getAsString() : "";
+                            v = kv.size() > 1 && !kv.get(1).isJsonNull() ? kv.get(1).getAsString() : "";
+                        } else {
+                            // 纯字符串数组：显示名就是要提交的值
+                            n = ele.getAsString();
+                            v = n;
+                        }
+                        // 爬虫只给了值没给名字（或反过来）时互相兜一下，
+                        // 否则会出现一个点不到的空按钮
+                        if (TextUtils.isEmpty(n)) n = v;
+                        if (TextUtils.isEmpty(v)) v = n;
+                        if (TextUtils.isEmpty(n) && TextUtils.isEmpty(v)) continue;
+                        values.put(n, v);
+                    } catch (Throwable ignored) {
+                        // 单个取值坏掉不影响这一组的其它取值
+                    }
+                }
+            } else if (ve.isJsonObject()) {
+                JsonObject vo = ve.getAsJsonObject();
+                for (Map.Entry<String, JsonElement> e : vo.entrySet()) {
+                    try {
+                        String n = e.getKey();
+                        String v = e.getValue() == null || e.getValue().isJsonNull() ? "" : e.getValue().getAsString();
+                        if (TextUtils.isEmpty(v)) v = n;
+                        values.put(n, v);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+        }
+        if (values.isEmpty()) return null;
+
         MovieSort.SortFilter filter = new MovieSort.SortFilter();
         filter.key = key;
         filter.name = name;
@@ -961,37 +1035,160 @@ public class SourceViewModel extends ViewModel {
         return filter;
     }
 
+    /** filters 的某一项 → 一组筛选（可能本身就是单个对象，也可能是数组） */
+    private ArrayList<MovieSort.SortFilter> parseFilterList(JsonElement one) {
+        ArrayList<MovieSort.SortFilter> out = new ArrayList<>();
+        if (one == null || one.isJsonNull()) return out;
+        try {
+            if (one.isJsonObject()) {
+                MovieSort.SortFilter f = getSortFilter(one.getAsJsonObject());
+                if (f != null) out.add(f);
+            } else if (one.isJsonArray()) {
+                for (JsonElement ele : one.getAsJsonArray()) {
+                    try {
+                        if (ele != null && ele.isJsonObject()) {
+                            MovieSort.SortFilter f = getSortFilter(ele.getAsJsonObject());
+                            if (f != null) out.add(f);
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
+    /**
+     * 把 homeContent 顶层的 filters 挂到各个分类上。
+     * <p>
+     * 匹配顺序：分类 id → 分类名 → 位置。前两个是标准做法；第三个是兜底 ——
+     * 有些爬虫的 filters key 是「第几组」或者干脆是中转用的乱码，跟 type_id
+     * 一个都对不上，这时候如果直接放弃，用户看到的就是「分类正常、筛选没有」。
+     * 只有在**一个都没匹配上**时才按顺序兜底，避免顺序错位挂到别的分类上。
+     */
+    private void applySortFilters(JsonObject obj, AbsSortXml data) {
+        if (obj == null || data == null || data.classes == null || data.classes.sortList == null) return;
+        JsonElement fe = obj.get("filters");
+        if (fe == null || fe.isJsonNull()) return;
+
+        LinkedHashMap<String, ArrayList<MovieSort.SortFilter>> parsed = new LinkedHashMap<>();
+        ArrayList<String> order = new ArrayList<>();
+        try {
+            if (fe.isJsonObject()) {
+                for (Map.Entry<String, JsonElement> e : fe.getAsJsonObject().entrySet()) {
+                    ArrayList<MovieSort.SortFilter> one = parseFilterList(e.getValue());
+                    if (one.isEmpty()) continue;
+                    parsed.put(e.getKey(), one);
+                    order.add(e.getKey());
+                }
+            } else if (fe.isJsonArray()) {
+                int i = 0;
+                for (JsonElement ele : fe.getAsJsonArray()) {
+                    ArrayList<MovieSort.SortFilter> one = parseFilterList(ele);
+                    String k = String.valueOf(i++);
+                    if (one.isEmpty()) continue;
+                    parsed.put(k, one);
+                    order.add(k);
+                }
+            }
+        } catch (Throwable th) {
+            LOG.i("echo--filters-parse-fail--" + th.getMessage());
+        }
+        if (parsed.isEmpty()) return;
+
+        int matched = 0;
+        for (MovieSort.SortData sort : data.classes.sortList) {
+            if (sort == null) continue;
+            ArrayList<MovieSort.SortFilter> hit = null;
+            if (!TextUtils.isEmpty(sort.id) && parsed.containsKey(sort.id)) hit = parsed.get(sort.id);
+            else if (!TextUtils.isEmpty(sort.name) && parsed.containsKey(sort.name)) hit = parsed.get(sort.name);
+            if (hit != null) {
+                sort.filters = hit;
+                matched++;
+            }
+        }
+
+        // 一个都对不上：按位置兜底（filters 的组数 >= 分类数时才这么做）
+        if (matched == 0 && order.size() >= data.classes.sortList.size()) {
+            for (int i = 0; i < data.classes.sortList.size(); i++) {
+                MovieSort.SortData sort = data.classes.sortList.get(i);
+                if (sort == null) continue;
+                ArrayList<MovieSort.SortFilter> one = parsed.get(order.get(i));
+                if (one != null) sort.filters = one;
+            }
+            LOG.i("echo--filters-by-index--" + data.classes.sortList.size());
+        }
+        LOG.i("echo--filters-matched--" + matched + "/" + data.classes.sortList.size() + " keys=" + parsed.size());
+    }
+
+    private static String firstNonEmpty(String... vals) {
+        if (vals == null) return "";
+        for (String v : vals) {
+            if (v != null && !v.trim().isEmpty()) return v;
+        }
+        return "";
+    }
+
+    /**
+     * Gson 失败（或没解出分类）时的兜底解析。
+     * <p>
+     * 典型场景：爬虫的 homeContent 里 {@code "class"} 是字符串数组
+     * {@code ["电影","电视剧"]}，而 {@link AbsSortJson} 里声明的是对象数组，
+     * Gson 会直接抛 → 整个 sortJson 返回 null → 用户看到「接口没有返回任何分类」。
+     */
+    private AbsSortXml manualSort(JsonObject obj) {
+        if (obj == null) return null;
+        JsonElement ce = obj.get("class");
+        if (ce == null || !ce.isJsonArray()) return null;
+        MovieSort movieSort = new MovieSort();
+        movieSort.sortList = new ArrayList<>();
+        int idx = 0;
+        for (JsonElement el : ce.getAsJsonArray()) {
+            try {
+                if (el == null || el.isJsonNull()) continue;
+                MovieSort.SortData sd = new MovieSort.SortData();
+                if (el.isJsonObject()) {
+                    JsonObject co = el.getAsJsonObject();
+                    sd.id = firstNonEmpty(strOf(co, "type_id"), strOf(co, "id"), strOf(co, "key"));
+                    sd.name = firstNonEmpty(strOf(co, "type_name"), strOf(co, "name"), sd.id);
+                    sd.flag = firstNonEmpty(strOf(co, "type_flag"), strOf(co, "flag"));
+                } else {
+                    // 字符串数组：名字就是 id（这类爬虫的 categoryContent 也按名字取）
+                    sd.name = el.getAsString();
+                    sd.id = sd.name;
+                }
+                sd.id = firstNonEmpty(sd.id, String.valueOf(idx));
+                sd.name = firstNonEmpty(sd.name, sd.id);
+                movieSort.sortList.add(sd);
+                idx++;
+            } catch (Throwable ignored) {
+            }
+        }
+        if (movieSort.sortList.isEmpty()) return null;
+        AbsSortXml data = new AbsSortXml();
+        data.classes = movieSort;
+        return data;
+    }
+
     private AbsSortXml sortJson(MutableLiveData<AbsSortXml> result, String json) {
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            AbsSortJson sortJson = gson.fromJson(obj, new TypeToken<AbsSortJson>() {
-            }.getType());
-            AbsSortXml data = sortJson.toAbsSortXml();
+            AbsSortXml data = null;
             try {
-                if (obj.has("filters")) {
-                    LinkedHashMap<String, ArrayList<MovieSort.SortFilter>> sortFilters = new LinkedHashMap<>();
-                    JsonObject filters = obj.getAsJsonObject("filters");
-                    for (String key : filters.keySet()) {
-                        ArrayList<MovieSort.SortFilter> sortFilter = new ArrayList<>();
-                        JsonElement one = filters.get(key);
-                        if (one.isJsonObject()) {
-                            sortFilter.add(getSortFilter(one.getAsJsonObject()));
-                        } else {
-                            for (JsonElement ele : one.getAsJsonArray()) {
-                                sortFilter.add(getSortFilter(ele.getAsJsonObject()));
-                            }
-                        }
-                        sortFilters.put(key, sortFilter);
-                    }
-                    for (MovieSort.SortData sort : data.classes.sortList) {
-                        if (sortFilters.containsKey(sort.id) && sortFilters.get(sort.id) != null) {
-                            sort.filters = sortFilters.get(sort.id);
-                        }
-                    }
-                }
-            } catch (Throwable th) {
-
+                AbsSortJson sortJson = gson.fromJson(obj, new TypeToken<AbsSortJson>() {
+                }.getType());
+                if (sortJson != null) data = sortJson.toAbsSortXml();
+            } catch (Throwable ignored) {
+                // 结构不合 Gson 的预期，下面手动兜底
             }
+            if (data == null || data.classes == null || data.classes.sortList == null
+                    || data.classes.sortList.isEmpty()) {
+                AbsSortXml manual = manualSort(obj);
+                if (manual != null) data = manual;
+            }
+            if (data == null) return null;
+            applySortFilters(obj, data);
             return data;
         } catch (Exception e) {
             return null;
