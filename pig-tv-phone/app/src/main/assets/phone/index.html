@@ -305,8 +305,7 @@
       <div class="cfgSub" id="cfgNameSub">起个自己认得出来的名字，列表里显示的就是它</div>
     </div>
     <div id="cfgUrlWrap">
-      <!-- 内置推荐源：一键填入并保存。都是实测能拉到配置、组件也下得来的地址。
-           盒子迷写的是 /禁止贩卖（配置 JSON），不是 /饭太硬（那个是导航网页，解析不出内容）。 -->
+      <!-- 内置推荐源：一键填入并保存。地址以用户指定为准，不要自行替换。 -->
       <div class="cfgQuick" id="cfgQuick"></div>
       <textarea id="cfgIn" class="cfgIn" rows="4" placeholder="https://example.com/api.json"></textarea>
       <div class="cfgRow" style="margin-top:10px">
@@ -1152,6 +1151,32 @@ function filtersOf(sort){
   return sort.filters.filter(function(f){ return f && f.values && f.values.length; });
 }
 
+/* 不少源配置的筛选组名直接写英文键（year / type / area / by …），
+   手机上全是英文很难认，渲染时统一映射成中文。
+   规则：组名已含中文 → 原样放行；映射表里没有的 → 也原样放行（硬翻容易翻错）。 */
+var FILT_CN = {
+  year: '年份', years: '年份', yearrange: '年份',
+  type: '类型', class: '类型', category: '类型', cate: '类型',
+  genres: '类型', kind: '类型', typename: '类型',
+  area: '地区', zone: '地区', region: '地区',
+  by: '排序', order: '排序', sort: '排序',
+  lang: '语言', language: '语言',
+  letter: '字母', index: '字母', initial: '字母',
+  week: '星期', weekday: '星期',
+  duration: '时长', long: '时长',
+  version: '版本', resource: '资源',
+  state: '剧情', plot: '剧情', content: '剧情', story: '剧情',
+  actor: '演员', star: '演员', director: '导演',
+  status: '状态', season: '季', quality: '清晰度', clarity: '清晰度'
+};
+function cnFiltName(name, key){
+  var n = String(name == null ? '' : name).trim();
+  if (!n) n = String(key == null ? '' : key).trim();
+  if (/[\u4e00-\u9fff]/.test(n)) return n;      // 本身就是中文，别动
+  var k = n.toLowerCase().replace(/[\s_-]+/g, '');
+  return FILT_CN[k] || n;
+}
+
 /** 某组的当前选中值 → 显示名（找不到原值就原样回显） */
 function filtLabel(sortId, f, sel){
   var v = sel == null ? (ST.filt[sortId] || {})[f.key] : sel;
@@ -1197,7 +1222,7 @@ function renderCatFilt(){
     var name = filtLabel(s.id, f);
     if (name) any = true;
     return '<div class="fbtn' + (name ? ' on' : '') + '" data-act="flt" data-val="' + esc(f.key) + '">' +
-      '<span>' + esc(f.name) + (name ? '：' + esc(name) : '') + '</span>' +
+      '<span>' + esc(cnFiltName(f.name, f.key)) + (name ? '：' + esc(name) : '') + '</span>' +
       '<svg class="ic" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>' +
     '</div>';
   }).join('');
@@ -1216,7 +1241,7 @@ function openFlt(key){
   if (!f) return;
 
   fltKey = key;
-  document.getElementById('fltT').textContent = f.name || key;
+  document.getElementById('fltT').textContent = cnFiltName(f.name, key);
 
   var cur = (ST.filt[s.id] || {})[key] || '';
   fltVals = f.values.map(function(kv){ return { n: kv[0], v: kv[1] }; });
@@ -2005,15 +2030,14 @@ function cfgClose(){
   document.getElementById('cfg').classList.remove('on');
 }
 
-/* 内置推荐源。标准：配置 JSON 能拉到 + 组件（spider jar）能拿到 + 站点本身活着。
-   盒子迷这里写的是 /禁止贩卖（真的配置 JSON，91 站）；
-   /饭太硬 是它的导航网页（返回 7870 字节 HTML，标题「TVBOX 影视仓 CatBox」），
-   填进去只会解析失败，别放进来。
-   肥猫（http://肥猫.net/tv）曾经能用，但现在不可推荐：它的 jar 放在自家限流节点上，
-   实测只能拿到 61KB / 1048KB、且无视 Range，组件永远拼不完整。 */
+/* 内置推荐源。地址由用户指定，原样写入，不擅自替换。
+   盒子迷两个入口都内置：/禁止贩卖（配置 JSON）和 /饭太硬（用户指定，两个都要）。
+   肥猫（http://肥猫.net/tv）jar 放在自家限流节点上，本机实测只能拿到 61KB / 1048KB
+   且无视 Range，故不列入推荐；用户要加会明说。 */
 var QUICK_SRC = [
-  {n:'qist 综合', d:'153 站 · 首选', u:'https://qist.wyfc.qzz.io/jsm.json'},
-  {n:'盒子迷',   d:'91 站',        u:'https://盒子迷.top/禁止贩卖'}
+  {n:'qist 综合',      d:'153 站 · 首选', u:'https://qist.wyfc.qzz.io/jsm.json'},
+  {n:'盒子迷·禁止贩卖', d:'91 站',        u:'https://盒子迷.top/禁止贩卖'},
+  {n:'盒子迷·饭太硬',   d:'备用入口',      u:'https://盒子迷.top/饭太硬'}
 ];
 
 /* 只在「填接口地址」的场景出现；直播源和改名模式清空 */
