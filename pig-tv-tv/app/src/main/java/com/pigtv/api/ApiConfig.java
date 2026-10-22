@@ -3,6 +3,7 @@ package com.pigtv.api;
 import static com.pigtv.util.RegexUtils.getPattern;
 import android.app.Activity;
 import android.net.Uri;
+import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Base64;
 
@@ -251,6 +252,88 @@ public class ApiConfig {
     }
 
     /**
+     * 随 APK 一起带上的组件包，按「配置里写的 md5」索引。
+     * <p>
+     * 为什么需要：有些源把 1~2MB 的 jar 放在 Cloudflare（qist → 172.67.202.242）
+     * 或自家限流节点（肥猫 → 每次只给几十 KB 就 RST）上，配置 JSON 几十 KB 能秒回，
+     * jar 却永远下不完 —— 用户看到的就是「接口连上了、就是没内容」。
+     * 这些包内容是固定的，与其让每台电视都去海外节点重下一遍，
+     * 不如直接塞进 APK：md5 对得上就免下载。
+     * <p>
+     * 只按 md5 精确匹配，绝不做「猜」—— 拿错包会让爬虫类找不到而报
+     * NoClassDefFoundError，比下载失败更难排查。
+     */
+    private static final String[][] BUILTIN_JARS = {
+            // md5, assets 里的文件名, 来源
+            {"ea98a70ee6967e433c24e4941ede7fd8", "spider_qist.jar", "qist"},
+            {"b63a0eb8852bb7ab06500c424ccc3dae", "spider_boxmi.jar", "盒子迷"},
+    };
+
+    /** 配置里的 md5 命中内置包时返回 assets 文件名，否则返回空串 */
+    private static String builtinJarFor(String md5) {
+        if (md5 == null || md5.trim().isEmpty()) return "";
+        String m = md5.trim();
+        for (String[] e : BUILTIN_JARS) {
+            if (e[0].equalsIgnoreCase(m)) return e[1];
+        }
+        return "";
+    }
+
+    /** 把 assets 里的组件包复制出来（assets 不能直接给 DexClassLoader 用） */
+    private static boolean copyAsset(String name, File dst) {
+        InputStream in = null;
+        FileOutputStream out = null;
+        try {
+            in = App.getInstance().getAssets().open(name);
+            out = new FileOutputStream(dst);
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+            out.flush();
+            return dst.length() > 0;
+        } catch (Throwable th) {
+            LOG.e("echo---copyAsset fail: " + name + " " + th.getMessage());
+            return false;
+        } finally {
+            try {
+                if (in != null) in.close();
+            } catch (Throwable ignored) {
+            }
+            try {
+                if (out != null) out.close();
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    /**
+     * 用户手动放进 Download 根目录的组件包（微信「保存到手机」也落在附近），
+     * 文件名固定几个常见写法；64KB 以下肯定是坏包/占位文件，别拿去 load。
+     */
+    private File findImportedJar() {
+        String[] names = {"spider.jar", "tvbox_spider.jar", "tv_spider.jar", "spider(1).jar", "spider_1.jar"};
+        try {
+            File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            if (dl != null) {
+                for (String n : names) {
+                    File f = new File(dl, n);
+                    if (f.exists() && f.isFile() && f.length() > 64 * 1024) return f;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            File dir = App.getInstance().getExternalFilesDir(null);
+            if (dir != null) {
+                File f = new File(dir, "spider.jar");
+                if (f.exists() && f.isFile() && f.length() > 64 * 1024) return f;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    /**
      * 加载 spider 组件。
      *
      * <p>缓存命中就直接用；接口换过包（md5 对不上）时<b>先把旧包降级跑起来</b>，
@@ -291,6 +374,55 @@ public class ApiConfig {
                 callback.success();
             } else {
                 cache.delete();                        // 缓存本身坏了，留着只会反复失败
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // 1.2 内置组件（随 APK 打的）
+        // ---------------------------------------------------------------
+        // 源站的 jar 放在 Cloudflare / 限流节点上时，配置几十 KB 能秒回、
+        // 1~2MB 的包却永远下不完，表现就是「接口连上了但没内容」。
+        // 这里按 md5 精确命中内置包，命中就落成标准缓存，下次启动直接走 1.。
+        final String builtinName = builtinJarFor(md5);
+        if (!builtinName.isEmpty()) {
+            // 放在 cache 同目录、用 cache 路径派生的文件名，避免 dir 为 null
+            File bt = new File(cache.getAbsolutePath() + ".builtin");
+            boolean ready = bt.exists() && bt.length() > 0;
+            if (!ready) ready = copyAsset(builtinName, bt);
+            if (ready) {
+                String got = MD5.getFileMd5(bt);
+                if (md5.equalsIgnoreCase(got) && jarLoader.load(bt.getAbsolutePath())) {
+                    copy(bt, cache);
+                    lastJarDiag = "使用内置组件（" + (bt.length() / 1024) + "KB，无需下载）";
+                    lastJarError = null;
+                    post(callback::success);
+                    return;
+                }
+                // 内置包坏了或与配置对不上（理论上不该发生），删掉别再试
+                bt.delete();
+                LOG.e("echo---builtin jar bad: " + builtinName + " got=" + got + " want=" + md5);
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // 1.5 本地导入的组件
+        // ---------------------------------------------------------------
+        // 源站一旦对 jar 做「限速 + 短连接」，代码层怎么续传都没用 ——
+        // 给用户留一条「自己把 jar 放进 Download 目录」的路，
+        // 比让他对着空首页、还以为是 App 坏了要强。
+        File imported = findImportedJar();
+        if (imported != null) {
+            if (jarLoader.load(imported.getAbsolutePath())) {
+                if (copy(imported, cache)) {
+                    lastJarDiag = "使用本地导入的组件（" + (imported.length() / 1024) + "KB，已写入缓存）";
+                } else {
+                    lastJarDiag = "使用本地导入的组件（" + (imported.length() / 1024) + "KB，写入缓存失败）";
+                }
+                lastJarError = null;
+                post(callback::success);
+                return;
+            } else {
+                lastJarDiag = "Download 里的 spider.jar 加载不了（很可能没下完整）";
             }
         }
 
