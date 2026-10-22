@@ -43,11 +43,12 @@ tv.zip
 .bin/
 .gradle-home/
 
-# ---------- 脚本产物：截图 / 日志 / 缓存 ----------
-ui-design/shots*/
-ui-design/_icon_debug/
-ui-design/*.log
-ui-design/node_modules/
+# ---------- 设计稿与验证脚本：只在本地留档（2026-10-22 用户要求移出仓库）----------
+# ui-design/ 里是 HTML 原型、截图外壳工程、Playwright 验证脚本和大量截图，共 148MB。
+# 需要跑 UI 回归时在本地 `cd ui-design && node _verify_app.js`，代码里不引用它。
+ui-design/
+
+# ---------- 脚本产物：缓存 ----------
 __pycache__/
 *.pyc
 _build/
