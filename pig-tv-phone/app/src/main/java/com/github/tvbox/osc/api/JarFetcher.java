@@ -8,7 +8,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
@@ -144,6 +146,101 @@ public final class JarFetcher {
     }
 
     private JarFetcher() {
+    }
+
+    /**
+     * 组件地址 404 自愈。
+     *
+     * <p>站点换 jar 包时「只改文件、忘改配置」是常态。实测俊于
+     * （{@code home.jundie.top:81/top98.json}）配置里写的是
+     * {@code ./jar/top98_1.jar}，服务器上只剩 {@code top98.jar}：配置能拉到、
+     * 组件却永远 404，首页一直空着，用户只会觉得「App 坏了」。
+     *
+     * <p>这里只做一件很窄的事：目标<b>明确</b>回 404/403/410 时，在同一目录里按
+     * {@code stem.jar → stem_1.jar → stem_2.jar → stem_3.jar} 挨个问一遍，
+     * 谁回 200/206 就用谁。超时、连接重置这类网络层失败<b>不折腾</b>——
+     * 那不是改名，换地址只会更糟。
+     *
+     * @param diag 追加一句人话给「组件诊断」看
+     * @return 可用的地址，找不到就原样返回
+     */
+    public static String healJarUrl(String url, StringBuilder diag) {
+        if (url == null || url.length() == 0) return url;
+        String plain = url;
+        int cut = plain.indexOf(';');
+        if (cut > 0) plain = plain.substring(0, cut);
+        String lower = plain.toLowerCase();
+        // .txt 也要管：不少源把 jar 改名成 fan.txt / spider.txt 伪装（内容是 PK 包），
+        // 一样会遇到「文件名加了个 _1 而配置没跟上」。
+        if (!lower.endsWith(".jar") && !lower.endsWith(".txt")) return url;
+        int slash = plain.lastIndexOf('/');
+        if (slash <= 0) return url;
+
+        int st = probeStatus(plain);
+        if (st == 200 || st == 206) return url;
+        if (st != 404 && st != 403 && st != 410) {
+            // 0 = 网络层没通，可能只是这一下抽风；别因为一次超时就换掉正确地址
+            return url;
+        }
+
+        String dir = plain.substring(0, slash + 1);
+        String name = plain.substring(slash + 1);
+        String ext = name.substring(name.lastIndexOf('.'));
+        String stem = name.substring(0, name.length() - ext.length());
+        String base = stem.replaceAll("_\\d+$", "");
+
+        List<String> cands = new ArrayList<>();
+        cands.add(dir + base + ext);
+        for (int i = 1; i <= 3; i++) cands.add(dir + base + "_" + i + ext);
+
+        for (String c : cands) {
+            if (c.equalsIgnoreCase(plain)) continue;
+            int s = probeStatus(c);
+            if (s == 200 || s == 206) {
+                if (diag != null) {
+                    diag.append("组件地址 ").append(st).append("，自动改用 ")
+                            .append(c.substring(c.lastIndexOf('/') + 1)).append("; ");
+                }
+                return c;
+            }
+        }
+        if (diag != null) {
+            diag.append("组件地址返回 ").append(st)
+                    .append("（站点很可能改了包名，配置没跟着改）; ");
+        }
+        return url;
+    }
+
+    /** 只问状态码，不读内容。返回 0 表示网络层失败。 */
+    private static int probeStatus(String url) {
+        Request req;
+        try {
+            req = new Request.Builder()
+                    .url(ApiConfig.toAsciiUrl(url))
+                    .header("Range", "bytes=0-0")
+                    .header("User-Agent", UA)
+                    .get()
+                    .build();
+        } catch (Throwable th) {
+            return 0;
+        }
+        Response resp = null;
+        try {
+            resp = client().newCall(req).execute();
+            int code = resp.code();
+            try {
+                if (resp.body() != null) resp.body().close();
+            } catch (Throwable ignored) {
+            }
+            return code;
+        } catch (Throwable th) {
+            return 0;
+        } finally {
+            try {
+                if (resp != null) resp.close();
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     /**

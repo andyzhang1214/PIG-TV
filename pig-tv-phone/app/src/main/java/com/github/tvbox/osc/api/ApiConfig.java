@@ -237,6 +237,10 @@ public class ApiConfig {
         configUrl = toAsciiUrl(configUrl);
         System.out.println("API URL :" + configUrl);
         String configKey = TempKey;
+        // 网络抖动（超时/连接重置/5xx）只重试一次：这类源站经常「这次 522，下次就好了」，
+        // 一次失败就判死会让用户反复手动点重新加载。HTTP 4xx 不重试，那不是抖动。
+        final String requestUrl = configUrl;
+        final int[] retried = {0};
         OkGo.<String>get(configUrl)
                 .headers("User-Agent", userAgent)
                 .headers("Accept", requestAccept)
@@ -278,7 +282,17 @@ public class ApiConfig {
                                 th.printStackTrace();
                             }
                         }
-                        callback.error("拉取配置失败\n" + (response.getException() != null ? response.getException().getMessage() : ""));
+                        boolean netErr = response.getException() != null || response.code() >= 500;
+                        if (netErr && retried[0] == 0) {
+                            retried[0] = 1;
+                            LOG.i("echo---配置请求失败(code=" + response.code() + ")，重试一次");
+                            OkGo.<String>get(requestUrl)
+                                    .headers("User-Agent", userAgent)
+                                    .headers("Accept", requestAccept)
+                                    .execute(this);
+                            return;
+                        }
+                        callback.error("拉取配置失败\n" + (response.getException() != null ? response.getException().getMessage() : ("HTTP " + response.code())));
                     }
 
                     public String convertResponse(okhttp3.Response response) throws Throwable {
@@ -441,7 +455,22 @@ public class ApiConfig {
                         && System.currentTimeMillis() - part.lastModified() > 12 * 3600_000L) {
                     part.delete();
                 }
-                r = JarFetcher.fetch(realUrl, part, md5);
+                // 站点常把 jar 改名却忘改配置（top98_1.jar → top98.jar），
+                // 这种情况下去下整包只会拿回一个 404 网页。先花一次请求确认地址还活着，
+                // 404 就在同目录试几个常见写法。
+                StringBuilder healDiag = new StringBuilder();
+                String jarTarget = JarFetcher.healJarUrl(realUrl, healDiag);
+                String useMd5 = md5;
+                if (!jarTarget.equals(realUrl)) {
+                    // 换了文件，配置里那个 md5 必然是旧包的，拿它卡自己等于白修
+                    useMd5 = "";
+                    if (part.exists()) part.delete();
+                }
+                r = JarFetcher.fetch(jarTarget, part, useMd5);
+                if (healDiag.length() > 0) {
+                    if (r.diag == null) r.diag = "";
+                    r.diag = healDiag + r.diag;
+                }
             }
 
             lastJarDiag = r.diag == null ? "" : r.diag;
