@@ -62,8 +62,12 @@ public final class JarFetcher {
      * 不能给小：这类站常见「传一大段 → 触发限速 → 之后连不上」。
      */
     private static final int MAX_DRY = 10;
-    /** 整包模式下，连续这么多次都没超过历史最好成绩就认输（每次都是从头下，超过才有意义） */
-    private static final int MAX_FULL_RUNS = 3;
+    /**
+     * 整包模式下，连续这么多次都没超过历史最好成绩就认输（每次都是从头下，超过才有意义）。
+     * 原来是 3：实测源站每次能给 160~393KB，最好的那轮只差一点点，
+     * 3 次就把「刚好这一轮传完」的运气掐掉了，给到 8 次（总时长仍由 TOTAL_BUDGET_MS 兜底）。
+     */
+    private static final int MAX_FULL_RUNS = 8;
     /** 一轮下载的总时长预算 */
     private static final long TOTAL_BUDGET_MS = 210_000L;
     /** 分段续传的起始粒度，以及能缩到的最小粒度 */
@@ -161,12 +165,23 @@ public final class JarFetcher {
             // http 上不认 Range 时，很可能是中间层改写了请求头 —— TLS 里它改不了
             String secure = "https://" + target.substring(7);
             int s2 = probeRange(secure, diag);
-            diag.append(s2 == 1 ? "https 认 Range → 改用 https; " : "https 也不认 Range; ");
             if (s2 == 1) {
+                diag.append("https 认 Range → 改用 https; ");
                 target = secure;
                 rangeState = 1;
             } else if (s2 == 0) {
+                diag.append("https 也不认 Range; ");
                 rangeState = 0;
+            } else {
+                // s2 == -1：https 这条路根本探不出来（522 / TLS 失败 / 超时）。
+                // 这种情况**不能**当成「不认 Range」：一旦当成不认，就只能整包从头重下，
+                // 而源站每次都在几百 KB 处掐断 —— 数学上永远拼不出完整文件（实测只能试 3 次）。
+                // 按 probeRange 注释的原意乐观处理，走分段续传：
+                //   - 服务器真认 Range → 每轮都有净进度，几百次机会，必成；
+                //   - 服务器真不认     → fetchRanged 里「探到 206、实际回 200 且有残包」会自动
+                //                        降级到 fetchWhole，不会比原来更差。
+                diag.append("https 探测失败，乐观按认 Range 处理; ");
+                rangeState = 1;
             }
         }
         r.noResume = rangeState == 0;
@@ -529,6 +544,9 @@ public final class JarFetcher {
             }
             sleep(backoff(runs + 1));
         }
+        // 整包模式失败时 dest 通常是不存在的（.full 没通过校验就删了），
+        // 但「这轮最好拿到过多少」是用户最需要知道的数字，留给 friendly() 出文案。
+        r.bytes = Math.max(r.bytes, best);
         dropFile(full);
     }
 
@@ -578,7 +596,9 @@ public final class JarFetcher {
                 return "组件地址返回的是网页（" + r.htmlHint + "），可能被网络拦截了";
             return "组件地址返回的是网页而不是文件，可能被网络拦截了";
         }
-        long got = r.file == null ? 0 : r.file.length();
+        // r.file 为空时（整包模式每轮都从头下、失败就删临时文件）用 r.bytes，
+        // 否则会给用户「服务器没有返回数据」这种明显不实的结论 —— 实际上一轮能拿到 300 多 KB。
+        long got = Math.max(r.file == null ? 0 : r.file.length(), r.bytes);
         if (r.noResume && got > 0 && r.expected > 0 && got < r.expected) {
             return "这个源站不支持断点续传，每次只肯给 " + got / 1024 + "KB（共 "
                     + r.expected / 1024 + "KB）就被掐断。换成 Wi-Fi、关掉手机上的代理/VPN 再试一次";
