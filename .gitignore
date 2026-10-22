@@ -1,0 +1,53 @@
+# =====================================================================
+# PIG-TV / 猪猪影视 —— 只提交源码，构建产物一律不入库
+# （Box/ 和 Box-phone/ 里各有一份上游自带的 .gitignore，这里是根级补充）
+# =====================================================================
+
+# ---------- macOS / 编辑器 ----------
+.DS_Store
+.idea/
+*.iml
+
+# ---------- Gradle ----------
+.gradle/
+.gradle-home/
+build/
+local.properties
+*.hprof
+output-metadata.json
+proguardMapping.txt
+
+# ---------- 构建产物 ----------
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+# 注意：不能忽略 *.aar —— TV-fongmi/app/libs 下的 aar 是编译依赖
+
+# ---------- 安装包 / 大档案（需要时从 Release 下载）----------
+dist/
+*.idsig
+box-main.tar.gz
+tv.zip
+
+# ---------- 签名文件：绝不入库 ----------
+*.jks
+*.keystore
+
+# ---------- Crosswalk 预编译包（共 208MB，仅 python 玩法模块用，可另行下载）----------
+# 注意写 **/xwalk：只写 xwalk/ 会被锚定到根目录，匹配不到 Box/xwalk
+**/xwalk/*.zip
+
+# ---------- 工具链缓存 ----------
+.bin/
+.gradle-home/
+
+# ---------- 脚本产物：截图 / 日志 / 缓存 ----------
+ui-design/shots*/
+ui-design/_icon_debug/
+ui-design/*.log
+ui-design/node_modules/
+__pycache__/
+*.pyc
+_build/

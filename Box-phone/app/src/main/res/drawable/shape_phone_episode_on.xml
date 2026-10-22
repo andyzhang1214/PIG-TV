@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 手机版播放页选集抽屉：当前正在播的集数按钮 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#FFFF7A45" />
+    <corners android:radius="8dp" />
+</shape>

@@ -1,0 +1,189 @@
+<resources>
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/color_32364E</item>
+        <item name="colorPrimaryDark">@color/color_32364E_40</item>
+        <item name="colorAccent">?attr/color_theme</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:windowFullscreen">true</item>//全屏即无通知栏
+        <item name="android:windowContentOverlay">@null</item>//是否有遮盖
+        <item name="windowNoTitle">true</item>
+        <!--        <item name="android:keepScreenOn">true</item>-->
+        <!--        <item name="android:windowBackground">@drawable/app_bg</item>-->
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+
+    <!--
+        手机版专用主题。四件事：
+        1. windowBackground 用不透明深色 —— 原主题是 transparent，配合
+           onCreate 里的 setRequestedOrientation，在 Android 8.x 上是已知的
+           "Only fullscreen opaque activities can request orientation" 崩溃组合。
+        2. windowFullscreen 关掉 —— 手机要有状态栏，内容用 edge-to-edge 延伸进去。
+        3. colorAccent 写死 —— PhoneActivity 不继承 BaseActivity，不会走
+           setTheme(NetfxTheme) 那套换肤，?attr/color_theme 在这里是空值。
+        4. 父主题必须是 DayNight —— AppTheme 那支的祖先是 Theme.AppCompat.Light.*，
+           带 Light 的主题会把本 App 的 Configuration.uiMode 的 night 位摁成 NO，
+           于是 isNightMode() 永远返回浅色、values-night 也永远不会被选中，
+           「跟随系统深浅色」整条链路会静默失效。改成 DayNight 后
+           AppCompatDelegate 会把系统的 night 设置应用到本 Activity 的配置上。
+    -->
+    <style name="PhoneTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- 手机版窗口底色跟着系统深浅色走（values-night 里是深色），
+             这样冷启动/从最近任务恢复的第一帧不会闪错颜色 -->
+        <item name="android:windowBackground">@color/phone_bg</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowFullscreen">false</item>
+        <!-- 换成 DayNight 父主题后，这几项不再从 AppTheme.NoActionBar 继承，显式补回 -->
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="colorPrimary">@color/phone_bg</item>
+        <item name="colorPrimaryDark">@color/phone_bg</item>
+        <item name="colorAccent">#FFF0C070</item>
+    </style>
+
+    <!--
+        手机版「内联播放」小窗主题。
+        floating + translucent = 窗口可以自定义大小、定位到屏幕顶部，
+        并且下面那一层详情页（PhoneActivity）依然可见、可点击。
+        windowFullscreen 必须关掉，否则小窗会顶到状态栏上面。
+    -->
+    <style name="MiniPlayTheme" parent="NetfxTheme">
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <!-- Alternative Themes -->
+    <style name="NetfxTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#D81F26</item>
+        <item name="color_theme_80">#CCD81F26</item>
+        <item name="color_theme_70">#B3D81F26</item>
+        <item name="color_theme_60">#99D81F26</item>
+        <item name="color_theme_50">#80D81F26</item>
+        <item name="color_theme_40">#66D81F26</item>
+        <item name="color_theme_dark_70">#B38C1418</item>
+    </style>
+    <style name="DoraeTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#18A2E7</item>
+        <item name="color_theme_80">#CC18A2E7</item>
+        <item name="color_theme_70">#B318A2E7</item>
+        <item name="color_theme_60">#9918A2E7</item>
+        <item name="color_theme_50">#8018A2E7</item>
+        <item name="color_theme_40">#6618A2E7</item>
+        <item name="color_theme_dark_70">#B3106D9C</item>
+    </style>
+    <style name="PepsiTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#004B93</item>
+        <item name="color_theme_80">#CC004B93</item>
+        <item name="color_theme_70">#B3004B93</item>
+        <item name="color_theme_60">#99004B93</item>
+        <item name="color_theme_50">#80004B93</item>
+        <item name="color_theme_40">#66004B93</item>
+        <item name="color_theme_dark_70">#B3002547</item>
+    </style>
+    <style name="NarutoTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#FF7439</item>
+        <item name="color_theme_80">#CCFF7439</item>
+        <item name="color_theme_70">#B3FF7439</item>
+        <item name="color_theme_60">#99FF7439</item>
+        <item name="color_theme_50">#80FF7439</item>
+        <item name="color_theme_40">#66FF7439</item>
+        <item name="color_theme_dark_70">#B3B35127</item>
+    </style>
+    <style name="MinionTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#FFD55E</item>
+        <item name="color_theme_80">#CCFFD55E</item>
+        <item name="color_theme_70">#B3FFD55E</item>
+        <item name="color_theme_60">#99FFD55E</item>
+        <item name="color_theme_50">#80FFD55E</item>
+        <item name="color_theme_40">#66FFD55E</item>
+        <item name="color_theme_dark_70">#B3B39542</item>
+    </style>
+    <style name="YagamiTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#FF2F70</item>
+        <item name="color_theme_80">#CCFF2F70</item>
+        <item name="color_theme_70">#B3FF2F70</item>
+        <item name="color_theme_60">#99FF2F70</item>
+        <item name="color_theme_50">#80FF2F70</item>
+        <item name="color_theme_40">#66FF2F70</item>
+        <item name="color_theme_dark_70">#B3B3204E</item>
+    </style>
+    <style name="SakuraTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#FD9BDB</item>
+        <item name="color_theme_80">#CCFD9BDB</item>
+        <item name="color_theme_70">#B3FD9BDB</item>
+        <item name="color_theme_60">#99FD9BDB</item>
+        <item name="color_theme_50">#80FD9BDB</item>
+        <item name="color_theme_40">#66FD9BDB</item>
+        <item name="color_theme_dark_70">#B3B06B98</item>
+    </style>
+
+    <!-- 自定义dialog样式 -->
+    <style name="CustomDialogStyle" parent="@android:style/Theme.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowFrame">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+    <style name="CustomDialogStyleDim" parent="@android:style/Theme.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowFrame">@null</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+    <!-- Volume / Brightness Bar -->
+    <style name="video_vertical_progressBar">
+        <item name="android:maxWidth">12dp</item>
+        <item name="android:indeterminateOnly">false</item>
+        <item name="android:indeterminateDrawable">
+            @android:drawable/progress_indeterminate_horizontal
+        </item>
+        <item name="android:progressDrawable">@drawable/play_progress_vertical</item>
+        <item name="android:indeterminateDuration">3500</item>
+        <item name="android:indeterminateBehavior">repeat</item>
+        <item name="android:minWidth">1dp</item>
+    </style>
+
+    <!-- Mini Progress Bar -->
+    <style name="video_horizontal_progressBar">
+        <item name="android:maxWidth">12dp</item>
+        <item name="android:indeterminateOnly">false</item>
+        <item name="android:indeterminateDrawable">
+            @android:drawable/progress_indeterminate_horizontal
+        </item>
+        <item name="android:progressDrawable">@drawable/play_progress_horizontal</item>
+        <item name="android:indeterminateDuration">3500</item>
+        <item name="android:indeterminateBehavior">repeat</item>
+        <item name="android:minWidth">1dp</item>
+    </style>
+
+    <style name="surfaceType_surface">
+        <item name="surface_type">surface_view</item>
+    </style>
+    <style name="surfaceType_texture">
+        <item name="surface_type">texture_view</item>
+    </style>
+</resources>

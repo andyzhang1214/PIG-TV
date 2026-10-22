@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 入口卡背景：默认淡白渐变 + 细边，焦点整卡变白（设计稿 .app / .app.focused） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="@dimen/h_app_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="285"
+                android:startColor="#1BFFFFFF"
+                android:endColor="#09FFFFFF"
+                android:type="linear" />
+            <stroke android:width="0.6mm" android:color="#1AFFFFFF" />
+            <corners android:radius="@dimen/h_app_radius" />
+        </shape>
+    </item>
+</selector>

@@ -1,0 +1,2233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07070A">
+<title>猪猪影视</title>
+<!--
+  首屏主题必须在样式表之前定下来，否则老 WebView 不认识 prefers-color-scheme，
+  会先按深色画一帧再被原生切浅色，出现一次明显的闪黑。
+  原生 loadUrl 时会带 ?theme=light|dark，这里同步读掉。
+-->
+<script>
+(function(){
+  try{
+    var m = /[?&]theme=(light|dark)/.exec(location.search);
+    if (m) document.documentElement.setAttribute('data-theme', m[1]);
+  }catch(e){}
+})();
+</script>
+<link rel="stylesheet" href="app.css">
+<!-- 平板层：全部规则包在 >=600dp 里，手机加载了也不生效 -->
+<link rel="stylesheet" href="pad.css">
+</head>
+<body>
+
+<div id="bg"></div>
+
+<div id="scroll">
+
+  <!-- ================= 首页 ================= -->
+  <section id="pH" class="page on">
+    <div class="hdr">
+      <div>
+        <div class="htitleWrap" onclick="openSites()">
+          <span class="htitle" id="srcName">猪猪影视</span>
+          <svg class="ic hdrArrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="search" onclick="openSearch()">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+      <div class="ph">搜片名、演员、类型</div>
+      <div class="mic" onclick="event.stopPropagation();go('ai')">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.2l1.9 4.9 4.9 1.9-4.9 1.9L12 16.8l-1.9-4.9L5.2 10l4.9-1.9z"/></svg>
+      </div>
+    </div>
+
+    <div class="hero" id="hero" onclick="heroClick()"></div>
+
+    <!-- 分类入口已移除：底部 Tab 里就是分类，首页不再重复一排图标 -->
+
+    <div id="contWrap" style="display:none">
+      <div class="sec"><div><span class="secT">继续观看</span></div></div>
+      <div class="crow" id="crow"></div>
+    </div>
+
+    <div class="sec">
+      <div><span class="secT">热门推荐</span></div>
+      <div class="more" onclick="shuffleHome()">换一批
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 9h5V4"/><path d="M4.6 9.2A7.5 7.5 0 0 1 19 12"/><path d="M20 15h-5v5"/><path d="M19.4 14.8A7.5 7.5 0 0 1 5 12"/></svg>
+      </div>
+    </div>
+    <div class="grid2" id="gridHot"></div>
+    <div class="loadmore" id="hotMore" style="display:none"></div>
+    <div style="height:6px"></div>
+  </section>
+
+  <!-- ================= 分类 ================= -->
+  <section id="pC" class="page">
+    <!-- 分类 chips 和筛选条直接排在页面顶部（不吸顶、不做「更多」收纳）：
+         片源给十几个分类时宁可让这一行横向滚，也别把它们藏起来。 -->
+    <div class="chips" id="catChips"></div>
+    <!-- 筛选条：每个筛选组一个按钮，显示「组名：当前值」，点开底部弹层选值 -->
+    <div class="fbar" id="catFilt" style="display:none"></div>
+    <div class="grid2" id="gridCat"></div>
+    <div class="loadmore" id="catMore"></div>
+    <div style="height:6px"></div>
+  </section>
+
+  <!-- ================= 问 AI ================= -->
+  <section id="pA" class="page">
+    <div class="aitop">
+      <div class="back" onclick="go('home')">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7"/></svg>
+      </div>
+      <div>
+        <div class="aitopT">问 AI</div>
+        <div class="aitopS">说一句人话，我来帮你找</div>
+      </div>
+    </div>
+
+    <div class="aiin">
+      <textarea class="aiinQ" id="aiQ" rows="2" placeholder="比如：90 年代的香港爱情片"></textarea>
+      <div class="aiinBar">
+        <div class="aiinHint">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.2l1.9 4.9 4.9 1.9-4.9 1.9L12 16.8l-1.9-4.9L5.2 10l4.9-1.9z"/></svg>
+          本地语义解析 · 解析后走全站搜索
+        </div>
+        <div class="send" onclick="aiRun()">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M4.5 11.6L20 4.5l-6.2 15-2.2-6.3z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div id="aiBefore">
+      <div class="exlab">试试这些</div>
+      <div class="ex" id="aiEx"></div>
+      <div class="cap">
+        <div class="capH">能听懂这些</div>
+        <div class="capR"><b>类型</b><span>动作、悬疑、科幻、喜剧、犯罪、动画、战争、纪录、都市</span></div>
+        <div class="capR"><b>地区</b><span>内地、香港、台湾、美国、日本、韩国、欧洲</span></div>
+        <div class="capR"><b>年代</b><span>九十年代、1994、2020 到 2024、这两年、去年</span></div>
+        <div class="capR"><b>演员</b><span>说「刘德华演的」这类句式</span></div>
+        <div class="capR"><b>片名</b><span>用书名号《流浪地球》最准</span></div>
+      </div>
+    </div>
+
+    <div id="aiAfter" style="display:none">
+      <div class="parse" id="parse"></div>
+      <div class="sec"><div><span class="secT">为你找到</span><span class="secS" id="aiCnt"></span></div></div>
+      <div class="grid2" id="gridAi"></div>
+      <div id="aiRel"></div>
+    </div>
+    <div style="height:6px"></div>
+  </section>
+
+  <!-- ================= 我的 ================= -->
+  <section id="pM" class="page">
+    <div class="hdr">
+      <div>
+        <div class="htitle">我的</div>
+      </div>
+    </div>
+
+    <div class="melist top">
+      <div class="meitem" onclick="openListPage('fav')">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M6.5 4.5h11v15l-5.5-4-5.5 4z"/></svg>
+        我的收藏<span class="v" id="favCnt">0</span>
+      </div>
+      <div class="meitem" onclick="openListPage('hist')">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.5V12l3.2 2"/></svg>
+        观看历史<span class="v" id="histCnt">0</span>
+      </div>
+      <div class="meitem" onclick="AndroidPhone.openLive()">
+        <svg class="ic" viewBox="0 0 24 24"><rect x="3.6" y="5.6" width="16.8" height="12.8" rx="3"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><path d="M7 3.4l2 2.2M17 3.4l-2 2.2"/></svg>
+        电视直播<span class="v">横屏播放</span>
+      </div>
+      <div class="meitem" onclick="openSearch()">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+        全站搜索<span class="v">多源聚合</span>
+      </div>
+    </div>
+
+    <div class="meSec">配置</div>
+    <div class="melist">
+      <div class="meitem ar" onclick="openApiList()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.5l8 4.5-8 4.5-8-4.5z"/><path d="M4 12.5l8 4.5 8-4.5"/></svg>
+        片源接口<span class="v" id="cfgHint">未配置</span>
+      </div>
+      <div class="meitem ar" onclick="openLiveCfg()">
+        <svg class="ic" viewBox="0 0 24 24"><rect x="3.6" y="6" width="16.8" height="12" rx="2.6"/><path d="M8 3.6l4 2.4 4-2.4"/></svg>
+        直播源<span class="v" id="liveHint">未设置</span>
+      </div>
+      <div class="meitem ar" onclick="openSites()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 7h10M4 12h7M4 17h12"/><circle cx="18" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="18.5" cy="17" r="2"/></svg>
+        线路切换<span class="v" id="siteHint">—</span>
+      </div>
+    </div>
+
+    <div class="meSec">设置</div>
+    <div class="melist">
+      <div class="meitem ar" onclick="openTheme()">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.4M12 19v2.4M2.6 12h2.4M19 12h2.4M5.4 5.4l1.7 1.7M16.9 16.9l1.7 1.7M18.6 5.4l-1.7 1.7M7.1 16.9l-1.7 1.7"/></svg>
+        主题<span class="v" id="themeHint">跟随系统</span>
+      </div>
+      <div class="meitem ar" onclick="openSearchLimit()">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 3.4v2.8M12 17.8v2.8M3.4 12h2.8M17.8 12h2.8M6.1 6.1l2 2M15.9 15.9l2 2M17.9 6.1l-2 2M8.1 15.9l-2 2"/></svg>
+        搜索站点数<span class="v" id="limitHint">12 个</span>
+      </div>
+      <div class="meitem ar" onclick="togglePlayFull()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5"/></svg>
+        播放默认全屏<span class="v" id="fullPref">小窗</span>
+      </div>
+      <div class="meitem ar" onclick="openDoh()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.6l7 2.6v5.2c0 4-2.9 7.4-7 8.6-4.1-1.2-7-4.6-7-8.6V6.2z"/><path d="M9.2 12.2l2 2 3.6-3.8"/></svg>
+        安全 DNS<span class="v" id="dohHint">关闭</span>
+      </div>
+    </div>
+
+    <div class="meSec">播放器</div>
+    <div class="melist">
+      <div class="meitem ar" onclick="AndroidPhone.openSetting()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M18 17h2"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="16" cy="17" r="2"/></svg>
+        播放器设置<span class="v">解码 / 内核</span>
+      </div>
+    </div>
+
+    <div class="meSec">系统</div>
+    <div class="melist">
+      <div class="meitem ar" onclick="clearCacheNow()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M5 7h14M9.5 7V4.8h5V7M7 7l.8 12.2h8.4L17 7"/><path d="M10.4 10.6v5.4M13.6 10.6v5.4"/></svg>
+        清空 App 缓存<span class="v" id="cacheHint">—</span>
+      </div>
+      <div class="meitem ar" onclick="resetAppAsk()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 0 1 12.8-5.3L20 9"/><path d="M20 4.6V9h-4.4"/><path d="M19.5 12a7.5 7.5 0 0 1-12.8 5.3L4 15"/><path d="M4 19.4V15h4.4"/></svg>
+        重置 App<span class="v"></span>
+      </div>
+      <div class="meitem ar" onclick="openAbout()">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".9" fill="currentColor"/></svg>
+        关于<span class="v" id="verHint">v1.0</span>
+      </div>
+    </div>
+    <div style="height:6px"></div>
+  </section>
+
+  <!-- ================= 收藏 / 历史 列表页 ================= -->
+  <section id="pL" class="page">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="back" onclick="go('me')" style="margin:0">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7"/></svg>
+        </div>
+        <div class="htitle" id="listTitle">收藏</div>
+      </div>
+    </div>
+    <div class="grid2" id="gridList"></div>
+    <div style="height:6px"></div>
+  </section>
+
+</div>
+
+<!-- ================= 底部 Tab ================= -->
+<nav id="tabs">
+  <div class="tab on" data-p="home" onclick="go('home')">
+    <svg class="ic" viewBox="0 0 24 24"><path d="M3.5 10.5L12 3.6l8.5 6.9"/><path d="M6 9.6V20h12V9.6"/></svg>
+    <span>首页</span>
+  </div>
+  <div class="tab" data-p="cat" onclick="go('cat')">
+    <svg class="ic" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg>
+    <span>分类</span>
+  </div>
+  <div class="tab" data-p="ai" onclick="go('ai')">
+    <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.2l1.9 4.9 4.9 1.9-4.9 1.9L12 16.8l-1.9-4.9L5.2 10l4.9-1.9z"/><path d="M18.4 15.4l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/></svg>
+    <span>问 AI</span>
+  </div>
+  <div class="tab" data-p="me" onclick="go('me')">
+    <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.6-3.6 3.6-5.6 7.2-5.6s6.6 2 7.2 5.6"/></svg>
+    <span>我的</span>
+  </div>
+</nav>
+
+<!-- ================= 详情 ================= -->
+<div id="detail">
+  <div class="dMask" onclick="closeDetail()"></div>
+  <div class="dSheet" id="dSheet"></div>
+</div>
+
+<!-- ================= 换源 / 切站点 弹层 ================= -->
+<div id="dAlt">
+  <div class="altHead">
+    <span id="altTitle">换源</span>
+    <span class="altClose" onclick="closeAlt()">关闭</span>
+  </div>
+  <div class="altList" id="altList"></div>
+</div>
+
+<!-- ================= 筛选值选择（底部弹层） ================= -->
+<div id="flt">
+  <div class="fltMask" onclick="closeFlt()"></div>
+  <div class="fltSheet">
+    <div class="fltHead">
+      <span id="fltT">筛选</span>
+      <span class="altClose" onclick="closeFlt()">关闭</span>
+    </div>
+    <!-- 一次只列一个筛选组的取值：点哪个按钮就开哪一组 -->
+    <div class="fltVals" id="fltVals"></div>
+  </div>
+</div>
+
+<!-- ================= 搜索 ================= -->
+<div id="sov">
+  <div class="sbar">
+    <div class="sin">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+      <input id="sIn" placeholder="搜片名，回车开始搜全站" autocomplete="off" onkeydown="sKey(event)">
+    </div>
+    <div class="scancel" onclick="closeSearch()">取消</div>
+  </div>
+  <div class="shot" id="sHot">
+    <div class="shotH">大家都在搜</div>
+    <div class="words" id="sWords"></div>
+  </div>
+  <div id="sState" class="loadmore" style="display:none"></div>
+  <div class="grid2" id="sGrid" style="display:none"></div>
+</div>
+
+<!-- ================= 配置（片源接口 / 直播源 共用一个表单） ================= -->
+<div id="cfg">
+  <div class="cfgBox">
+    <div class="cfgT" id="cfgTitle">片源接口</div>
+    <div class="cfgS" id="cfgDesc">猪猪影视本身不带内容，需要一个接口地址（JSON）。填你已有的接口即可，和 TVBox 通用。</div>
+    <div id="cfgNameWrap" style="display:none">
+      <input id="cfgName" class="cfgIn cfgInS" type="text" maxlength="30" autocomplete="off"
+             spellcheck="false" placeholder="接口名（留空则用接口全名）">
+      <div class="cfgSub" id="cfgNameSub">起个自己认得出来的名字，列表里显示的就是它</div>
+    </div>
+    <div id="cfgUrlWrap">
+      <textarea id="cfgIn" class="cfgIn" rows="4" placeholder="https://example.com/api.json"></textarea>
+      <div class="cfgRow" style="margin-top:10px">
+        <div class="cfgBtn ghost" onclick="cfgPaste()">从剪贴板粘贴</div>
+      </div>
+    </div>
+    <div class="cfgRow">
+      <div class="cfgBtn ghost" onclick="cfgClose()">返回</div>
+      <div class="cfgBtn" id="cfgOk" onclick="cfgSave()">保存并加载</div>
+    </div>
+    <div class="cfgS" id="cfgMsg" style="margin-top:12px"></div>
+    <div class="cfgS" id="cfgTip" style="margin-top:14px;opacity:.72">
+      提示：接口地址和 TVBox / 影视仓 通用。猪猪影视只负责播放，不提供任何片源。
+    </div>
+  </div>
+</div>
+
+<!-- ================= 二次确认 ================= -->
+<div id="ask">
+  <div class="askMask" onclick="askClose()"></div>
+  <div class="askBox">
+    <div class="askT" id="askT">确认</div>
+    <div class="askM" id="askM"></div>
+    <div class="askRow">
+      <div class="askBtn ghost" onclick="askClose()">取消</div>
+      <div class="askBtn danger" onclick="askYes()">确定</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* =====================================================================
+   原生桥
+   ===================================================================== */
+var SEQ = 0, CB = {};
+
+function ncall(method, args, cb){
+  var id = 'c' + (++SEQ);
+  CB[id] = cb || function(){};
+  try{
+    if (!window.AndroidPhone || typeof AndroidPhone[method] !== 'function'){
+      delete CB[id];
+      cb && cb({ok:0, msg:'不在 App 内运行'});
+      return;
+    }
+    AndroidPhone[method].apply(AndroidPhone, (args || []).concat([id]));
+  }catch(e){
+    delete CB[id];
+    cb && cb({ok:0, msg:String(e && e.message || e)});
+  }
+}
+
+window.__cb = function(id, s){
+  var f = CB[id];
+  if (!f) return;
+  delete CB[id];
+  var d = {};
+  try{ d = JSON.parse(s) || {}; }catch(e){ d = {ok:0, msg:'数据解析失败'}; }
+  try{ f(d); }catch(e){ console.log('cb error', e); }
+};
+
+/* =====================================================================
+   状态
+   ===================================================================== */
+/* 播放默认是否全屏：由原生 Hawk 保存，启动时读回来 */
+var PLAY_FULL = false;
+
+var ST = {
+  sorts: [],
+  items: [],        // 当前 grid 池（分类 / 搜索结果共用下标；首页已拆到 hot）
+  hot: [],          // 首页推荐池（全分类轮询合并，独立于 items，避免互相覆盖）
+  hero: [],
+  hist: [],
+  fav: [],
+  curSort: null,
+  /* 分类页筛选：{ sortId: { 组名: 选中值 } }，按分类分别记，切回来还在。
+     真正生效靠原生 SortData.filterSelect，这里只负责回显和上报。 */
+  filt: {},
+  page: 0,
+  pagecount: 1,
+  loading: false,
+  heroIdx: 0,
+  heroSwiped: false,
+  source: ''
+};
+
+/* 滚动锁：切页 / 回顶 / 换筛选之后 400~600ms 内忽略 scroll 事件。
+   浏览器在这些时刻会重算滚动位置并补发一次 scroll，
+   分类页会误判「滑到底了」直接翻页。
+   声明放在状态区 —— 用它的 scrollCatTop / reloadCat 在文本上更靠前，
+   靠 var 提升也能跑，但读代码时会以为用了未定义变量。 */
+var scrollLockUntil = 0;
+
+/* =====================================================================
+   工具
+   ===================================================================== */
+var PALETTES = [
+  ['#7B4BC4','#331A5C','#1A0F2E'], ['#1F8FA6','#0C3A48','#08202B'],
+  ['#B33A5C','#461222','#260B14'], ['#3B8F5C','#143524','#0B1E14'],
+  ['#B07A24','#40280D','#241505'], ['#4A4CBE','#191B4E','#12123A'],
+  ['#A83E8E','#3E1234','#220A1C'], ['#2770B8','#0E2746','#08182B'],
+  ['#B89334','#3F2F0E','#241A06'], ['#5F6E2A','#242B0E','#131706'],
+  ['#8E4BC8','#2E1550','#1A0C2C'], ['#46536E','#191F2B','#0C1018']
+];
+var colorMap = {};
+function colorOf(t){
+  t = String(t || 'x');
+  if (!(t in colorMap)){
+    var h = 0;
+    for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+    colorMap[t] = h % PALETTES.length;
+  }
+  return colorMap[t];
+}
+function hexA(hex, a){
+  var n = parseInt(hex.slice(1), 16);
+  return 'rgba(' + ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255) + ',' + a + ')';
+}
+function grad(t){
+  var p = PALETTES[colorOf(t)];
+  return 'radial-gradient(90% 62% at 26% 10%,' + hexA(p[0], .9) + ' 0%,transparent 66%),' +
+         'linear-gradient(158deg,' + p[1] + ' 0%,' + p[1] + ' 44%,' + p[2] + ' 100%)';
+}
+function heroGrad(){
+  return 'radial-gradient(86% 64% at 22% 6%,rgba(255,140,92,.52) 0%,transparent 62%),' +
+         'radial-gradient(72% 56% at 82% 90%,rgba(126,32,84,.50) 0%,transparent 70%),' +
+         'linear-gradient(158deg,#5C1E2C 0%,#311120 46%,#150910 100%)';
+}
+/* HTML 转义。文本节点、属性值都要走这里。
+   注意：esc() **不能**用来把数据拼进 onclick 里的 JS 字符串（见下面的 data-act），
+   因为属性值会先解码实体再交给 JS 编译，&#39; 到那一步又变回 '。 */
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function nz(s){ return s == null ? '' : String(s); }
+
+/* ---------------------------------------------------------------------
+   带参数的点击：data-act + data-val，事件委托
+   ---------------------------------------------------------------------
+   绝不写成 onclick="fn('值')"：
+   ① HTML 属性值是**先解码实体、再把结果交给 JS 编译**的，
+      esc() 把 ' 变成 &#39; 之后浏览器又解码回 '，字符串照样被闭合，
+      `x');AndroidPhone.setConfig(...);//` 这类 id 就变成了脚本执行；
+   ② WebView 里挂着 AndroidPhone 桥，等于把原生能力交给片源配置。
+   所以数据只当纯文本放在 data-val 里（esc 后作为属性值，不会进 JS 源码），
+   点击时统一由这里读出来分发。 */
+var ACTS = {
+  sort:     function(v){ openSort(v); },             // 分类 chips
+  flt:      function(v){ openFlt(v); },              // 筛选条上某一组
+  aw:       function(v){ sPick(v); },                // 搜索热词
+  aifill:   function(v){ aiFill(v); }                // AI 示例问句
+};
+document.addEventListener('click', function(e){
+  var el = e.target;
+  if (!el || !el.closest) return;
+  el = el.closest('[data-act]');
+  if (!el) return;
+  var fn = ACTS[el.getAttribute('data-act')];
+  if (fn) fn(el.getAttribute('data-val') || '');
+});
+
+/* 海报：优先真实图片，失败回退到按片名生成的渐变 */
+function artBg(v){
+  return 'background:' + grad(v.name);
+}
+function artImg(v){
+  if (!v || !v.pic) return '';
+  return '<img loading="lazy" src="' + esc(v.pic) + '" alt="" onerror="this.style.display=\'none\'">';
+}
+
+/* =====================================================================
+   卡片
+   ===================================================================== */
+function posterHTML(v, idx, cls, hook){
+  return '<div class="pc ' + (cls || '') + '" onclick="' + (hook || 'openDetail') + '(' + idx + ')">' +
+    '<div class="pcArt" style="' + artBg(v) + '">' + artImg(v) + '</div>' +
+    '<div class="pcMute"></div>' +
+    '<div class="pcCh">' + esc(nz(v.name).charAt(0) || '猪') + '</div>' +
+    '<div class="pcScrim"></div>' +
+    (cls === 'sm' ? '' : (idx === 0 ? '<div class="pcBadge hot">热播</div>' : '')) +
+    '<div class="pcT">' + esc(v.name) + '</div>' +
+    '<div class="pcB">' + esc(metaLine(v)) + '</div>' +
+  '</div>';
+}
+function metaLine(v){
+  var parts = [];
+  if (v.type) parts.push(v.type);
+  if (v.year) parts.push(v.year);
+  if (v.area) parts.push(v.area);
+  if (!parts.length && v.note) parts.push(v.note);
+  return parts.join(' · ').slice(0, 26) || v.note || '';
+}
+
+/* =====================================================================
+   首页
+   ===================================================================== */
+function renderHero(){
+  var el = document.getElementById('hero');
+  if (!ST.hero.length){
+    el.innerHTML = '<div class="heroArt" style="' + heroGrad() + '"></div>' +
+      '<div class="heroScrim"></div>' +
+      '<div class="heroBot"><div class="heroT">还没有内容</div>' +
+      '<div class="heroM">点右上角「我的 → 片源接口」添加一个接口</div>' +
+      '<div class="heroD">猪猪影视本身只是个播放器，内容全部来自你配置的接口。</div></div>';
+    return;
+  }
+  var v = ST.hero[ST.heroIdx % ST.hero.length];
+  el.innerHTML =
+    '<div class="heroArt" style="' + heroGrad() + '">' + artImg(v) +
+      '<div class="ring" style="left:-18%;top:-30%;width:74%;padding-bottom:74%"></div>' +
+    '</div>' +
+    '<div class="heroScrim"></div>' +
+    '<div class="heroTag">今日推荐</div>' +
+    '<div class="heroNum">0' + ((ST.heroIdx % ST.hero.length) + 1) + ' / 0' + ST.hero.length + '</div>' +
+    '<div class="heroBot">' +
+      '<div class="heroT">' + esc(v.name) + '</div>' +
+      '<div class="heroM">' + esc(metaLine(v)) + '</div>' +
+      '<div class="heroD">' + esc((v.des || v.note || '').replace(/\s+/g, ' ').slice(0, 60)) + '</div>' +
+    '</div>' +
+    '<div class="playBtn"><svg class="ic" viewBox="0 0 24 24"><path d="M8 5.4l11 6.6-11 6.6z"/></svg></div>';
+}
+
+function bindHeroSwipe(){
+  var el = document.getElementById('hero');
+  var sx = 0, sy = 0, on = false;
+  el.addEventListener('pointerdown', function(e){ sx = e.clientX; sy = e.clientY; on = true; });
+  el.addEventListener('pointerup', function(e){
+    if (!on || !ST.hero.length) return;
+    on = false;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    ST.heroSwiped = true;
+    setTimeout(function(){ ST.heroSwiped = false; }, 420);
+    var n = ST.hero.length;
+    ST.heroIdx = (ST.heroIdx + (dx < 0 ? 1 : n - 1)) % n;
+    renderHero();
+  });
+}
+function heroClick(){
+  if (ST.heroSwiped || !ST.hero.length) return;
+  var v = ST.hero[ST.heroIdx % ST.hero.length];
+  openDetailByVod(v);
+}
+
+/* 首页分类入口（#cats）、ICONS / ic() / catIcon() 已随 2026-10 的分类页重构一起删除：
+   底部 Tab 直接进分类页，首页那块九宫格不再存在，留着是纯死代码。 */
+
+function renderCont(){
+  var wrap = document.getElementById('contWrap');
+  if (!ST.hist.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  document.getElementById('crow').innerHTML = ST.hist.slice(0, 8).map(function(v, i){
+    return '<div class="cw" onclick="openHist(' + i + ')">' +
+      '<div class="cwT" style="' + artBg(v) + '">' + artImg(v) +
+        '<div class="cwBig">' + esc(nz(v.name).charAt(0)) + '</div>' +
+        '<div class="cwP"><i style="width:' + (28 + (i * 9) % 60) + '%"></i></div>' +
+      '</div>' +
+      '<div class="cwN">' + esc(v.name) + '</div>' +
+      '<div class="cwS">' + esc(v.note || '继续观看') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderHot(){
+  var grid = document.getElementById('gridHot');
+  var pool = ST.hot;
+  if (!pool.length){
+    // 片源自带推荐为空、正在从各分类凑池子的那一下，别急着喊「没有内容」
+    grid.innerHTML = ST.sorts.length
+      ? '<div class="loadmore">正在挑选推荐…</div>'
+      : emptyHTML('还没有内容，先去配一个接口');
+    return;
+  }
+  var out = [];
+  // 首页最多展示 10 个，避免一屏太长
+  for (var i = 0; i < Math.min(pool.length, 10); i++){
+    out.push(posterHTML(pool[i], i, '', 'openHot'));
+  }
+  grid.innerHTML = out.join('');
+}
+
+/* 首页海报走推荐池下标，不再借用 ST.items，避免分类/搜索把池子顶掉后点错片 */
+function openHot(i){
+  var v = ST.hot[i];
+  if (v) openDetailByVod(v);
+}
+
+function shuffleHome(){
+  if (ST.hot.length <= 10){ toast('片源就这么多'); return; }
+  // 轮换起点，做出"换一批"的效果
+  var n = ST.hot.length;
+  var off = (Math.floor(Math.random() * n));
+  var rot = ST.hot.slice(off).concat(ST.hot.slice(0, off));
+  ST.hot = rot;
+  renderHot();
+  toast('换了一批');
+}
+
+function emptyHTML(msg){
+  return '<div class="emptyBox">' +
+    '<div class="emptyT">' + esc(msg) + '</div>' +
+    '<div class="emptyS">猪猪影视本身不带内容，内容来自你配置的片源接口</div>' +
+    '</div>';
+}
+
+/* =====================================================================
+   数据加载
+   ===================================================================== */
+function loadAll(){
+  ncall('config', [], function(d){
+    if (d.needConfig){
+      showCfg(0);
+      return;
+    }
+    if (!d.ok && !(d.sorts || []).length){
+      toast(d.msg || '片源加载失败');
+      return;
+    }
+    ST.sorts = d.sorts || [];
+    ST.source = d.source || '';
+    document.getElementById('srcName').textContent = ST.source || '猪猪影视';
+    document.getElementById('siteHint').textContent = ST.source || '—';
+    // 「片源接口」那行显示当前主机名（存了多个时显示数量），站点名交给「线路切换」
+    refreshApiHint();
+
+    // 首页不再有分类入口（底部 Tab 直接进分类页），原来那个 renderCats() 已随
+    // #cats 一起删掉 —— 留着只会误导：它 getElementById 永远拿不到元素直接 return。
+
+    // 先用片源自带的推荐打底，再让 fillHotPool() 用「全部分类」补齐：
+    // 很多源的首页推荐只覆盖某一个分类（往往就是某个地区），
+    // 直接展示等于整个首页被那个分类占满。
+    ST.hero = (d.rec || []).slice(0, 5);
+    ST.hot = (d.rec || []).slice();
+    renderHero();
+    renderHot();
+    fillHotPool();
+    loadHist();
+  });
+}
+
+/* =====================================================================
+   首页推荐池
+   目标：推荐不绑定任何一个分类，从全站影片里轮询抽取。
+   做法：把每个分类第一页各自放进一个桶，然后按「第 1 名 → 第 2 名 → …」
+   轮询交织，前 10 个（首页展示数）自然覆盖 10 个不同分类。
+   ===================================================================== */
+var HOT_TARGET = 24;     // 池子目标条数（首页只展示前 10，其余留给「换一批」）
+/* 最多扫多少个分类。桥那边的 list 是**串行队列**（一条 LiveData 分不出谁是谁，
+   只能排队），所以这里是 N 次网络往返而不是 N 路并发：12 个分类遇到慢源要等
+   半分钟才铺满，8 个 × 每桶 3 条已经够 24 条，而且会一条条陆续出现。 */
+var HOT_SORT_MAX = 8;
+var hotSeq = 0;          // 请求代次：换片源 / 重新加载时作废旧回调
+var hotBase = [];        // 片源自带推荐（打底）
+var hotBucket = [];      // 每个分类一桶
+
+function hotMerge(){
+  var out = [], seenId = {}, seenName = {}, i = 0, more = true;
+  function take(v){
+    if (!v || !v.id) return;
+    var nm = nz(v.name).trim();
+    // 同一个 vod_id 在多个分类里出现是常态；不同分类给不同 id 但片名相同
+    // 也要挡掉，否则推荐墙上会出现两张一模一样的卡。
+    if (seenId[v.id] || (nm && seenName[nm])) return;
+    seenId[v.id] = 1;
+    if (nm) seenName[nm] = 1;
+    out.push(v);
+  }
+  hotBase.forEach(take);
+  while (more && out.length < HOT_TARGET){
+    more = false;
+    for (var b = 0; b < hotBucket.length && out.length < HOT_TARGET; b++){
+      var arr = hotBucket[b];
+      if (!arr || i >= arr.length) continue;
+      more = true;
+      take(arr[i]);
+    }
+    i++;
+  }
+  return out;
+}
+
+function fillHotPool(){
+  var seq = ++hotSeq;
+  hotBase = ST.hot.slice();
+  hotBucket = [];
+  if (!ST.sorts.length || hotBase.length >= HOT_TARGET) return;
+
+  ST.sorts.slice(0, HOT_SORT_MAX).forEach(function(s, bi){
+    hotBucket[bi] = null;
+    // 这里不能走 loadSort()：它会写 ST.page / ST.pagecount，
+    // 并发调用会把分类页的翻页游标冲掉。
+    // 也不能走 ncall('list')：list 会把筛选表覆盖写进分类对象，热池传的是空表，
+    // 会把用户在这个分类上已经选好的条件清掉；而且它和用户的请求排在一条队列里，
+    // 8 个预热请求会让「点分类」明显变慢。hotList 走低优先级队列 + 独立的分类副本。
+    ncall('hotList', [s.id, '1'], function(d){
+      if (seq !== hotSeq) return;         // 已换片源 / 已重新加载，丢弃旧结果
+      hotBucket[bi] = (d && d.list) || [];
+      if (!hotBucket[bi].length) return;
+      ST.hot = hotMerge();
+      if (!ST.hero.length && ST.hot.length){
+        ST.hero = ST.hot.slice(0, 5);
+        renderHero();
+      }
+      renderHot();
+    });
+  });
+}
+
+/**
+ * 分类内容。第三个参数是完整筛选表，翻页时也要原样再传一次，
+ * 否则第 2 页会退回无筛选结果，列表里两段内容对不上。
+ * guard 用来丢弃过期响应：慢源下连点两个分类，先发的那个可能后到，
+ * 不挡掉就会把旧分类的结果（以及 ST.page/pagecount）盖到新分类上。
+ */
+function filtJson(sortId){
+  try{ return JSON.stringify(ST.filt[sortId] || {}); }catch(e){ return '{}'; }
+}
+function loadSort(sortId, page, cb, guard){
+  ST.loading = true;
+  ncall('list', [sortId, String(page), filtJson(sortId)], function(d){
+    ST.loading = false;
+    if (guard && !guard()) return;      // 已经换分类 / 重新拉了，这份结果作废
+    if (!d.ok && page === 1){
+      cb && cb([]);
+      return;
+    }
+    ST.page = d.page || page;
+    ST.pagecount = d.pagecount || 1;
+    cb && cb(d.list || []);
+  });
+}
+
+function loadHist(){
+  ncall('history', [], function(d){
+    ST.hist = d.list || [];
+    document.getElementById('histCnt').textContent = ST.hist.length;
+    renderCont();
+  });
+  ncall('favList', [], function(d){
+    ST.fav = d.list || [];
+    document.getElementById('favCnt').textContent = ST.fav.length;
+  });
+}
+
+/* =====================================================================
+   分类页
+   ---------------------------------------------------------------------
+   一屏只有三件事：顶部 tab（吸顶）、筛选入口（吸顶）、海报网格（无限下滑）。
+   片源给的分类常常是十几个（电影/连续剧/综艺/动漫/动作片/国产剧/日韩剧…），
+   全铺在顶部只会糊成一片，所以只把「主分类」做成 tab，其余收进「更多」。
+   ===================================================================== */
+var catLoading = false, catDone = false;
+/* 请求代次：换分类 / 换筛选 / 重拉都 +1，回来的结果只要代次对不上就丢掉。
+   （首页推荐池用的是 hotSeq，同一个思路，别混用） */
+var catSeq = 0;
+
+/* 换片源 / 换接口之后必须清掉的一整套状态。
+   原来这段在三个地方各抄了一遍（切站点、保存接口、列表里切接口），
+   漏一处就会串台：分类筛筛选是按 sort id 记的，两个源的 id 一撞，
+   新源第一个分类会带着旧源的筛选条件去请求。 */
+function resetSourceState(){
+  ST.hero = []; ST.items = []; ST.hot = []; ST.sorts = [];
+  ST.curSort = null; ST.filt = {}; filtInit = {};
+  catSeq++;                                  // 作废还在飞的分类请求
+  catLoading = false; catDone = false;
+}
+
+/* 分类 chips：片源给多少就铺多少，横向滚动。
+   不做「只留主分类 + 更多」的收举 —— 用户要一眼看到全部分类。 */
+function renderCatChips(){
+  var box = document.getElementById('catChips');
+  if (!box) return;
+  var html = ST.sorts.map(function(c){
+    var on = ST.curSort && ST.curSort.id === c.id;
+    return '<div class="chip' + (on ? ' on' : '') + '" data-act="sort" data-val="' + esc(c.id) + '">' +
+      esc(c.name) + '</div>';
+  }).join('');
+  box.innerHTML = html;
+  centerChip(box);
+}
+
+/* 当前分类被换到屏幕外时，把它滚回可见位置。
+   不用 scrollIntoView：那会连外层 #scroll 一起滚，页面会莫名跳一下。 */
+function centerChip(box){
+  var on = box.querySelector('.chip.on');
+  if (!on) return;
+  var r = on.getBoundingClientRect(), br = box.getBoundingClientRect();
+  if (!br.width) return;
+  box.scrollLeft += (r.left - br.left) - (br.width - r.width) / 2;
+}
+
+function scrollCatTop(smooth){
+  var el = document.getElementById('scroll');
+  if (!el) return;
+  // 归位本身也会补发一次 scroll，不加锁会被当成「滑到底」而误翻页
+  scrollLockUntil = Date.now() + 400;
+  if (smooth && el.scrollTo){
+    try{ el.scrollTo({ top: 0, behavior: 'smooth' }); return; }catch(e){}
+  }
+  el.scrollTop = 0;
+}
+
+/* ---------- 筛选 ----------
+   数据来自片源配置：每个分类自带一组 filters（年份 / 地区 / 语言 / 题材…）。
+   一屏只放一个「筛选」按钮，点开的面板里把所有组竖着列出来 ——
+   多组可以一次选完，不用「选完年份退出去、再点地区进来」。 */
+
+function filtersOf(sort){
+  if (!sort || !sort.filters || !sort.filters.length) return [];
+  return sort.filters.filter(function(f){ return f && f.values && f.values.length; });
+}
+
+/** 某组的当前选中值 → 显示名（找不到原值就原样回显） */
+function filtLabel(sortId, f, sel){
+  var v = sel == null ? (ST.filt[sortId] || {})[f.key] : sel;
+  if (v == null || v === '') return '';
+  for (var i = 0; i < f.values.length; i++){
+    if (String(f.values[i][1]) === String(v)) return f.values[i][0];
+  }
+  return String(v);
+}
+
+/* 「默认看最热播」：片源如果自带排序筛选（排序 / order，里面有一项热门 / 人气），
+   第一次进这个分类就替用户选上；之后重进不再覆盖用户自己的选择。 */
+var filtInit = {};
+function defaultHot(s){
+  if (!s || filtInit[s.id]) return;
+  filtInit[s.id] = 1;
+  if (ST.filt[s.id] && Object.keys(ST.filt[s.id]).length) return;
+  var fl = filtersOf(s);
+  for (var i = 0; i < fl.length; i++){
+    var f = fl[i];
+    if (!/排序|顺序|order|sort/i.test(String(f.name || '') + ' ' + String(f.key || ''))) continue;
+    for (var j = 0; j < f.values.length; j++){
+      if (!/热门|最热|人气|热度|hot/i.test(String(f.values[j][0]))) continue;
+      (ST.filt[s.id] || (ST.filt[s.id] = {}))[f.key] = f.values[j][1];
+      return;
+    }
+  }
+}
+
+/* 筛选条：每个筛选组一个按钮，显示「组名：当前值」；点开底部弹层选值。
+   选过值的按钮变橙，末尾多一个「重置」。
+   竖屏放不下 3 行 chips，所以不照抄电视版的横向筛选行。 */
+function renderCatFilt(){
+  var el = document.getElementById('catFilt');
+  if (!el) return;
+  var s = ST.curSort;
+  var fl = filtersOf(s);
+  if (!fl.length){ el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  var any = false;
+  var html = fl.map(function(f){
+    var name = filtLabel(s.id, f);
+    if (name) any = true;
+    return '<div class="fbtn' + (name ? ' on' : '') + '" data-act="flt" data-val="' + esc(f.key) + '">' +
+      '<span>' + esc(f.name) + (name ? '：' + esc(name) : '') + '</span>' +
+      '<svg class="ic" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>' +
+    '</div>';
+  }).join('');
+  if (any) html += '<div class="fbtn reset" onclick="resetFilt()">重置</div>';
+  el.innerHTML = html;
+}
+
+/* ---------- 筛选值弹层：一次只开一组 ---------- */
+var fltVals = [], fltKey = null;
+
+function openFlt(key){
+  var s = ST.curSort;
+  if (!s) return;
+  var fl = filtersOf(s), f = null;
+  for (var i = 0; i < fl.length; i++){ if (fl[i].key === key){ f = fl[i]; break; } }
+  if (!f) return;
+
+  fltKey = key;
+  document.getElementById('fltT').textContent = f.name || key;
+
+  var cur = (ST.filt[s.id] || {})[key] || '';
+  fltVals = f.values.map(function(kv){ return { n: kv[0], v: kv[1] }; });
+  // 很多爬虫自己就带一项「全部」（值为空串），有的话不要重复插一条
+  var hasAll = fltVals.some(function(o){ return nz(o.v) === ''; });
+  if (!hasAll) fltVals.unshift({ n: '全部', v: '' });
+
+  document.getElementById('fltVals').innerHTML = fltVals.map(function(o, i){
+    var on = nz(o.v) === nz(cur);
+    return '<div class="fltVal' + (on ? ' on' : '') + '" onclick="pickFlt(' + i + ')">' +
+      esc(o.n || '未命名') + '</div>';
+  }).join('');
+
+  document.getElementById('flt').classList.add('on');
+}
+
+function closeFlt(){
+  document.getElementById('flt').classList.remove('on');
+}
+
+function pickFlt(i){
+  var o = fltVals[i];
+  var s = ST.curSort;
+  if (!o || !s) return;
+  var m = ST.filt[s.id] || (ST.filt[s.id] = {});
+  if (nz(o.v) === '') delete m[fltKey];
+  else m[fltKey] = o.v;
+  closeFlt();
+  renderCatFilt();
+  reloadCat();
+}
+
+/* 清空这个分类的全部筛选条件（空态里的「清空筛选条件」也走这里） */
+function resetFilt(){
+  var s = ST.curSort;
+  if (!s) return;
+  ST.filt[s.id] = {};
+  renderCatFilt();
+  reloadCat();
+}
+
+/** 只重拉第 1 页，不动当前分类 */
+function reloadCat(){
+  var s = ST.curSort;
+  if (!s) return;
+  var seq = ++catSeq;
+  catDone = false;
+  catLoading = false;
+  // 换了条件就是新的一屏，从头看，别停在上一轮的半截列表上
+  document.getElementById('scroll').scrollTop = 0;
+  scrollLockUntil = Date.now() + 400;
+  document.getElementById('gridCat').innerHTML = '<div class="loadmore">加载中…</div>';
+  document.getElementById('catMore').textContent = '';
+  loadSort(s.id, 1, renderCatGrid, function(){ return seq === catSeq; });
+}
+
+function renderCatGrid(list){
+  ST.items = list || [];
+  var grid = document.getElementById('gridCat');
+  var more = document.getElementById('catMore');
+  if (ST.items.length){
+    grid.innerHTML = ST.items.map(function(v, i){ return posterHTML(v, i, 'sm'); }).join('');
+    more.textContent = ST.pagecount > 1 ? '上滑加载更多' : '没有更多了';
+    return;
+  }
+  // 有筛选却空：多半是条件太死，给一条能退回去的路
+  var hasFilt = Object.keys(ST.filt[(ST.curSort || {}).id] || {}).length > 0;
+  grid.innerHTML = hasFilt
+    ? '<div class="emptyBox"><div class="emptyT">没有符合筛选条件的影片</div>' +
+      '<div class="emptyS">把条件放宽一点，或者清空重来</div>' +
+      '<div class="emptyReset" onclick="resetFilt()">清空筛选条件</div></div>'
+    : emptyHTML('这个分类暂时没有内容');
+  more.textContent = '';
+}
+
+function openSort(sortId){
+  var s = null;
+  for (var i = 0; i < ST.sorts.length; i++){
+    if (ST.sorts[i].id === sortId){ s = ST.sorts[i]; break; }
+  }
+  if (!s){ toast('分类不存在'); return; }
+  ST.curSort = s;
+  // 第一次进这个分类：片源自带「排序=热门」就默认选上，
+  // 点进「电影」看到的是热播，而不是某个看不出规律的默认序
+  defaultHot(s);
+
+  var wasCat = state.page === 'cat';
+  if (!wasCat) go('cat');
+  renderCatChips();
+  renderCatFilt();
+  // 换分类要从头看，不能停在上一类的半截列表中间
+  scrollCatTop(false);
+  var seq = ++catSeq;
+  catDone = false;
+  catLoading = false;
+  document.getElementById('gridCat').innerHTML = '<div class="loadmore">加载中…</div>';
+  document.getElementById('catMore').textContent = '';
+  loadSort(sortId, 1, renderCatGrid, function(){ return seq === catSeq; });
+}
+
+/* 把新一页里「还没在列表里出现过」的挑出来。
+   源的相邻两页经常有重叠（尤其按更新时间排的），不去重会插出一模一样的卡。
+   id 和片名都要看：同一部片在不同分类里 id 可能不同。 */
+function mergeNewItems(list){
+  var seenId = {}, seenName = {};
+  ST.items.forEach(function(v){
+    if (!v) return;
+    if (v.id) seenId[v.id] = 1;
+    var nm = nz(v.name).trim();
+    if (nm) seenName[nm] = 1;
+  });
+  var fresh = [];
+  for (var i = 0; i < (list || []).length; i++){
+    var v = list[i];
+    if (!v || (v.id && seenId[v.id])) continue;
+    var nm = nz(v.name).trim();
+    if (nm && seenName[nm]) continue;
+    if (v.id) seenId[v.id] = 1;
+    if (nm) seenName[nm] = 1;
+    fresh.push(v);
+  }
+  return fresh;
+}
+
+function catLoadMore(){
+  if (!ST.curSort || catLoading || catDone) return;
+  if (ST.page >= ST.pagecount) { catDone = true; document.getElementById('catMore').textContent = '没有更多了'; return; }
+  catLoading = true;
+  var seq = catSeq;
+  document.getElementById('catMore').textContent = '加载更多…';
+  loadSort(ST.curSort.id, ST.page + 1, function(list){
+    catLoading = false;
+    var fresh = mergeNewItems(list);
+    if (!fresh.length){
+      // 整页都是重复的：不算「到底了」，下一轮还能继续要后面的页
+      document.getElementById('catMore').textContent =
+        ST.page >= ST.pagecount ? '没有更多了' : '上滑加载更多';
+      if (ST.page >= ST.pagecount) catDone = true;
+      return;
+    }
+    var base = ST.items.length;
+    ST.items = ST.items.concat(fresh);
+    document.getElementById('gridCat').insertAdjacentHTML('beforeend',
+      fresh.map(function(v, i){ return posterHTML(v, base + i, 'sm'); }).join(''));
+    document.getElementById('catMore').textContent = ST.page >= ST.pagecount ? '没有更多了' : '上滑加载更多';
+  }, function(){ return seq === catSeq; });
+}
+
+/* =====================================================================
+   详情
+   ===================================================================== */
+function openDetail(idx){
+  var v = ST.items[idx];
+  if (!v) return;
+  openDetailByVod(v);
+}
+
+function openHist(i){
+  var v = ST.hist[i];
+  if (!v) return;
+  openDetailByVod(v, i);
+}
+
+function openDetailByVod(v, histIdx, keepEp){
+  // 从搜索结果点进来时软键盘可能还开着（点热门词 sPick 那条路径不会 blur），
+  // 会把底部详情面板挡住一截 —— 统一在这里收掉
+  try{
+    var ae = document.activeElement;
+    if (ae && ae.blur) ae.blur();
+  }catch(e){}
+  var sheet = document.getElementById('dSheet');
+  sheet.innerHTML = '<div class="loadmore" style="padding:60px 0">正在读取详情…</div>';
+  document.getElementById('detail').classList.add('on');
+  sheet.scrollTop = 0;
+
+  ncall('detail', [v.key || '', v.id || ''], function(d){
+    if (!d.ok){
+      sheet.innerHTML = '<div class="dBody"><div class="dT">' + esc(v.name) + '</div>' +
+        '<div class="dM">读取失败：' + esc(d.msg || '未知错误') + '</div>' +
+        '<div class="dActs"><div class="dPlay" onclick="closeDetail()">返回</div></div></div>';
+      return;
+    }
+    renderDetail(d, histIdx, keepEp);
+  });
+}
+
+function renderDetail(d, histIdx, keepEp){
+  var sheet = document.getElementById('dSheet');
+  window.__desOpen = false;   // 换片/重进详情，简介一律回到折叠态
+  var flags = d.flags || [];
+  var curFlag = 0;
+  if (histIdx != null && ST.hist[histIdx] && ST.hist[histIdx].flag){
+    for (var i = 0; i < flags.length; i++){
+      if (flags[i].name === ST.hist[histIdx].flag){ curFlag = i; break; }
+    }
+  }
+  var startEp = (keepEp != null)
+    ? keepEp
+    : ((histIdx != null && ST.hist[histIdx] && ST.hist[histIdx].ep) ? ST.hist[histIdx].ep : 0);
+  var curEp = startEp;
+
+  function paint(){
+    var f = flags[curFlag] || {name:'', eps:[]};
+    var eps = f.eps || [];
+    if (curEp >= eps.length) curEp = 0;   // 换源后集数可能少很多
+    var epHTML = eps.map(function(e, i){
+      return '<div class="ep' + (i === curEp ? ' on' : '') + '" onclick="pickEp(' + i + ')">' + esc(e.n || (i+1)) + '</div>';
+    }).join('');
+    sheet.innerHTML =
+      '<div class="dHero" style="' + artBg(d) + '">' + artImg(d) +
+        '<div class="pcCh">' + esc(nz(d.name).charAt(0)) + '</div>' +
+        '<div class="dScrim"></div>' +
+        '<div class="dClose" onclick="closeDetail()">' +
+          '<svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+        '</div>' +
+      '</div>' +
+      '<div class="dBody">' +
+        '<div class="dT">' + esc(d.name) + '</div>' +
+        '<div class="dM">' + esc([d.year || '', d.area || '', d.type || ''].filter(Boolean).join(' · ')) +
+          (d.note ? ' · ' + esc(d.note) : '') + '</div>' +
+        '<div class="dTags">' +
+          (d.type ? '<span>' + esc(d.type) + '</span>' : '') +
+          (d.lang ? '<span>' + esc(d.lang) + '</span>' : '') +
+          (d.year ? '<span>' + esc(d.year) + '</span>' : '') +
+          '<span>' + flags.length + ' 条线路</span>' +
+        '</div>' +
+        (d.actor ? '<div class="dD"><b class="dLb">主演</b>　' + esc(d.actor) + '</div>' : '') +
+        (d.director ? '<div class="dD"><b class="dLb">导演</b>　' + esc(d.director) + '</div>' : '') +
+        (d.des ? '<div class="dD dDes" id="dDes">' + esc(String(d.des).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ')) + '</div>' +
+                 '<div class="dExp" id="dExp" onclick="toggleDes()">展开全部</div>' : '') +
+        '<div class="dActs">' +
+          '<div class="dPlay" onclick="playNow()">' +
+            '<svg class="ic" viewBox="0 0 24 24"><path d="M8 5.4l11 6.6-11 6.6z"/></svg>' +
+            (startEp > 0 ? '继续第 ' + (curEp + 1) + ' 集' : '立即播放') +
+          '</div>' +
+          '<div class="dFav" id="favBtn" onclick="toggleFav()">' +
+            '<svg class="ic" viewBox="0 0 24 24"><path d="M6.5 4.5h11v15l-5.5-4-5.5 4z"/></svg>' +
+          '</div>' +
+        '</div>' +
+        '<div class="dSec" style="display:flex;align-items:center;justify-content:space-between">' +
+          '<span>播放线路 <span style="color:rgba(var(--ink),.42)">' + flags.length + ' 条</span></span>' +
+          '<span class="dMore" onclick="openAlt()">换源</span>' +
+        '</div>' +
+        '<div class="chips" style="margin:0 0 0 0">' +
+          (flags.length
+            ? flags.map(function(f, i){
+                return '<div class="chip' + (i === curFlag ? ' on' : '') + '" onclick="switchFlag(' + i + ')">' +
+                  esc(f.name || ('线路' + (i+1))) +
+                  '<i class="chipN">' + ((f.eps || []).length) + '</i></div>';
+              }).join('')
+            : '<div class="loadmore" style="padding:8px 0">这个片源没有可用线路</div>') +
+        '</div>' +
+        '<div class="dSec">选集 <span style="color:rgba(var(--ink),.5);font-weight:400;font-size:11px">共 ' + eps.length + ' 集</span></div>' +
+        '<div class="epGrid">' + (epHTML || '<div class="loadmore">这条线路没有剧集</div>') + '</div>' +
+        '<div style="height:20px"></div>' +
+      '</div>';
+
+    window.__curFlag = curFlag;
+    window.__curEp = curEp;
+    window.__detail = d;
+    window.__flags = flags;
+
+    ncall('isFav', [nz(d.key), nz(d.id)], function(r){
+      var b = document.getElementById('favBtn');
+      if (b) b.classList.toggle('on', !!(r && r.fav));
+    });
+
+    // 简介默认只给 5 行，超出才出现「展开全部」
+    syncDes();
+  }
+
+  /* 简介折叠：折叠态靠 -webkit-line-clamp 截断，这里量一下是否真的超出 */
+  function syncDes(){
+    var el = document.getElementById('dDes');
+    var btn = document.getElementById('dExp');
+    if (!el || !btn) return;
+    if (window.__desOpen){
+      el.classList.add('open');
+      btn.textContent = '收起';
+      btn.style.display = 'block';
+      return;
+    }
+    el.classList.remove('open');
+    btn.textContent = '展开全部';
+    btn.style.display = (el.scrollHeight > el.clientHeight + 2) ? 'block' : 'none';
+  }
+  window.toggleDes = function(){
+    window.__desOpen = !window.__desOpen;
+    syncDes();
+  };
+
+  window.switchFlag = function(i){
+    if (i === curFlag) return;
+    var keep = curEp;
+    curFlag = i;
+    var nf = flags[i] || {eps: []};
+    // 和原版 DetailActivity.refreshList() 一样：新线路集数够就接着看这一集，
+    // 不够才回到第 1 集。以前一律归零，换线路就得重新找进度。
+    curEp = (keep < (nf.eps || []).length) ? keep : 0;
+    paint();
+  };
+  window.pickEp = function(i){
+    curEp = i;
+    paint();
+    // 小窗模式下点某一集就直接切过去播；默认全屏时保持「选中 + 点立即播放」
+    if (!PLAY_FULL) playNow();
+  };
+  window.playNow = function(){
+    var d = window.__detail;
+    var flags = window.__flags || [];
+    var f = flags[window.__curFlag] || {name:''};
+    // 默认全屏：直接进横屏播放页，详情页没必要留着
+    if (PLAY_FULL) closeDetail();
+    // 小窗模式：详情页保持打开，播放器浮在屏幕上方（原生 MiniPlayActivity）
+    AndroidPhone.play(nz(d.key), nz(d.id), nz(f.name), String(window.__curEp || 0));
+  };
+  window.toggleFav = function(){
+    var d = window.__detail;
+    ncall('favToggle', [nz(d.key), nz(d.id), nz(d.name), nz(d.pic)], function(r){
+      var b = document.getElementById('favBtn');
+      if (b) b.classList.toggle('on', !!(r && r.fav));
+      toast(r && r.fav ? '已收藏' : '已取消收藏');
+      loadHist();
+    });
+  };
+
+  paint();
+}
+
+function closeDetail(){
+  document.getElementById('detail').classList.remove('on');
+  // 关详情页等于退出这部剧，正浮在上面的小窗一起收掉
+  if (!PLAY_FULL && window.AndroidPhone && AndroidPhone.closeMini) AndroidPhone.closeMini();
+}
+
+/* =====================================================================
+   播放偏好：默认全屏 / 默认小窗
+   ===================================================================== */
+function paintPlayPref(){
+  var el = document.getElementById('fullPref');
+  if (el) el.textContent = PLAY_FULL ? '开' : '关';
+}
+function loadPlayPref(){
+  ncall('playPref', [], function(r){
+    PLAY_FULL = !!(r && r.full);
+    paintPlayPref();
+  });
+}
+function togglePlayFull(){
+  PLAY_FULL = !PLAY_FULL;
+  paintPlayPref();
+  ncall('setPlayPref', [PLAY_FULL ? '1' : '0'], function(){
+    toast(PLAY_FULL ? '已设为：点播放直接全屏' : '已设为：先在详情页上方小窗播放');
+  });
+}
+window.togglePlayFull = togglePlayFull;
+
+/* =====================================================================
+   换源（换站点播同一部片） / 切换首页片源站点
+   ===================================================================== */
+function showAlt(title, html){
+  document.getElementById('altTitle').textContent = title;
+  document.getElementById('altList').innerHTML = html || '';
+  document.getElementById('dAlt').classList.add('on');
+}
+function setAltList(html){ document.getElementById('altList').innerHTML = html || ''; }
+function closeAlt(){ document.getElementById('dAlt').classList.remove('on'); }
+window.closeAlt = closeAlt;
+
+/* 详情页「换源」：拿片名搜遍所有站，列出同一部片的其他片源 */
+window.openAlt = function(){
+  var d = window.__detail;
+  if (!d) return;
+  showAlt('换源 · ' + nz(d.name), '<div class="loadmore" style="padding:44px 0">正在搜索其他片源…</div>');
+  ncall('altSources', [nz(d.name), nz(d.key)], function(r){
+    var list = (r && r.list) || [];
+    if (!list.length){
+      setAltList('<div class="loadmore" style="padding:44px 0">其他片源里没有这部片</div>');
+      return;
+    }
+    window.__alt = list;
+    setAltList(list.map(function(x, i){
+      return '<div class="altRow' + (x.cur ? ' cur' : '') + '" onclick="pickAlt(' + i + ')">' +
+        '<div class="altN">' + esc(x.name) + '</div>' +
+        '<div class="altS">' + esc(x.site) + (x.note ? ' · ' + esc(x.note) : '') +
+          (x.cur ? ' · 正在使用' : '') + '</div>' +
+      '</div>';
+    }).join(''));
+  });
+};
+
+window.pickAlt = function(i){
+  var x = (window.__alt || [])[i];
+  if (!x) return;
+  var keep = window.__curEp || 0;
+  closeAlt();
+  openDetailByVod({key: x.key, id: x.id, name: x.name, pic: x.pic}, null, keep);
+  toast('已换成「' + (x.site || x.name) + '」');
+};
+
+/* 首页点源名：切换片源站点（对应 TV 版首页的「切换源」） */
+window.openSites = function(){
+  showAlt('切换片源站点', '<div class="loadmore" style="padding:44px 0">正在读取站点…</div>');
+  ncall('sites', [], function(r){
+    var list = (r && r.list) || [];
+    if (!list.length){
+      setAltList('<div class="loadmore" style="padding:44px 0">没有可切换的站点</div>');
+      return;
+    }
+    window.__sites = list;
+    setAltList(list.map(function(x, i){
+      return '<div class="altRow' + (x.cur ? ' cur' : '') + '" onclick="pickSite(' + i + ')">' +
+        '<div class="altN">' + esc(x.name) + '</div>' +
+        '<div class="altS">' + (x.cur ? '正在使用' : '点按切换到该站点') + '</div>' +
+      '</div>';
+    }).join(''));
+  });
+};
+
+window.pickSite = function(i){
+  var x = (window.__sites || [])[i];
+  if (!x) return;
+  closeAlt();
+  ncall('setSite', [x.key], function(r){
+    if (!r || !r.ok){ toast((r && r.msg) || '切换失败'); return; }
+    toast('已切换到「' + (r.name || x.name) + '」');
+    go('home');   // 分类/详情都是旧站点的数据，先退回首页再重载
+    resetSourceState();
+    loadAll();
+  });
+};
+
+/* =====================================================================
+   搜索
+   ===================================================================== */
+var searchSeq = 0;
+function openSearch(){
+  document.getElementById('sov').classList.add('on');
+  var words = ['沙丘','漫长的季节','周处除三害','繁花','奥本海默','热辣滚烫','流浪地球','三体'];
+  document.getElementById('sWords').innerHTML = words.map(function(w){
+    return '<span data-act="aw" data-val="' + esc(w) + '">' + esc(w) + '</span>';
+  }).join('');
+  setTimeout(function(){ document.getElementById('sIn').focus(); }, 180);
+}
+function closeSearch(){
+  document.getElementById('sov').classList.remove('on');
+  document.getElementById('sIn').value = '';
+  document.getElementById('sGrid').style.display = 'none';
+  document.getElementById('sState').style.display = 'none';
+  document.getElementById('sHot').style.display = 'block';
+}
+function sPick(w){
+  document.getElementById('sIn').value = w;
+  doSearch();
+}
+function sKey(e){
+  if (e.key === 'Enter' || e.keyCode === 13){
+    e.preventDefault();
+    document.getElementById('sIn').blur();
+    doSearch();
+  }
+}
+
+function doSearch(query){
+  var q = (query != null ? query : document.getElementById('sIn').value).trim();
+  if (!q){ toast('先输点东西'); return; }
+  var mySeq = ++searchSeq;
+  document.getElementById('sHot').style.display = 'none';
+  document.getElementById('sGrid').style.display = 'none';
+  var state = document.getElementById('sState');
+  state.style.display = 'block';
+  state.textContent = '正在搜「' + q + '」，多源并发…';
+
+  ncall('search', [q], function(d){
+    if (mySeq !== searchSeq) return;   // 已经搜别的词了，丢掉旧结果
+    var list = d.list || [];
+    state.style.display = 'block';
+    if (!list.length){
+      state.innerHTML = '没有找到「' + esc(q) + '」<br><span style="font-size:11px;color:rgba(var(--ink),.42)">换个词，或者去「问 AI」描述一下</span>';
+      return;
+    }
+    state.textContent = '在 ' + (d.sites || 0) + ' 个站点里找到 ' + list.length + ' 部';
+    ST.items = list;
+    var grid = document.getElementById('sGrid');
+    grid.style.display = 'grid';
+    grid.innerHTML = list.map(function(v, i){ return posterHTML(v, i, 'sm'); }).join('');
+  });
+}
+
+/* =====================================================================
+   问 AI（本地语义解析 + 真搜索）
+   ===================================================================== */
+var EX = ['90 年代的香港爱情片','这两年的国产悬疑','刘德华演的警匪片','适合孩子看的动画','2020 到 2024 的科幻大片'];
+function renderEx(){
+  document.getElementById('aiEx').innerHTML = EX.map(function(t){
+    return '<div class="exc" data-act="aifill" data-val="' + esc(t) + '">' +
+      '<svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>' +
+      '<span>' + esc(t) + '</span></div>';
+  }).join('');
+}
+function aiFill(t){
+  document.getElementById('aiQ').value = t;
+  aiRun();
+}
+
+var AI_G = ['动作','爱情','科幻','喜剧','悬疑','犯罪','动画','战争','纪录','古装','都市','恐怖','奇幻'];
+var AI_ALIAS = [[/警匪|黑帮/,'犯罪'],[/武侠|功夫|打斗/,'动作'],[/搞笑|逗比/,'喜剧'],[/恐怖|惊悚/,'悬疑'],[/谈恋爱的/,'爱情']];
+var AI_RMAP = [[/港片|港剧|香港/,'香港'],[/台湾|台剧|台片/,'台湾'],[/日剧|日影|日本|日漫/,'日本'],
+  [/韩剧|韩国/,'韩国'],[/好莱坞|欧美|美剧|美片|美国/,'美国'],[/国产|国剧|大陆|内地/,'内地'],
+  [/泰国|泰剧/,'泰国'],[/欧洲|英剧|法剧/,'欧洲']];
+var AI_RWORD = /港片|港剧|港产|香港|台剧|台片|台湾|日剧|日影|日漫|日本|韩剧|韩片|韩影|韩国|好莱坞|欧美|美剧|美片|美国|国产|国剧|大陆|内地|泰剧|泰国|英剧|法剧|欧洲/g;
+var AI_VERB = /^\s*(?:我想看|我要看|我想找|我想搜|我想|帮我找一下|帮我找|帮我搜|给我找|想看|要看|找一下|找一部|找一个|找点|找|有没有|推荐一下|推荐|来点|来一部)\s*/;
+var AI_STOP = ['最近很火','很火的','火爆','热门','高分','评分高','口碑好','经典','好看的','好看的片','一部','几部','片','剧',
+  '随便看看','随便','都行','看看','看点什么','不知道','有啥好看','什么好看'];
+
+function aiNorm(s){ return String(s).replace(/[，。！？、,.!?~～\s]+/g, ' ').trim(); }
+
+function aiParse(raw){
+  var q = aiNorm(raw);
+  var r = {g:null, r:null, y0:null, y1:null, kw:null, act:null};
+  var now = new Date().getFullYear();
+  var work = q, m;
+
+  if ((m = q.match(/《([^》]{1,30})》/))) r.kw = m[1].trim();
+  work = work.replace(/《[^》]*》/g, ' ');
+  work = work.replace(AI_VERB, ' ');
+
+  AI_G.forEach(function(x){
+    if (work.indexOf(x) >= 0){ if (!r.g) r.g = x; work = work.split(x).join(' '); }
+  });
+
+  work = work.replace(/电视剧|电影|剧集|影片|片子|动漫|动画片|综艺|节目|美剧|日剧|韩剧|港剧|剧/g, ' ');
+
+  if ((m = work.match(/(二十|三十|四十|五十|六十|七十|八十|九十)\s*年代/))){
+    var dec = {'二十':1920,'三十':1930,'四十':1940,'五十':1950,'六十':1960,'七十':1970,'八十':1980,'九十':1990};
+    r.y0 = dec[m[1]]; r.y1 = r.y0 + 9; work = work.replace(m[0], ' ');
+  } else if ((m = work.match(/((?:19|20)\d{2})\s*年代/))){
+    r.y0 = Math.floor(+m[1] / 10) * 10; r.y1 = r.y0 + 9; work = work.replace(m[0], ' ');
+  } else if ((m = work.match(/(?:^|[^\d])(\d{2})\s*年代/))){
+    var hh = +m[1];
+    r.y0 = hh >= 30 ? 1900 + hh : 2000 + hh;
+    r.y1 = r.y0 + 9;
+    work = work.replace(/\d{2}\s*年代/, ' ');
+  }
+
+  if (r.y0 == null){
+    if ((m = work.match(/((?:19|20)\d{2})\s*年?\s*(?:到|至|-|~)\s*((?:19|20)\d{2})/))){
+      r.y0 = +m[1]; r.y1 = +m[2]; work = work.replace(m[0], ' ');
+    } else if ((m = work.match(/((?:19|20)\d{2})\s*年?\s*(?:以后|之后|以来)/))){
+      r.y0 = +m[1]; work = work.replace(m[0], ' ');
+    } else if ((m = work.match(/((?:19|20)\d{2})\s*年?\s*(?:以前|之前)/))){
+      r.y1 = +m[1]; work = work.replace(m[0], ' ');
+    } else if ((m = work.match(/((?:19|20)\d{2})\s*年/))){
+      r.y0 = r.y1 = +m[1]; work = work.replace(m[0], ' ');
+    } else if (/这两年|最近两年|近两年/.test(work)){
+      r.y0 = now - 2; r.y1 = now; work = work.replace(/这两年|最近两年|近两年/g, ' ');
+    } else if (/最近|近年|新片|今年|最新的/.test(work)){
+      r.y0 = now - 3; r.y1 = now; work = work.replace(/最近|近年|新片|今年|最新的/g, ' ');
+    } else if (/去年/.test(work)){
+      r.y0 = r.y1 = now - 1; work = work.replace(/去年/g, ' ');
+    }
+  }
+
+  if (!r.g){
+    for (var i = 0; i < AI_ALIAS.length; i++){
+      if (AI_ALIAS[i][0].test(work)){ r.g = AI_ALIAS[i][1]; work = work.replace(AI_ALIAS[i][0], ' '); break; }
+    }
+  }
+  if (/孩子|儿童|亲子|小孩|少儿|宝宝|小朋友/.test(q)){
+    if (!r.g) r.g = '动画';
+    work = work.replace(/孩子|儿童|亲子|小孩|少儿|宝宝|小朋友|适合|看的|能看/g, ' ');
+  }
+
+  for (var j = 0; j < AI_RMAP.length; j++){
+    if (AI_RMAP[j][0].test(q)){ if (!r.r) r.r = AI_RMAP[j][1]; break; }
+  }
+  work = work.replace(AI_RWORD, ' ');
+
+  if ((m = q.match(/([\u4e00-\u9fa5]{2,4})(?:主演|出演|演的|饰)/))){
+    r.act = m[1];
+    work = work.replace(m[1], ' ');
+  }
+
+  if (!r.kw){
+    var rest = work;
+    AI_STOP.forEach(function(w){ rest = rest.split(w).join(' '); });
+    rest = rest.replace(/\s+/g, ' ').trim().replace(/^[的了和与及或\s]+|[的了和与及或\s]+$/g, '');
+    if (rest.length >= 2) r.kw = rest;
+  }
+  r.blank = !r.kw && !r.g && !r.r && r.y0 == null && r.y1 == null;
+  return r;
+}
+
+function aiPills(p){
+  var out = [];
+  if (p.kw) out.push('<span>关键词 <b>' + esc(p.kw) + '</b></span>');
+  if (p.g) out.push('<span>类型 <b>' + esc(p.g) + '</b></span>');
+  if (p.r) out.push('<span>地区 <b>' + esc(p.r) + '</b></span>');
+  if (p.y0 != null && p.y1 != null) out.push('<span>年份 <b>' + p.y0 + '–' + p.y1 + '</b></span>');
+  else if (p.y0 != null) out.push('<span>年份 <b>' + p.y0 + ' 以后</b></span>');
+  else if (p.y1 != null) out.push('<span>年份 <b>' + p.y1 + ' 以前</b></span>');
+  if (p.act) out.push('<span>演员 <b>' + esc(p.act) + '</b></span>');
+  if (p.blank) out.push('<span class="alt">没听懂，先给你看热门</span>');
+  return out.join('');
+}
+
+function aiRun(){
+  var raw = document.getElementById('aiQ').value.trim();
+  if (!raw){ toast('先说一句想看什么'); return; }
+  var p = aiParse(raw);
+
+  document.getElementById('aiBefore').style.display = 'none';
+  document.getElementById('aiAfter').style.display = 'block';
+  document.getElementById('parse').innerHTML =
+    '<div class="parseH"><span>我理解为</span><span class="parseQ">' + esc(raw) + '</span></div>' +
+    '<div class="pills">' + aiPills(p) +
+      '<span class="alt" onclick="aiReset()">换个说法</span></div>';
+  document.getElementById('aiCnt').textContent = '搜索中…';
+  document.getElementById('gridAi').innerHTML = '<div class="loadmore" style="padding:30px 0">正在全站搜索…</div>';
+
+  var keyword = p.kw || p.g || p.act || '';
+  if (!keyword && !p.g && !p.r){
+    document.getElementById('aiCnt').textContent = '没听懂';
+    document.getElementById('gridAi').innerHTML = emptyHTML('没听懂你想找什么');
+    return;
+  }
+
+  ncall('search', [keyword], function(d){
+    var list = d.list || [];
+    // 客户端二次过滤：类型 / 地区 / 年份 / 演员
+    var hit = list.filter(function(v){
+      var t = nz(v.type) + ' ' + nz(v.name) + ' ' + nz(v.note);
+      if (p.g && t.indexOf(p.g) < 0) return false;
+      if (p.r && (nz(v.area) + t).indexOf(p.r) < 0) return false;
+      if (p.act && nz(v.actor).indexOf(p.act) < 0) return false;
+      if (p.y0 != null && v.year && v.year < p.y0) return false;
+      if (p.y1 != null && v.year && v.year > p.y1) return false;
+      return true;
+    });
+    var fell = false;
+    if (!hit.length && list.length){ hit = list.slice(0, 12); fell = true; }
+    document.getElementById('aiCnt').textContent = hit.length
+      ? (fell ? '没有完全匹配，先看这些' : hit.length + ' 部')
+      : '没找到';
+    document.getElementById('gridAi').innerHTML = hit.length
+      ? hit.map(function(v, i){ return posterHTML(v, i); }).join('')
+      : emptyHTML('没找到，换个说法试试');
+    ST.items = hit;
+  });
+}
+
+function aiReset(){
+  document.getElementById('aiQ').value = '';
+  document.getElementById('aiBefore').style.display = 'block';
+  document.getElementById('aiAfter').style.display = 'none';
+  document.getElementById('aiQ').focus();
+}
+
+/* =====================================================================
+   收藏 / 历史 列表页
+   ===================================================================== */
+function openListPage(kind){
+  go('list');
+  var list = kind === 'fav' ? ST.fav : ST.hist;
+  document.getElementById('listTitle').textContent = kind === 'fav' ? '我的收藏' : '观看历史';
+  var grid = document.getElementById('gridList');
+  if (!list.length){
+    grid.innerHTML = emptyHTML(kind === 'fav' ? '还没有收藏' : '还没有观看记录');
+    return;
+  }
+  grid.innerHTML = list.map(function(v, i){
+    return '<div class="pc sm" onclick="' +
+      (kind === 'fav' ? 'openDetailByVod(ST.fav[' + i + '])' : 'openHist(' + i + ')') + '">' +
+      '<div class="pcArt" style="' + artBg(v) + '">' + artImg(v) + '</div>' +
+      '<div class="pcMute"></div>' +
+      '<div class="pcCh">' + esc(nz(v.name).charAt(0)) + '</div>' +
+      '<div class="pcScrim"></div>' +
+      '<div class="pcT">' + esc(v.name) + '</div>' +
+      '<div class="pcB">' + esc(v.note || metaLine(v)) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* =====================================================================
+   配置（片源接口 / 直播源 共用一个表单）
+   ===================================================================== */
+var cfgMode = 'api';   // 'api' | 'live' | 'name'（改名）
+var cfgIsAdd = false;  // 这次打开表单是不是「添加新接口」
+var cfgEditUrl = '';   // 'name' 模式下改的是哪条接口
+
+function showCfg(isManual){ openCfgForm('api'); }
+
+function openCfgForm(mode, isAdd, editUrl, editName){
+  cfgMode = mode;
+  cfgIsAdd = !!isAdd;
+  cfgEditUrl = editUrl || '';
+  var elT = document.getElementById('cfgTitle');
+  var elD = document.getElementById('cfgDesc');
+  var elTip = document.getElementById('cfgTip');
+  var elIn = document.getElementById('cfgIn');
+  var elOk = document.getElementById('cfgOk');
+  var elName = document.getElementById('cfgName');
+  var elSub = document.getElementById('cfgNameSub');
+  var wUrl = document.getElementById('cfgUrlWrap');
+  var wName = document.getElementById('cfgNameWrap');
+  // 每次打开都把上一次的结果样式清掉，免得残留红色/绿色
+  document.getElementById('cfgMsg').className = 'cfgS';
+  document.getElementById('cfgMsg').textContent = '';
+  elIn.value = '';
+  elName.value = '';
+  wUrl.style.display = '';
+  wName.style.display = 'none';
+  elSub.textContent = '起个自己认得出来的名字，列表里显示的就是它';
+
+  if (mode === 'name'){
+    // 改名：只动名字，不碰地址（不用重新拉配置，快得多）
+    wUrl.style.display = 'none';
+    wName.style.display = '';
+    elT.textContent = '接口名';
+    elD.textContent = '给这个接口起个好认的名字。留空保存 = 自动用接口全名。';
+    elName.value = editName || '';
+    elName.placeholder = '留空则用接口全名';
+    elSub.textContent = '当前地址：' + addrOf(cfgEditUrl);
+    elOk.textContent = '保存名称';
+    elTip.textContent = '提示：只改列表里显示的名字，不影响地址和正在使用的接口。';
+  } else if (mode === 'live'){
+    elT.textContent = '直播源';
+    elD.textContent = '直播源地址，支持 m3u / txt，和 TVBox 通用。留空保存 = 回到接口里自带的那条。';
+    elIn.placeholder = 'https://example.com/live.m3u';
+    elOk.textContent = '保存并重载';
+    elTip.textContent = '提示：保存后会重新加载配置，频道列表随之刷新。';
+    ncall('liveInfo', [], function(d){
+      if (d && d.url) elIn.value = d.url;
+    });
+  } else if (isAdd){
+    // 「添加新接口」不能回填当前地址：用户多半直接粘贴，
+    // 粘在旧地址后面就变成两串拼一起，保存必然失败，
+    // 看起来就是「点了没反应」。
+    wName.style.display = '';
+    elT.textContent = '添加片源接口';
+    elD.textContent = '粘贴一个你没用过的接口地址（JSON）。保存成功后会出现在「片源接口」列表里，随时可以切回来。';
+    elIn.placeholder = 'https://example.com/api.json';
+    elName.placeholder = '接口名（留空则用接口全名）';
+    elOk.textContent = '保存并添加';
+    elTip.textContent = '提示：粘贴后直接点「保存并添加」，旧的接口不会被覆盖。';
+  } else {
+    wName.style.display = '';
+    elT.textContent = '片源接口';
+    elD.textContent = '猪猪影视本身不带内容，需要一个接口地址（JSON）。填你已有的接口即可，和 TVBox 通用。';
+    elIn.placeholder = 'https://example.com/api.json';
+    elName.placeholder = '接口名（留空则用接口全名）';
+    elOk.textContent = '保存并加载';
+    elTip.textContent = '提示：接口地址和 TVBox / 影视仓 通用。猪猪影视只负责播放，不提供任何片源。';
+    ncall('currentConfig', [], function(d){
+      if (d && d.url) elIn.value = d.url;
+    });
+  }
+  document.getElementById('cfg').classList.add('on');
+}
+
+function cfgClose(){
+  document.getElementById('cfg').classList.remove('on');
+}
+function cfgPaste(){
+  ncall('readClipboard', [], function(d){
+    var t = (d && d.text) || '';
+    if (!t){ toast('剪贴板里没有内容'); return; }
+    document.getElementById('cfgIn').value = t;
+    document.getElementById('cfgMsg').textContent = '已粘贴，点上面的保存';
+  });
+}
+function cfgSave(){
+  var url = document.getElementById('cfgIn').value.trim();
+  var btn = document.getElementById('cfgOk');
+  var msg = document.getElementById('cfgMsg');
+  var name = (document.getElementById('cfgName').value || '').trim();
+
+  if (cfgMode === 'name'){
+    btn.textContent = '保存中…';
+    msg.className = 'cfgS busy';
+    msg.textContent = '';
+    ncall('renameConfig', [cfgEditUrl, name], function(d){
+      btn.textContent = '保存名称';
+      if (d && d.ok){
+        var nm = d.name || name || '接口';
+        msg.className = 'cfgS ok';
+        msg.textContent = '已改为「' + nm + '」';
+        setTimeout(function(){
+          cfgClose();
+          openApiList();      // 列表本身立刻刷新
+          refreshApiHint();   // 「我的」那行的数量/名字同步
+          toast('已改为「' + nm + '」');
+        }, 320);
+      } else {
+        msg.className = 'cfgS err';
+        msg.textContent = '失败：' + ((d && d.msg) || '未知错误');
+      }
+    });
+    return;
+  }
+
+  if (cfgMode === 'live'){
+    btn.textContent = '保存中…';
+    msg.className = 'cfgS busy';
+    msg.textContent = '';
+    ncall('setLiveUrl', [url], function(d){
+      btn.textContent = '保存并重载';
+      if (d && d.ok){
+        msg.className = 'cfgS ok';
+        msg.textContent = '已保存，正在刷新…';
+        setTimeout(function(){
+          cfgClose();
+          refreshSettings();
+          toast(url ? '直播源已更新' : '已恢复为接口自带直播源');
+        }, 400);
+      } else {
+        msg.className = 'cfgS err';
+        msg.textContent = '失败：' + ((d && d.msg) || '未知错误');
+      }
+    });
+    return;
+  }
+
+  if (!url){ msg.className = 'cfgS err'; msg.textContent = '地址不能为空'; return; }
+  // 拉配置 + 下爬虫最长可能要二十几秒，全程只有「加载中…」的话
+  // 用户会以为点空了。这里分三段给提示，最后再兜一句「可以关掉」。
+  var done = false;
+  btn.textContent = '正在拉取配置…';
+  msg.className = 'cfgS busy';
+  msg.textContent = '正在连接接口…';
+  var t1 = setTimeout(function(){
+    if (done) return;
+    msg.textContent = '已连上，正在下载片源插件（首次较慢，通常 10~20 秒）…';
+  }, 3200);
+  var t2 = setTimeout(function(){
+    if (done) return;
+    msg.textContent = '仍在加载中。可以关掉这里，稍后到「片源接口」列表确认是否已添加。';
+  }, 22000);
+
+  ncall('setConfig', [url, name], function(d){
+    done = true;
+    clearTimeout(t1); clearTimeout(t2);
+    btn.textContent = cfgIsAdd ? '保存并添加' : '保存并加载';
+    if (d && d.ok){
+      var nm = (d.name || d.source || name || '').trim();
+      // saved=0 说明接口能加载，但没写进「已保存的接口」列表
+      // （Hawk 写失败），要如实告诉用户，不然他以为加过了
+      var notSaved = (d.saved === 0);
+      msg.className = notSaved ? 'cfgS err' : 'cfgS ok';
+      msg.textContent = notSaved
+        ? '接口已生效，但没能记入列表，下次还得重新输入。'
+        : '配置成功，正在刷新…';
+      var wasAdd = cfgIsAdd;
+      setTimeout(function(){
+        cfgClose();
+        resetSourceState();
+        loadAll();
+        if (wasAdd && !notSaved){
+          // 添加完直接回到接口列表，让用户当场看见新条目，
+          // 而不是关掉表单后什么都没发生
+          setTimeout(function(){
+            if (typeof openApiList === 'function') openApiList();
+            toast(nm ? ('已添加「' + nm + '」') : '接口已添加');
+          }, 300);
+        } else if (notSaved){
+          toast('接口已生效，但没能记入列表');
+        }
+      }, 400);
+    } else {
+      var m = (d && d.msg) || '未知错误';
+      msg.className = 'cfgS err';
+      // 提示里已经带了地址，别重复贴两遍
+      msg.textContent = /^失败：/.test(m) ? m : ('失败：' + m);
+    }
+  });
+}
+
+/* =====================================================================
+   设置项（分组参考影视仓：配置 / 设置 / 播放器 / 系统）
+   ===================================================================== */
+function fmtSize(b){
+  b = Number(b) || 0;
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(0) + ' KB';
+  if (b < 1073741824) return (b / 1048576).toFixed(1) + ' MB';
+  return (b / 1073741824).toFixed(2) + ' GB';
+}
+/* 地址只显示主机，整串塞进一行会被挤成省略号 */
+function hostOf(u){
+  u = String(u || '').replace(/^https?:\/\//i, '');
+  var i = u.indexOf('/');
+  if (i > 0) u = u.substring(0, i);
+  var q = u.indexOf('?');
+  if (q > 0) u = u.substring(0, q);
+  return u.length > 26 ? u.substring(0, 24) + '…' : u;
+}
+
+/* 接口列表的第二行：主机 + 最后一段路径。
+   只显示主机的话，同一个域名下挂多个接口时几条看起来完全一样，
+   用户会以为「只有一条」。 */
+function addrOf(u){
+  var s = String(u || '').replace(/^https?:\/\//i, '');
+  var q = s.indexOf('?');
+  if (q > 0) s = s.substring(0, q);
+  var h = s.indexOf('#');
+  if (h > 0) s = s.substring(0, h);
+  var parts = s.split('/');
+  var host = parts.shift() || '';
+  var tail = '';
+  for (var i = parts.length - 1; i >= 0; i--){
+    if (parts[i]){ tail = parts[i]; break; }
+  }
+  var out = tail ? (host + '/' + tail) : host;
+  return out.length > 30 ? out.substring(0, 28) + '…' : out;
+}
+
+/* =====================================================================
+   片源接口：保存多个 + 在列表里手动切换
+   ===================================================================== */
+window.openApiList = function(){
+  showAlt('片源接口', '<div class="loadmore" style="padding:44px 0">正在读取…</div>');
+  ncall('cfgList', [], function(r){
+    var list = (r && r.list) || [];
+    window.__apis = list;
+    // 列表和「我的」那行必须用同一份数据算，否则会出现
+    // 「外面写 3 个、点进去只有 1 条」这种对不上的情况
+    applyApiHint(list);
+    // 标题带上条数：一眼就能确认存了几条
+    document.getElementById('altTitle').textContent =
+      list.length > 1 ? ('片源接口 · ' + list.length + ' 个') : '片源接口';
+    if (!list.length){
+      setAltList('<div class="loadmore" style="padding:32px 0 20px">还没有保存过接口</div>' + apiAddRow());
+      return;
+    }
+    var html = list.map(function(x, i){
+      // 「使用中」那条不给删除按钮：删掉等于把正在用的接口弄丢；
+      // 但可以改名（名字就是显示用的）
+      var rename = '<span class="apiRen" onclick="event.stopPropagation();renameApi(' + i + ')">改名</span>';
+      var act = x.cur
+        ? '<span class="apiAct">使用中</span>' + rename
+        : rename + '<span class="apiDel" onclick="event.stopPropagation();delApi(' + i + ')">删除</span>';
+      return '<div class="altRow apiRow' + (x.cur ? ' cur' : '') + '" onclick="pickApi(' + i + ')">' +
+        '<div class="apiMain">' +
+          '<div class="altN">' + esc(x.name || addrOf(x.url)) + '</div>' +
+          '<div class="altS">' + esc(addrOf(x.url)) + '</div>' +
+        '</div>' + act +
+      '</div>';
+    }).join('');
+    setAltList(html + apiAddRow());
+  });
+};
+
+function apiAddRow(){
+  return '<div class="altRow apiRow add" onclick="apiAdd()">' +
+    '<div class="apiMain">' +
+      '<div class="altN">＋ 添加新接口</div>' +
+      '<div class="altS">粘贴一个新的 JSON 接口地址，保存后自动记住</div>' +
+    '</div>' +
+  '</div>';
+}
+
+window.apiAdd = function(){ closeAlt(); openCfgForm('api', true); };
+
+/* 改名：复用配置表单，只留接口名一个输入框 */
+window.renameApi = function(i){
+  var x = (window.__apis || [])[i];
+  if (!x) return;
+  closeAlt();
+  openCfgForm('name', false, x.url, x.name || '');
+};
+
+window.pickApi = function(i){
+  var x = (window.__apis || [])[i];
+  if (!x) return;
+  var label = x.name || addrOf(x.url);
+  if (x.cur){ closeAlt(); return; }
+  closeAlt();
+  toast('正在切换到「' + label + '」…');
+  ncall('switchConfig', [x.url], function(d){
+    if (!d || !d.ok){
+      toast('切换失败：' + ((d && d.msg) || '未知错误'));
+      return;
+    }
+    toast('已切换到「' + (d.name || d.source || label) + '」');
+    go('home');   // 分类/详情都是旧接口的数据，先退回首页再重载
+    resetSourceState();
+    loadAll();
+    refreshApiHint();
+  });
+};
+
+window.delApi = function(i){
+  var x = (window.__apis || [])[i];
+  if (!x) return;
+  askDialog('删除接口', '只从列表里移除，不影响本机其它设置。\n\n' + addrOf(x.url), function(){
+    ncall('delConfig', [x.url], function(d){
+      if (!d || !d.ok){ toast('删除失败'); return; }
+      toast('已删除');
+      // openApiList 内部会顺手同步「我的」那行，删完外面不会还写着旧数量
+      openApiList();
+    });
+  });
+};
+
+/* 「我的」里片源接口那行：一个显示接口名，多个显示数量 */
+function applyApiHint(list){
+  var el = document.getElementById('cfgHint');
+  if (!el) return;
+  list = list || [];
+  if (!list.length){ el.textContent = '未配置'; return; }
+  var cur = null;
+  for (var i = 0; i < list.length; i++){
+    if (list[i].cur){ cur = list[i]; break; }
+  }
+  if (list.length > 1){ el.textContent = list.length + ' 个接口'; return; }
+  if (cur){ el.textContent = cur.name || addrOf(cur.url); return; }
+  el.textContent = '未配置';
+}
+
+/* 「我的」里片源接口那行的提示：一个显示主机，多个显示数量 */
+function refreshApiHint(){
+  var el = document.getElementById('cfgHint');
+  if (!el) return;
+  ncall('cfgList', [], function(d){
+    applyApiHint((d && d.list) || []);
+  });
+}
+
+function refreshSettings(){
+  var elSite = document.getElementById('siteHint');
+  if (elSite) elSite.textContent = ST.source || '—';
+  refreshApiHint();
+
+  ncall('liveInfo', [], function(d){
+    var el = document.getElementById('liveHint');
+    if (!el) return;
+    if (d && d.url) el.textContent = hostOf(d.url);
+    else el.textContent = (d && d.groups) ? ('跟随接口 · ' + d.groups + ' 组') : '未设置';
+  });
+
+  ncall('searchLimit', [], function(d){
+    if (d && d.ok){
+      var el = document.getElementById('limitHint');
+      if (el) el.textContent = d.limit + ' 个';
+    }
+  });
+
+  refreshDohHint();
+  refreshCache();
+  refreshThemeHint();
+
+  ncall('appInfo', [], function(d){
+    if (!d || !d.ok) return;
+    var el = document.getElementById('verHint');
+    if (el) el.textContent = 'v' + (d.ver || '1.0');
+  });
+}
+
+/* ---- 主题：跟随系统 / 深色 / 浅色 ---- */
+var THEME_NAMES = { system: '跟随系统', dark: '深色', light: '浅色' };
+
+function refreshThemeHint(){
+  ncall('themeInfo', [], function(d){
+    var el = document.getElementById('themeHint');
+    if (el && d && d.ok) el.textContent = THEME_NAMES[d.mode] || '跟随系统';
+  });
+}
+
+function openTheme(){
+  ncall('themeInfo', [], function(d){
+    var cur = (d && d.mode) || 'system';
+    var opts = [
+      { m: 'system', n: '跟随系统', s: '系统开深色就深色，和手机设置保持一致' },
+      { m: 'dark',    n: '深色',     s: '始终深色，夜里看着不刺眼' },
+      { m: 'light',   n: '浅色',     s: '始终浅色，白天在户外更清楚' }
+    ];
+    var html = opts.map(function(o){
+      return '<div class="altRow' + (o.m === cur ? ' cur' : '') + '" onclick="pickTheme(\'' + o.m + '\')">' +
+        '<div class="altN">' + o.n + '</div>' +
+        '<div class="altS">' + o.s + '</div>' +
+      '</div>';
+    }).join('');
+    showAlt('主题', html);
+  });
+}
+
+window.pickTheme = function(m){
+  closeAlt();
+  ncall('setThemeMode', [m], function(d){
+    if (d && d.ok){
+      var el = document.getElementById('themeHint');
+      if (el) el.textContent = THEME_NAMES[d.mode] || '跟随系统';
+      toast('已切换为' + (THEME_NAMES[d.mode] || '跟随系统'));
+    } else {
+      toast('设置失败，请重试');
+    }
+  });
+};
+
+/* ---- 搜索站点数 ---- */
+function openSearchLimit(){
+  var opts = [
+    {n: 6,  d: '最快，但冷门片容易搜不到'},
+    {n: 12, d: '默认，速度和覆盖比较均衡'},
+    {n: 24, d: '最全，片源多的接口推荐'},
+    {n: 32, d: '极限，接口慢时会明显更卡'}
+  ];
+  ncall('searchLimit', [], function(r){
+    var cur = (r && r.limit) || 12;
+    var html = opts.map(function(o){
+      return '<div class="altRow' + (o.n === cur ? ' cur' : '') + '" onclick="pickSearchLimit(' + o.n + ')">' +
+        '<div class="altN">' + o.n + ' 个站点</div>' +
+        '<div class="altS">' + o.d + '</div>' +
+      '</div>';
+    }).join('');
+    html += '<div class="altS" style="padding:12px 16px 6px">同时搜的站点越多结果越全，时间也越长（总共等 9 秒）。</div>';
+    showAlt('搜索站点数', html);
+  });
+}
+window.pickSearchLimit = function(n){
+  closeAlt();
+  ncall('setSearchLimit', [String(n)], function(d){
+    if (d && d.ok){
+      var el = document.getElementById('limitHint');
+      if (el) el.textContent = d.limit + ' 个';
+      toast('已设为 ' + d.limit + ' 个站点');
+    } else {
+      toast('设置失败');
+    }
+  });
+};
+
+/* ---- 安全 DNS ---- */
+function refreshDohHint(){
+  ncall('dohInfo', [], function(d){
+    if (!d || !d.ok) return;
+    var el = document.getElementById('dohHint');
+    if (!el) return;
+    var cur = d.cur || 0;
+    var it = (d.list || [])[cur];
+    el.textContent = it ? it.name : '关闭';
+  });
+}
+function openDoh(){
+  ncall('dohInfo', [], function(d){
+    if (!d || !d.ok){ toast('读取失败'); return; }
+    var html = (d.list || []).map(function(it){
+      return '<div class="altRow' + (it.i === d.cur ? ' cur' : '') + '" onclick="pickDoh(' + it.i + ')">' +
+        '<div class="altN">' + esc(it.name) + '</div>' +
+        (it.url ? '<div class="altS">' + esc(it.url.replace(/^https?:\/\//i, '')) + '</div>' : '') +
+      '</div>';
+    }).join('');
+    html += '<div class="altS" style="padding:12px 16px 6px">加密查询域名，个别网络下能救回被劫持的接口地址。改完需要重启 App。</div>';
+    showAlt('安全 DNS', html);
+  });
+}
+window.pickDoh = function(i){
+  closeAlt();
+  ncall('setDoh', [String(i)], function(d){
+    if (d && d.ok){
+      refreshDohHint();
+      toast('已保存，重启 App 后生效');
+    } else {
+      toast('设置失败');
+    }
+  });
+};
+
+/* ---- 缓存 ---- */
+function refreshCache(){
+  ncall('cacheInfo', [], function(d){
+    var el = document.getElementById('cacheHint');
+    if (el) el.textContent = (d && d.ok) ? fmtSize(d.bytes) : '—';
+  });
+}
+function clearCacheNow(){
+  askDialog('清空 App 缓存',
+    '会清掉图片、网页和片源数据缓存。收藏、观看历史、接口配置都不会动。', function(){
+    toast('正在清理…');
+    ncall('clearCache', [], function(d){
+      if (d && d.ok){
+        var el = document.getElementById('cacheHint');
+        if (el) el.textContent = fmtSize(d.bytes);
+        var freed = (d.before || 0) - (d.bytes || 0);
+        toast(freed > 0 ? ('已释放 ' + fmtSize(freed)) : '缓存本来就很干净');
+      } else {
+        toast('清理失败');
+      }
+    });
+  });
+}
+
+/* ---- 重置 / 关于 ---- */
+function resetAppAsk(){
+  askDialog('重置 App',
+    '会清除片源接口、直播源、收藏、观看历史、DNS 等全部设置和缓存，然后自动重启。此操作不可恢复。', function(){
+    toast('正在重置…');
+    ncall('resetApp', [], function(d){
+      if (!d || !d.ok) toast('重置失败');
+    });
+  });
+}
+function openAbout(){
+  ncall('appInfo', [], function(d){
+    if (!d || !d.ok) d = {};
+    var ver = d.ver || '1.0';
+    var el = document.getElementById('verHint');
+    if (el) el.textContent = 'v' + ver;
+    var html = '';
+    html += '<div class="altRow"><div class="altN">猪猪影视 v' + esc(ver) + '</div>' +
+      '<div class="altS">播放内核来自 takagen99/Box</div></div>';
+    html += '<div class="altRow"><div class="altN">已加载站点</div>' +
+      '<div class="altS">' + (d.sites || 0) + ' 个 · 搜索用 ' + (d.limit || 12) + ' 个</div></div>';
+    html += '<div class="altRow"><div class="altN">内容说明</div>' +
+      '<div class="altS">本 App 不提供任何片源，内容全部来自你配置的接口</div></div>';
+    showAlt('关于', html);
+  });
+}
+
+/* ---- 通用二次确认 ---- */
+var ASK_CB = null;
+function askDialog(title, msg, onOk){
+  ASK_CB = onOk || null;
+  document.getElementById('askT').textContent = title;
+  document.getElementById('askM').textContent = msg;
+  document.getElementById('ask').classList.add('on');
+}
+function askClose(){
+  document.getElementById('ask').classList.remove('on');
+  ASK_CB = null;
+}
+function askYes(){
+  var f = ASK_CB;
+  askClose();
+  if (f) f();
+}
+
+/* =====================================================================
+   路由 / 滚动 / Toast
+   ===================================================================== */
+var state = {page:'home'};
+/* scrollLockUntil 在「状态」那一节声明（scrollCatTop / reloadCat 都在它前面用） */
+function go(p){
+  var map = {home:'pH', cat:'pC', ai:'pA', me:'pM', list:'pL'};
+  Object.keys(map).forEach(function(k){
+    var el = document.getElementById(map[k]);
+    if (el) el.classList.toggle('on', k === p);
+  });
+  var tabOf = {home:'home', cat:'cat', ai:'ai', me:'me', list:'me'};
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.classList.toggle('on', t.dataset.p === tabOf[p]);
+  });
+  state.page = p;
+  scrollLockUntil = Date.now() + 600;
+  document.getElementById('scroll').scrollTop = 0;
+  if (p === 'cat'){
+    // 片源还没加载完时 sorts 是空的，这里照样走一遍把旧内容擦掉，
+    // 否则换站点后筛选条会留着上一个源的按钮
+    renderCatChips();
+    renderCatFilt();
+    if (ST.sorts.length && !ST.curSort) openSort(ST.sorts[0].id);
+  }
+  if (p === 'me'){ loadHist(); refreshSettings(); }
+}
+
+var toastT = null;
+function toast(msg){
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(function(){ el.classList.remove('on'); }, 1800);
+}
+
+/* 滑到底自动翻页。scroll 事件一帧可能来好几次，所以先用 scrollLockUntil 挡掉
+   自己造成的滚动（回顶、换条件后重排），再判断是否接近底部 */
+document.getElementById('scroll').addEventListener('scroll', function(e){
+  var el = e.target;
+  if (state.page !== 'cat' || !ST.curSort) return;
+  if (Date.now() < scrollLockUntil) return;
+  if (el.scrollTop + el.clientHeight > el.scrollHeight - 320) catLoadMore();
+}, true);
+
+/* =====================================================================
+   原生回调
+   ===================================================================== */
+window.__onReady = function(ok, msg){
+  if (ok) loadAll();
+  else if (msg === 'needConfig'){ showCfg(0); }
+  else { toast(msg || '片源加载失败'); showCfg(0); }
+};
+window.__onResume = function(){ loadHist(); if (state.page === 'me') refreshSettings(); };
+
+/* 返回键：从原生壳调过来 */
+window.PAGEAPI = {
+  onBack: function(){
+    var d = document.getElementById('detail');
+    var s = document.getElementById('sov');
+    var c = document.getElementById('cfg');
+    var a = document.getElementById('dAlt');
+    var k = document.getElementById('ask');
+    var f = document.getElementById('flt');
+    if (k && k.classList.contains('on')){ askClose(); return true; }
+    if (f && f.classList.contains('on')){ closeFlt(); return true; }
+    if (a.classList.contains('on')){ closeAlt(); return true; }
+    if (c.classList.contains('on')){ cfgClose(); return true; }
+    if (d.classList.contains('on')){ closeDetail(); return true; }
+    if (s.classList.contains('on')){ closeSearch(); return true; }
+    if (state.page !== 'home'){ go('home'); return true; }
+    return false;
+  }
+};
+
+/* =====================================================================
+   换挡（旋转 / 分屏 / 自由窗口改尺寸）
+   布局全部交给 pad.css 的媒体查询，这里只补 CSS 管不到的两件事：
+   1) 高度变了以后 scrollTop 可能超出新上限，会被浏览器钳住但仍要归位
+   2) 键盘收起 / 展开时不要误触发分类页的「滑到底自动翻页」
+   ===================================================================== */
+window.__onResize = function(){
+  var sc = document.getElementById('scroll');
+  if (!sc) return;
+  var max = sc.scrollHeight - sc.clientHeight;
+  if (max >= 0 && sc.scrollTop > max) sc.scrollTop = max;
+  scrollLockUntil = Date.now() + 400;
+};
+window.addEventListener('orientationchange', function(){
+  setTimeout(function(){ window.__onResize(); }, 280);
+});
+window.addEventListener('resize', function(){
+  window.__onResize();
+});
+
+/* 初始化 */
+(function init(){
+  renderEx();
+  renderHero();
+  bindHeroSwipe();
+  loadPlayPref();
+  refreshSettings();   // 「我的」里的缓存大小 / 站点数 / DNS 先填上，进页面不闪
+})();
+</script>
+</body>
+</html>

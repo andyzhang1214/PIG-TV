@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「问 AI」卡：紫色渐变，焦点变白（设计稿 .app.ai / .app.ai.focused） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="@dimen/h_app_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="290"
+                android:startColor="#57746CFF"
+                android:centerColor="#1F746CFF"
+                android:endColor="#14584EC4"
+                android:type="linear" />
+            <stroke android:width="0.6mm" android:color="#4DA398FF" />
+            <corners android:radius="@dimen/h_app_radius" />
+        </shape>
+    </item>
+</selector>

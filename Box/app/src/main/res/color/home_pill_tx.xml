@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 顶部胶囊文字：默认白 92%，焦点黑 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FF0A0908" />
+    <item android:color="#EBFFFFFF" />
+</selector>

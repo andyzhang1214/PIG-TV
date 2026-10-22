@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    首页 v6.1（对应 ui-design/tv-home.html）
+    上下颠倒：预览卡在上（268~698），功能入口贴底（812~1000）。
+
+    两层结构：
+    1. launcher  —— 启动器层：时钟 / 胶囊 / 预览卡 / 分区标题 / 入口行
+    2. contentLayout —— 二级页：分类 Tab + ViewPager（点分类卡后显示）
+    两层互斥显示，由 HomeActivity.showLauncher() / showContent() 切换。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- ==================== 启动器层 ==================== -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/launcher"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <!-- 压暗遮罩：顶深 / 中透 / 底深，让壁纸也能透出一点 -->
+        <View
+            android:id="@+id/vScrim"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@drawable/h_scrim"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- 时钟区 -->
+        <LinearLayout
+            android:id="@+id/clockBlock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/h_edge"
+            android:layout_marginTop="@dimen/h_clock_top"
+            android:orientation="vertical"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/tvGreet"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.35"
+                android:textColor="#85FFFFFF"
+                android:textSize="@dimen/h_greet"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6.3mm"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.025"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="@dimen/h_time" />
+
+                <TextView
+                    android:id="@+id/tvAmpm"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8.9mm"
+                    android:layout_marginTop="8.9mm"
+                    android:includeFontPadding="false"
+                    android:textColor="#B8FFFFFF"
+                    android:textSize="@dimen/h_ampm"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="@dimen/h_vdiv_w"
+                    android:layout_height="@dimen/h_vdiv_h"
+                    android:layout_marginStart="@dimen/h_vdiv_ml"
+                    android:layout_marginTop="@dimen/h_vdiv_mt"
+                    android:layout_marginEnd="@dimen/h_vdiv_mr"
+                    android:background="#42FFFFFF" />
+
+                <TextView
+                    android:id="@+id/tvDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16.5mm"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="0.08"
+                    android:textColor="#C7FFFFFF"
+                    android:textSize="@dimen/h_date"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 顶部胶囊 -->
+        <LinearLayout
+            android:id="@+id/pillsRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/h_pills_top"
+            android:layout_marginEnd="@dimen/h_edge"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <LinearLayout
+                android:id="@+id/pillSource"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/h_pill_h"
+                android:background="@drawable/h_pill_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/h_pill_pad"
+                android:paddingEnd="@dimen/h_pill_pad">
+
+                <ImageView
+                    android:layout_width="@dimen/h_pill_ico"
+                    android:layout_height="@dimen/h_pill_ico"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/h_ic_layers" />
+
+                <TextView
+                    android:id="@+id/tvPillSource"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7mm"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="@string/home_pill_source"
+                    android:textColor="@color/home_pill_tx"
+                    android:textSize="@dimen/h_pill_tx" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/pillConfig"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/h_pill_h"
+                android:layout_marginStart="@dimen/h_pill_gap"
+                android:background="@drawable/h_pill_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/h_pill_pad"
+                android:paddingEnd="@dimen/h_pill_pad">
+
+                <ImageView
+                    android:layout_width="@dimen/h_pill_ico"
+                    android:layout_height="@dimen/h_pill_ico"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/h_ic_sliders" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7mm"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="@string/home_pill_config"
+                    android:textColor="@color/home_pill_tx"
+                    android:textSize="@dimen/h_pill_tx" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/pillWifi"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/h_pill_h"
+                android:layout_marginStart="@dimen/h_pill_gap"
+                android:background="@drawable/h_pill_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/h_pill_pad"
+                android:paddingEnd="@dimen/h_pill_pad">
+
+                <ImageView
+                    android:id="@+id/ivNet"
+                    android:layout_width="@dimen/h_pill_ico"
+                    android:layout_height="@dimen/h_pill_ico"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/hm_wifi" />
+
+                <TextView
+                    android:id="@+id/tvNet"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7mm"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="@string/home_pill_net"
+                    android:textColor="@color/home_pill_tx"
+                    android:textSize="@dimen/h_pill_tx" />
+
+                <TextView
+                    android:id="@+id/tvNetSub"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="3.8mm"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="@string/home_pill_net_sub"
+                    android:textColor="#73FFFFFF"
+                    android:textSize="@dimen/h_pill_sub" />
+
+                <View
+                    android:id="@+id/vNetDot"
+                    android:layout_width="@dimen/h_pill_dot"
+                    android:layout_height="@dimen/h_pill_dot"
+                    android:layout_marginStart="5.1mm"
+                    android:background="@drawable/h_dot_green" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 预览卡 -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/hero"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/h_hero_h"
+            android:layout_marginStart="@dimen/h_edge"
+            android:layout_marginTop="@dimen/h_hero_top"
+            android:layout_marginEnd="@dimen/h_edge"
+            app:cardBackgroundColor="#FF0D0D13"
+            app:cardCornerRadius="@dimen/h_hero_radius"
+            app:cardElevation="0dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <!-- 剧照背景，无图时留纯色 -->
+                <ImageView
+                    android:id="@+id/heroArt"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no"
+                    android:scaleType="centerCrop" />
+
+                <!-- 左深右透遮罩，保证左侧文字可读 -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/h_hero_scrim" />
+
+                <!-- 右侧竖版海报 -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/heroPoster"
+                    android:layout_width="@dimen/h_poster_w"
+                    android:layout_height="@dimen/h_poster_h"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="@dimen/h_poster_top"
+                    android:layout_marginEnd="@dimen/h_poster_right"
+                    app:cardBackgroundColor="#FF16151C"
+                    app:cardCornerRadius="@dimen/h_poster_radius"
+                    app:cardElevation="0dp">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <ImageView
+                            android:id="@+id/heroPosterImg"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:importantForAccessibility="no"
+                            android:scaleType="centerCrop" />
+
+                        <!-- 无海报时用片名首字占位，比空框好看 -->
+                        <TextView
+                            android:id="@+id/heroPosterLetter"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:includeFontPadding="false"
+                            android:textColor="#59FFFFFF"
+                            android:textSize="69.7mm"
+                            android:textStyle="bold" />
+                    </FrameLayout>
+                </androidx.cardview.widget.CardView>
+
+                <!-- 左侧信息区：距左 48、距右 300、上下 36/34，垂直居中 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/h_info_left"
+                    android:layout_marginTop="@dimen/h_info_top"
+                    android:layout_marginEnd="@dimen/h_info_right"
+                    android:layout_marginBottom="21.6mm"
+                    android:gravity="center_vertical"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/heroTagBox"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_width="@dimen/h_tag_dot"
+                            android:layout_height="@dimen/h_tag_dot"
+                            android:background="@drawable/h_dot_accent" />
+
+                        <TextView
+                            android:id="@+id/heroTag"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6.3mm"
+                            android:includeFontPadding="false"
+                            android:letterSpacing="0.2"
+                            android:textColor="#85FFFFFF"
+                            android:textSize="@dimen/h_tag" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/heroTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8.9mm"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:shadowColor="#99000000"
+                        android:shadowDx="0"
+                        android:shadowDy="6"
+                        android:shadowRadius="18"
+                        android:textColor="#FFFFFFFF"
+                        android:textSize="@dimen/h_title"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/heroMeta"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8.9mm"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:textColor="#CCFFFFFF"
+                        android:textSize="@dimen/h_meta" />
+
+                    <TextView
+                        android:id="@+id/heroDesc"
+                        android:layout_width="570.6mm"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="7.6mm"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false"
+                        android:lineSpacingMultiplier="1.4"
+                        android:maxLines="2"
+                        android:textColor="#9EFFFFFF"
+                        android:textSize="@dimen/h_desc" />
+                </LinearLayout>
+
+                <!-- 右下角操作提示 -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginEnd="@dimen/h_hint_right"
+                    android:layout_marginBottom="@dimen/h_hint_bottom"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="@dimen/h_ok_h"
+                        android:background="@drawable/h_ok_key"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingStart="@dimen/h_ok_pad"
+                        android:paddingEnd="@dimen/h_ok_pad"
+                        android:text="@string/home_key_ok"
+                        android:textColor="#8CFFFFFF"
+                        android:textSize="@dimen/h_hint" />
+
+                    <TextView
+                        android:id="@+id/heroHint"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="3.8mm"
+                        android:includeFontPadding="false"
+                        android:text="@string/home_hint_enter"
+                        android:textColor="#57FFFFFF"
+                        android:textSize="@dimen/h_hint" />
+                </LinearLayout>
+            </FrameLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- 分区标题 -->
+        <TextView
+            android:id="@+id/secTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/h_edge"
+            android:layout_marginTop="@dimen/h_sec_top"
+            android:includeFontPadding="false"
+            android:text="@string/home_all_apps"
+            android:textColor="#DBFFFFFF"
+            android:textSize="@dimen/h_sec_title"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/secHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/h_edge"
+            android:includeFontPadding="false"
+            android:text="@string/home_sec_hint"
+            android:textColor="#73FFFFFF"
+            android:textSize="@dimen/h_sec_hint"
+            app:layout_constraintBaseline_toBaselineOf="@id/secTitle"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- 入口行（单排，绝不折行；超出可横向滚动） -->
+        <com.owen.tvrecyclerview.widget.TvRecyclerView
+            android:id="@+id/appsRow"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/h_app_h"
+            android:layout_marginStart="@dimen/h_edge"
+            android:layout_marginTop="@dimen/h_apps_top"
+            android:layout_marginEnd="@dimen/h_edge"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tv_selectedItemIsCentered="false" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- ==================== 二级页（分类内容） ==================== -->
+    <LinearLayout
+        android:id="@+id/contentLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F20A0908"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <com.owen.tvrecyclerview.widget.TvRecyclerView
+            android:id="@+id/mGridViewCategory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5.1mm"
+            android:paddingStart="@dimen/h_edge"
+            android:paddingEnd="@dimen/h_edge"
+            app:tv_selectedItemIsCentered="true" />
+
+        <com.github.tvbox.osc.ui.tv.widget.NoScrollViewPager
+            android:id="@+id/mViewPager"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+</FrameLayout>

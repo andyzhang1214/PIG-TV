@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「问 AI」海报位背景（设计稿 160deg：#9C8CFF → #6B57E8 46% → #3B2E96） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#FF9C8CFF"
+        android:centerColor="#FF6B57E8"
+        android:endColor="#FF3B2E96"
+        android:type="linear" />
+    <stroke android:width="1mm" android:color="#4DFFFFFF" />
+</shape>
