@@ -207,13 +207,13 @@
 
 # 实体类
 # 实体类必须保留：XStream 解析 XML 源、Gson 解析历史记录都靠反射读字段名
--keep class com.pigtv.bean.** { *; }
--keep class com.pigtv.cache.** { *; }
--keep class com.pigtv.ui.fragment.homes.**{*;}
+-keep class com.github.tvbox.osc.bean.** { *; }
+-keep class com.github.tvbox.osc.cache.** { *; }
+-keep class com.github.tvbox.osc.ui.fragment.homes.**{*;}
 #CardView
--keep class com.pigtv.ui.tv.widget.card.**{*;}
+-keep class com.github.tvbox.osc.ui.tv.widget.card.**{*;}
 #ViewObj
--keep class com.pigtv.ui.tv.widget.ViewObj{
+-keep class com.github.tvbox.osc.ui.tv.widget.ViewObj{
     <methods>;
 }
 
@@ -350,5 +350,5 @@
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
--keep class com.pigtv.phone.** { *; }
+-keep class com.github.tvbox.osc.phone.** { *; }
 -keepattributes JavascriptInterface

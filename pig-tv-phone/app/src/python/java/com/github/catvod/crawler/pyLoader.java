@@ -8,9 +8,9 @@ import android.util.Log;
 import androidx.core.content.ContextCompat;
 
 import com.github.catvod.crawler.python.IPyLoader;
-import com.pigtv.base.App;
-import com.pigtv.util.LOG;
-import com.pigtv.util.MD5;
+import com.github.tvbox.osc.base.App;
+import com.github.tvbox.osc.util.LOG;
+import com.github.tvbox.osc.util.MD5;
 import com.undcover.freedom.pyramid.PythonLoader;
 import com.undcover.freedom.pyramid.PythonSpider;
 import java.io.UnsupportedEncodingException;

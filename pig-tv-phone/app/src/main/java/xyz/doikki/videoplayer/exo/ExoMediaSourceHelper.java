@@ -29,7 +29,7 @@ import androidx.media3.extractor.ExtractorsFactory;
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory;
 import androidx.media3.extractor.ts.TsExtractor;
 
-import com.pigtv.util.FileUtils;
+import com.github.tvbox.osc.util.FileUtils;
 import com.google.androidx.media3.exoplayer.ext.okhttp.OkHttpDataSource;
 
 import java.io.File;

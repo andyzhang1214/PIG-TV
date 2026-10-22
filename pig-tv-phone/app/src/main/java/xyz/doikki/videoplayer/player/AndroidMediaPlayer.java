@@ -9,9 +9,9 @@ import android.os.Build;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
-import com.pigtv.player.TrackInfo;
-import com.pigtv.player.TrackInfoBean;
-import com.pigtv.util.PlayerHelper;
+import com.github.tvbox.osc.player.TrackInfo;
+import com.github.tvbox.osc.player.TrackInfoBean;
+import com.github.tvbox.osc.util.PlayerHelper;
 
 import java.util.Map;
 import xyz.doikki.videoplayer.util.PlayerUtils;

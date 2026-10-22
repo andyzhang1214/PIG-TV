@@ -5,9 +5,9 @@ import android.content.Context;
 import android.util.Log;
 
 
-import com.pigtv.base.App;
-import com.pigtv.util.FileUtils;
-import com.pigtv.util.MD5;
+import com.github.tvbox.osc.base.App;
+import com.github.tvbox.osc.util.FileUtils;
+import com.github.tvbox.osc.util.MD5;
 import com.lzy.okgo.OkGo;
 
 import org.json.JSONObject;
@@ -131,7 +131,7 @@ public class JarLoader {
         // 「这个站点一直是空的」，而且失败没有任何提示。统一交给 JarFetcher。
         try {
             File part = new File(cache.getAbsolutePath() + ".part");
-            com.pigtv.api.JarFetcher.Result r = com.pigtv.api.JarFetcher.fetch(jar, part, md5);
+            com.github.tvbox.osc.api.JarFetcher.Result r = com.github.tvbox.osc.api.JarFetcher.fetch(jar, part, md5);
             if (r.file != null && r.file.exists() && r.file.length() > 0) {
                 if (cache.exists()) cache.delete();
                 if (!r.file.renameTo(cache)) {
@@ -147,16 +147,16 @@ public class JarLoader {
                     r.file.delete();
                 }
                 if (loadClassLoader(cache.getAbsolutePath(), key)) {
-                    com.pigtv.api.SpiderDiag.clear();
+                    com.github.tvbox.osc.api.SpiderDiag.clear();
                     return classLoaders.get(key);
                 }
-                com.pigtv.api.SpiderDiag.set("站点组件已下载但加载失败（可能不是 jar）");
+                com.github.tvbox.osc.api.SpiderDiag.set("站点组件已下载但加载失败（可能不是 jar）");
             } else {
-                com.pigtv.api.SpiderDiag.set("下载站点组件失败：" + r.err
+                com.github.tvbox.osc.api.SpiderDiag.set("下载站点组件失败：" + r.err
                         + (r.diag == null || r.diag.isEmpty() ? "" : "（" + r.diag + "）"));
             }
         } catch (Throwable e) {
-            com.pigtv.api.SpiderDiag.fail("下载站点组件", e);
+            com.github.tvbox.osc.api.SpiderDiag.fail("下载站点组件", e);
             e.printStackTrace();
         }
         return null;
@@ -183,7 +183,7 @@ public class JarLoader {
         assert jarKey != null;
         DexClassLoader classLoader = jarKey.equals("main")? classLoaders.get("main"):loadJarInternal(jarUrl, jarMd5, jarKey);
         if (classLoader == null) {
-            com.pigtv.api.SpiderDiag.set("播放组件没有加载成功，站点 " + clsKey + " 用不了");
+            com.github.tvbox.osc.api.SpiderDiag.set("播放组件没有加载成功，站点 " + clsKey + " 用不了");
             return new SpiderNull();
         }
         try {
@@ -198,7 +198,7 @@ public class JarLoader {
         } catch (Throwable th) {
             // 这里最常抓到的是 NoClassDefFoundError: com.github.catvod.net.OkHttp ——
             // 也就是「R8 把宿主给 jar 用的 API 改名了」，报给前端才能看出来。
-            com.pigtv.api.SpiderDiag.fail("加载站点 " + clsKey, th);
+            com.github.tvbox.osc.api.SpiderDiag.fail("加载站点 " + clsKey, th);
             th.printStackTrace();
         }
         return new SpiderNull();
