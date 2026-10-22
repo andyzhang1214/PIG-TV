@@ -588,6 +588,26 @@ public class PhoneBridge {
                 //
                 // 必须放在挂 sortCb 之前：等待期间如果 LiveData 推了旧值会把回调提前消费掉。
                 if (needsJar(home)) ensureJarBlocking(JAR_WAIT_MS);
+                // jar 没就绪就跑 getSort，spider 还是 SpiderNull，返回的东西不是标准 JSON，
+                // SourceViewModel 会把「组件没下完」写成「站点返回的分类解析不了（不是标准 JSON）」——
+                // 用户看到的是一句假诊断，还会以为站点坏了。这里直接回真实状态：
+                // 后台下载完成后 emit jar done，页面自己会重新拉一次。
+                if (needsJar(home) && !jarReady) {
+                    JSONObject o = new JSONObject();
+                    o.put("ok", 0);
+                    o.put("needConfig", 0);
+                    o.put("jarReady", 0);
+                    o.put("jarError", lastJarError == null ? "" : lastJarError);
+                    o.put("jarDiag", ApiConfig.get().getJarDiag());
+                    o.put("msg", lastJarError != null
+                            ? lastJarError
+                            : "播放组件还没下载完，正在后台续传…");
+                    o.put("source", home.getName() == null ? "" : home.getName());
+                    o.put("sorts", new JSONArray());
+                    o.put("rec", new JSONArray());
+                    cb(cbId, o.toString());
+                    return;
+                }
                 sortCb = cbId;
                 vm.getSort(home.getKey());
                 armSortWatchdog(cbId);
