@@ -16,6 +16,8 @@ import com.pigtv.api.ApiConfig;
 import com.pigtv.bean.AbsJson;
 import com.pigtv.bean.AbsSortXml;
 import com.pigtv.bean.AbsXml;
+import com.pigtv.bean.LiveChannelGroup;
+import com.pigtv.bean.LiveChannelItem;
 import com.pigtv.bean.Movie;
 import com.pigtv.bean.MovieSort;
 import com.pigtv.bean.SourceBean;
@@ -200,6 +202,51 @@ public class PhoneBridge {
     private void cacheClear() {
         synchronized (vodCache) {
             vodCache.clear();
+        }
+    }
+
+    /**
+     * 换片源接口 / 换线路之后，把「跟上一份片源绑在一起」的内存状态全丢掉。
+     * <p>
+     * 只清 vodCache 是不够的，另外两处会直接把旧数据喂到新界面上：
+     * <ul>
+     *   <li>{@link #sorts}：分类对象是旧接口的（id 相同语义不同），
+     *       findSort 命中后 list() 会拿旧 site 去请求；</li>
+     *   <li>{@link #listQ} / {@link #hotQ}：换接口前发出去的分类请求还在排队，
+     *       回来时会把上一个接口的影片塞进新接口的分类页 —— 用户看到的就是
+     *       「新接口里出现旧接口的片」。</li>
+     * </ul>
+     * 正在飞的那一条打不断，它的回包由前端 catSeq / hotSeq 丢弃。
+     */
+    private void resetSourceCaches(String reason) {
+        sorts.clear();
+        cacheClear();
+        jarReady = false;           // 旧 jar 不一定对得上新接口
+        // 正在等结果的 config()/detail() 也要作废：它们的回包是旧接口的数据，
+        // 落到新界面上就是「新接口里点开一个片，出来的是上一个接口的详情」。
+        // 不回调（而不是回一条错误）：前端紧接着会自己再发一次请求，
+        // 多回一条只会闪一下无意义的「已切换接口」提示。
+        sortCb = null;
+        detailCb = null;
+        pendingPlay = null;
+        java.util.ArrayList<ListReq> dropped = new java.util.ArrayList<>();
+        synchronized (listQ) {
+            while (!listQ.isEmpty()) dropped.add(listQ.pollFirst());
+            while (!hotQ.isEmpty()) dropped.add(hotQ.pollFirst());
+        }
+        for (ListReq r : dropped) {
+            if (r == null || r.done) continue;
+            r.done = true;          // 标记掉，免得看门狗 / finishList 再回一次
+            try {
+                JSONObject o = new JSONObject();
+                o.put("ok", 0);
+                o.put("canceled", 1);
+                o.put("msg", reason);
+                o.put("page", r.page);
+                o.put("list", new JSONArray());
+                cb(r.cbId, o.toString());
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -1057,8 +1104,9 @@ public class PhoneBridge {
                     return;
                 }
                 Hawk.put(HawkConfig.API_URL, u);
-                jarReady = false;   // 换了接口，旧的 jar 不一定还对得上
-                cacheClear();       // 详情缓存也跟着换接口失效
+                // 换接口要把旧接口留下的一切状态清干净：分类对象、详情缓存、
+                // 排队中的分类请求、jar 就绪标记。少清一样就会「新接口里冒出旧接口的片」。
+                resetSourceCaches("已切换接口");
                 ApiConfig.get().loadConfig(false, new ApiConfig.LoadConfigCallback() {
                     @Override
                     public void retry() {
@@ -1365,6 +1413,142 @@ public class PhoneBridge {
     }
 
     /**
+     * 直播页：把接口自带的直播分组 + 频道一次性给前端。
+     * 数据量很小（几十到几百条），一次全给比翻页简单，前端也能自己算「共 N 个频道」。
+     * <p>
+     * 注意 index 的含义：这里给的 index 是<b>列表下标</b>，不是 bean 里的
+     * channelIndex / groupIndex。原生 LivePlayActivity 用的是
+     * getLiveChannels(groupIndex).get(channelIndex)，取的就是下标，
+     * 所以前端拿着这个下标回调 openLiveAt 才不会错位。
+     */
+    @JavascriptInterface
+    public void liveGroups(String cbId) {
+        pool.execute(() -> {
+            try {
+                JSONArray groups = new JSONArray();
+                boolean hasProxy = false;
+                List<LiveChannelGroup> gl = null;
+                try {
+                    gl = ApiConfig.get().getChannelGroupList();
+                } catch (Throwable ignored) {
+                }
+                if (gl != null) {
+                    for (int gi = 0; gi < gl.size(); gi++) {
+                        LiveChannelGroup g = gl.get(gi);
+                        if (g == null) continue;
+                        String gname = nz(g.getGroupName());
+                        // 用户自己在设置里填了直播源时，ApiConfig 只往列表里塞一个占位组：
+                        //   groupName      = http://127.0.0.1:9978/proxy?do=live&type=txt&ext=<base64>
+                        //   liveChannelItems = null
+                        // 真正的频道要 LivePlayActivity 去拉那个 URL 才有，这里给不出来。
+                        // 既不能把它当普通分组（前端会看到 1 个分组 0 个频道 → 误报"没有直播源"），
+                        // 更不能把这条 200 字的长 URL 当分组名扔给界面。
+                        if (isProxyLiveGroup(gname)) {
+                            hasProxy = true;
+                            continue;
+                        }
+                        JSONArray chs = new JSONArray();
+                        ArrayList<LiveChannelItem> items = g.getLiveChannels();
+                        if (items != null) {
+                            for (int ci = 0; ci < items.size(); ci++) {
+                                LiveChannelItem it = items.get(ci);
+                                if (it == null) continue;
+                                JSONObject c = new JSONObject();
+                                c.put("index", ci);
+                                c.put("num", it.getChannelNum());
+                                c.put("name", nz(it.getChannelName()));
+                                c.put("srcs", it.getChannelUrls() == null ? 0 : it.getChannelUrls().size());
+                                chs.put(c);
+                            }
+                        }
+                        JSONObject o = new JSONObject();
+                        // index 必须是它在 liveChannelGroupList 里的**原始下标**：
+                        // openLiveAt 会把它原样塞进 intent，原生按 get(groupIndex) 取。
+                        // 上面跳过 proxy 占位组时下标会留空，所以这里绝不能重新编号。
+                        o.put("index", gi);
+                        o.put("name", gname);
+                        o.put("locked", !nz(g.getGroupPassword()).isEmpty());
+                        o.put("channels", chs);
+                        groups.put(o);
+                    }
+                }
+                JSONObject out = new JSONObject();
+                out.put("ok", 1);
+                out.put("groups", groups);
+                // 配了自定义直播源：前端空态要说"已设置，去播放器里看"，而不是"还没配"
+                out.put("proxy", hasProxy);
+                cb(cbId, out.toString());
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /**
+     * 判断是不是「用户自定义直播源」留下的占位分组。
+     * 见 ApiConfig#parseJson 里 liveURL_final 那段：它把真实地址 base64 后拼成
+     * http://127.0.0.1:9978/proxy?do=live&type=txt&ext=xxx 只放一个空壳组。
+     */
+    private static boolean isProxyLiveGroup(String groupName) {
+        return groupName.startsWith("http://127.0.0.1") && groupName.contains("/proxy?do=live");
+    }
+
+    /**
+     * 点某个频道直接播：进 LivePlayActivity 并定位到第 groupIndex 组第 channelIndex 个。
+     * LivePlayActivity.initLiveState() 本来就在读 intent 里的 groupIndex/channelIndex
+     * （没带才回落到「上次看的那个频道」），所以这里只需要塞两个 extra，不用改原生逻辑。
+     * <p>
+     * 参数用 String 而不是 int：这个类里所有桥方法都是 String 进、内部再转，
+     * JS 的 number 过 WebView 桥时类型匹配容易出岔子，跟着现有约定走最稳。
+     */
+    @JavascriptInterface
+    public void openLiveAt(String groupIndex, String channelIndex) {
+        final int gi;
+        final int ci;
+        try {
+            gi = Integer.parseInt(String.valueOf(groupIndex).trim());
+            ci = Integer.parseInt(String.valueOf(channelIndex).trim());
+        } catch (Throwable th) {
+            toast("频道参数无效");
+            return;
+        }
+        main.post(() -> {
+            try {
+                Intent it = new Intent(act, com.pigtv.ui.activity.LivePlayActivity.class);
+                // 这里必须再校验一次下标：前端拿到列表和用户真正点下去之间隔了多久不知道，
+                // 中间如果换了接口或改了直播源，同一组下标指向的可能已经是别的频道、或者根本不存在。
+                // 而原生侧 selectChannelGroup() 是 liveChannelGroupList.get(groupIndex) 裸取
+                // （见 LivePlayActivity:1396 的 isNeedInputPassword），越界就是 Activity 直接崩。
+                // 校验不过就**不塞 extra**，退化成和「我的→电视直播」一样从上次看的频道起播。
+                if (inLiveRange(gi, ci)) {
+                    it.putExtra("groupIndex", gi);
+                    it.putExtra("channelIndex", ci);
+                }
+                act.startActivity(it);
+            } catch (Throwable th) {
+                toast("当前接口没有直播源");
+            }
+        });
+    }
+
+    /**
+     * groupIndex / channelIndex 是否还落在当前直播列表的有效范围内。
+     * 只做越界判断，不判断加密分组 —— 加密组的密码弹窗交给原生自己处理。
+     */
+    private static boolean inLiveRange(int gi, int ci) {
+        try {
+            List<LiveChannelGroup> gl = ApiConfig.get().getChannelGroupList();
+            if (gl == null || gi < 0 || gi >= gl.size()) return false;
+            LiveChannelGroup g = gl.get(gi);
+            if (g == null) return false;
+            ArrayList<LiveChannelItem> items = g.getLiveChannels();
+            return items != null && ci >= 0 && ci < items.size();
+        } catch (Throwable th) {
+            return false;
+        }
+    }
+
+    /**
      * 可切换的片源站点。对应 TV 版首页点「源名」弹出的那个列表
      * （HomeActivity.showSiteSwitch），只是把弹窗搬到了 Web 端。
      */
@@ -1408,8 +1592,8 @@ public class PhoneBridge {
                     return;
                 }
                 ApiConfig.get().setSourceBean(sb);
-                sorts.clear();      // 分类列表跟着站点走，必须丢弃旧的
-                cacheClear();       // 详情缓存也一样
+                // 分类列表跟着站点走，必须丢弃旧的；排队中的旧站点请求同理
+                resetSourceCaches("已切换线路");
                 JSONObject out = new JSONObject();
                 out.put("ok", 1);
                 out.put("name", nz(sb.getName()));

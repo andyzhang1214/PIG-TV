@@ -355,6 +355,11 @@ public class ApiConfig {
         // 直播播放请求头
         livePlayHeaders = infoJson.getAsJsonArray("livePlayHeaders");
         // 远端站点源
+        // 换接口（设置→接口设置里扫码/推送新地址）时必须先清空，否则旧接口的站点
+        // 会留在 sourceBeanList 里：Hawk 的 HOME_API 还是旧 key 时 getSource(home)
+        // 仍能命中旧站点，首页就继续走旧接口，而 jar 已经换成新的 → 全空。
+        sourceBeanList.clear();
+        mHomeSource = null;
         SourceBean firstSite = null;
         JsonArray sites = infoJson.has("video") ? infoJson.getAsJsonObject("video").getAsJsonArray("sites") : infoJson.get("sites").getAsJsonArray();
         for (JsonElement opt : sites) {

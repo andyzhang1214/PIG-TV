@@ -130,11 +130,14 @@
   .capR span{font-size:13px}
   .parse{margin:18px var(--pad) 0}
 
-  /* ---------- 底部 Tab ---------- */
-  #tabs{height:calc(var(--tabh) + var(--sab))}
+  /* ---------- 底部 Dock ----------
+     平板上 Dock 也走悬浮药丸，只是更宽更粗一档：宽度收到 560dp 居中，
+     不然 1180dp 的屏幕上一条玻璃棍横过去会很怪。 */
+  #tabs{height:var(--tabh);left:50%;right:auto;width:min(560px,calc(100% - 48px));
+    transform:translateX(-50%);bottom:calc(14px + var(--sab))}
   .tab .ic{width:25px;height:25px}
   .tab span{font-size:11px}
-  #scroll{padding-bottom:calc(var(--tabh) + 40px)}
+  #scroll{padding-bottom:calc(var(--tabh) + var(--sab) + 50px)}
 
   /* ---------- 详情：从「贴底弹层」改成「居中卡片」 ----------
      平板上从底部升起会像个手机抽屉，而且 84% 高度在横屏时很怪。
@@ -206,19 +209,26 @@
 
   :root{--rail:96px}
 
-  /* ---------- 左侧导航 rail ---------- */
+  /* ---------- 左侧导航 rail ----------
+     app.css 里 Dock 是「悬浮药丸」，横屏要把它还原成贴边的竖条：
+     圆角、偏移、宽度全部覆盖掉，只保留玻璃底和描边。 */
   #tabs{
     top:0;bottom:0;left:0;right:auto;
     width:var(--rail);height:auto;
     flex-direction:column;justify-content:center;gap:6px;
-    border-top:0;border-right:1px solid var(--divider);
+    padding:0;
+    border-radius:0;transform:none;
+    border:0;border-right:1px solid var(--divider);
     background:var(--tabBg);
+    box-shadow:none;
   }
   .tab{flex:0 0 auto;width:calc(100% - 20px);height:78px;margin:0 10px;border-radius:16px;
     gap:5px}
   .tab .ic{width:26px;height:26px}
   .tab span{font-size:11.5px}
-  .tab.on{background:rgba(255,122,69,.10)}
+  /* 竖排时不需要 app.css 那圈「图标上浮 1px + 辉光」，选中态只留药丸 */
+  .tab.on .ic{transform:none}
+  .tab.on::after{top:9px;bottom:9px;left:6px;right:6px;border-radius:14px}
 
   /* 内容区让出 rail */
   #scroll{left:var(--rail);padding-bottom:44px}
@@ -237,10 +247,12 @@
 
   /* 收集类页面统一限宽，避免超宽屏上一行拉到 1600dp */
   .melist,.meSec{max-width:820px;margin-left:auto;margin-right:auto}
-  /* 问 AI 是单栏内容页，横屏拉满 1084dp 会让输入框长得没法看 */
+  /* 问 AI 已整页移除（2026-10-22），这几条现在只剩历史意义；
+     直播页是单一列表页，同样需要限宽，否则横屏一行能排六七列。 */
   .aiin,.ex,.cap,.exlab,.parse{max-width:820px;margin-left:auto;margin-right:auto}
+  .lgrid,.liveStat,#liveChips{max-width:820px;margin-left:auto;margin-right:auto}
   /* 限宽之后标题要跟着居中，否则标题贴左边、卡片悬在中间，像没对齐 */
-  #pM .hdr,#pA .aitop{max-width:820px;margin-left:auto;margin-right:auto;
+  #pM .hdr,#pLive .hdr{max-width:820px;margin-left:auto;margin-right:auto;
     padding-left:0;padding-right:0}
 
   /* ---------- 详情：左右两栏 ----------
