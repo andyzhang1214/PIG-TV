@@ -468,7 +468,7 @@
             android:paddingEnd="@dimen/h_edge"
             app:tv_selectedItemIsCentered="true" />
 
-        <com.github.tvbox.osc.ui.tv.widget.NoScrollViewPager
+        <com.pigtv.ui.tv.widget.NoScrollViewPager
             android:id="@+id/mViewPager"
             android:layout_width="match_parent"
             android:layout_height="0dp"

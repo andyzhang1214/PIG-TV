@@ -11,7 +11,7 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId 'com.github.tvbox.osc.tk.phone'
+        applicationId 'com.pigtv.phone'
         targetSdkVersion 28
         versionCode 1
         versionName "1.0.".concat(buildTime())
@@ -65,7 +65,7 @@ android {
 
         hisense {
             //海信的
-            applicationId 'com.github.hisense.osc.tk.phone'
+            applicationId 'com.pigtv.phone.hisense'
             dimension = "brand"
         }
         normal {

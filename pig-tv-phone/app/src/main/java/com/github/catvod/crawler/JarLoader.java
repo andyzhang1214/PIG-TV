@@ -5,9 +5,9 @@ import android.content.Context;
 import android.util.Log;
 
 
-import com.github.tvbox.osc.base.App;
-import com.github.tvbox.osc.util.FileUtils;
-import com.github.tvbox.osc.util.MD5;
+import com.pigtv.base.App;
+import com.pigtv.util.FileUtils;
+import com.pigtv.util.MD5;
 import com.lzy.okgo.OkGo;
 
 import org.json.JSONObject;
