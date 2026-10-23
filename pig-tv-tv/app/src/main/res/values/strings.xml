@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">猪猪影视</string>
+    <string name="app_name">影视</string>
     <string name="app_home">Home</string>
     <string name="app_source">https://qist.wyfc.qzz.io/jsm.json</string>
 
