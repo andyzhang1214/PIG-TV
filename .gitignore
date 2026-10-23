@@ -58,3 +58,6 @@ _build/
 # （只匹配根目录，Box/ 等子目录里上游自带的 README 不受影响）
 /*.md
 !/README.md
+
+# ---------- WorkBuddy 工作记忆 / 临时排查文件（本地专用，不入库）----------
+.workbuddy/
