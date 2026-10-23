@@ -16,6 +16,7 @@ import com.pigtv.bean.SourceBean;
 import com.pigtv.util.DefaultConfig;
 import com.pigtv.util.HawkConfig;
 import com.pigtv.util.ImgUtil;
+import com.pigtv.util.VodText;
 import com.orhanobut.hawk.Hawk;
 
 import java.util.ArrayList;
@@ -48,24 +49,22 @@ public class HomeHotVodAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHol
             tvDel.setVisibility(View.GONE);
         }
 
-        // check if set as last watched
+        // 角标只在"有信息量"时出现：观看历史模式显示来源站点名（每张卡不同）；
+        // 站点推荐/豆瓣热播模式下每张卡都是同一句话，纯属视觉噪音，不显示
         TextView tvYear = helper.getView(R.id.tvYear);
         if (Hawk.get(HawkConfig.HOME_REC, 0) == 2) {
-            tvYear.setVisibility(View.VISIBLE);
             SourceBean source = ApiConfig.get().getSource(item.sourceKey);
-            if(source!=null){
-                tvYearValue=source.getName();
-            }else {
-                tvYearValue="搜";
-
-            }
+            tvYear.setText(source != null ? source.getName() : "搜");
+            tvYear.setVisibility(View.VISIBLE);
+        } else {
+            tvYear.setVisibility(View.GONE);
         }
-        tvYear.setText(tvYearValue);
         TextView tvRate = helper.getView(R.id.tvNote);
-        if (item.note == null || item.note.isEmpty()) {
+        String note = VodText.showableNote(item.note);
+        if (note == null) {
             tvRate.setVisibility(View.GONE);
         } else {
-            tvRate.setText(item.note);
+            tvRate.setText(note);
             tvRate.setVisibility(View.VISIBLE);
         }
         helper.setText(R.id.tvName, item.name);

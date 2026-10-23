@@ -12,6 +12,7 @@ import com.pigtv.R;
 import com.pigtv.bean.Movie;
 import com.pigtv.util.DefaultConfig;
 import com.pigtv.util.ImgUtil;
+import com.pigtv.util.VodText;
 import java.util.ArrayList;
 import me.jessyan.autosize.utils.AutoSizeUtils;
 /**
@@ -93,11 +94,12 @@ public class GridAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
             tvArea.setText(item.area);
             tvArea.setVisibility(View.VISIBLE);
         }*/
-        if (TextUtils.isEmpty(item.note)) {
+        String note = VodText.showableNote(item.note);
+        if (note == null) {
             helper.setVisible(R.id.tvNote, false);
         } else {
             helper.setVisible(R.id.tvNote, true);
-            helper.setText(R.id.tvNote, item.note);
+            helper.setText(R.id.tvNote, note);
         }
         helper.setText(R.id.tvName, item.name);
         helper.setText(R.id.tvActor, item.actor);
