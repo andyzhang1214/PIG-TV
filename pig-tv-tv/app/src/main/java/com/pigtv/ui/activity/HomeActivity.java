@@ -771,6 +771,9 @@ public class HomeActivity extends BaseActivity {
                     public void error(String msg) {
                         jarInitOk = true;
                         dataInitOk = true;
+                        // 定位用：error("") 的空消息到底谁发的，把调用栈打出来
+                        LOG.e("echo---HomeActivity loadJar error msg=[" + msg + "] stack=\n"
+                                + android.util.Log.getStackTraceString(new Throwable("error-trace")));
                         // 上游偶尔会给空消息（时序竞态），原样 toast 出来用户只能看到
                         // 一句没头没尾的「加载失败」。空的时候用最近一次 jar 诊断兜底，
                         // 宁可多打几个字，也不能让用户对着黑盒猜。
