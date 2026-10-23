@@ -79,7 +79,9 @@ public class ApiConfig {
     private final JarLoader jarLoader = new JarLoader();
     private final JsLoader jsLoader = new JsLoader();
     private final IPyLoader pyLoader =  new pyLoader();
-    private final String userAgent = "okhttp/3.15";
+    // 拉配置用浏览器 UA：qist 等 Cloudflare 站会拦截 okhttp 特征的请求，
+    // 返回 11KB 的 HTML 挑战页，表现为间歇性「解析配置失败」。
+    private final String userAgent = "Mozilla/5.0 (Linux; Android 14; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
     private final String requestAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9";
 
@@ -175,6 +177,9 @@ public class ApiConfig {
         }
         System.out.println("API URL :" + configUrl);
         String configKey = TempKey;
+        // 运营商 DNS 会间歇性劫持配置域名（返回 200 + HTML 拦截页），重试一次
+        // 大概率换到未污染的解析结果。解析失败和拉取失败都走重试，只重试一次。
+        final int[] retried = {0};
         OkGo.<String>get(configUrl)
                 .headers("User-Agent", userAgent)
                 .headers("Accept", requestAccept)
@@ -200,6 +205,11 @@ public class ApiConfig {
                             callback.success();
                         } catch (Throwable th) {
                             th.printStackTrace();
+                            if (retried[0]++ < 1) {
+                                LOG.i("echo---解析配置失败，自动重试一次");
+                                loadConfig(useCache, callback, activity);
+                                return;
+                            }
                             callback.error("解析配置失败");
                         }
                     }
@@ -215,6 +225,11 @@ public class ApiConfig {
                             } catch (Throwable th) {
                                 th.printStackTrace();
                             }
+                        }
+                        if (retried[0]++ < 1) {
+                            LOG.i("echo---拉取配置失败，自动重试一次");
+                            loadConfig(useCache, callback, activity);
+                            return;
                         }
                         callback.error("拉取配置失败\n" + (response.getException() != null ? response.getException().getMessage() : ""));
                     }
@@ -632,6 +647,21 @@ public class ApiConfig {
     private static  String jarCache ="true";
     private void parseJson(String apiUrl, String jsonStr) {
 //        pyLoader.setConfig(jsonStr);
+        // 定位「解析配置失败」：把实际收到的响应开头打出来（间歇性拿到非 JSON 时一眼可见）
+        LOG.i("echo---config resp len=" + (jsonStr == null ? -1 : jsonStr.length())
+                + " head=[" + (jsonStr == null ? "null" : jsonStr.substring(0, Math.min(120, jsonStr.length()))) + "]");
+        // 非 JSON 响应整包落盘，pull 出来看到底是什么页
+        if (jsonStr != null && !jsonStr.trim().startsWith("{")) {
+            try {
+                java.io.File dbg = new java.io.File(App.getInstance().getFilesDir(), "debug_resp.html");
+                java.io.FileOutputStream fos = new java.io.FileOutputStream(dbg);
+                fos.write(jsonStr.getBytes("UTF-8"));
+                fos.close();
+                LOG.i("echo---non-json resp dumped to " + dbg.getAbsolutePath());
+            } catch (Throwable th) {
+                LOG.e("echo---dump fail " + th.getMessage());
+            }
+        }
         JsonObject infoJson = new Gson().fromJson(jsonStr, JsonObject.class);
         jarCache = DefaultConfig.safeJsonString(infoJson, "jarCache", "true");
         // spider
