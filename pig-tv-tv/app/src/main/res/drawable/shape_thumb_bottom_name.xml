@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 略缩图标题 -->
+<!-- 略缩图标题：底部圆角与卡片外框（8.9mm）对齐 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <corners
-        android:bottomLeftRadius="@dimen/vs_14"
-        android:bottomRightRadius="@dimen/vs_14" />
+        android:bottomLeftRadius="8.9mm"
+        android:bottomRightRadius="8.9mm" />
     <solid android:color="@color/color_000000_60" />
 </shape>
