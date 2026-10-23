@@ -782,13 +782,17 @@ public class HomeActivity extends BaseActivity {
                     public void error(String msg) {
                         jarInitOk = true;
                         dataInitOk = true;
+                        // 上游偶尔会给空消息（时序竞态），原样 toast 出来用户只能看到
+                        // 一句没头没尾的「加载失败」。空的时候用最近一次 jar 诊断兜底，
+                        // 宁可多打几个字，也不能让用户对着黑盒猜。
+                        final String real = (msg == null || msg.isEmpty())
+                                ? ApiConfig.get().getJarError() : msg;
+                        final String shown = (real == null || real.isEmpty())
+                                ? "组件加载失败：" + ApiConfig.get().getJarDiag() : real;
                         mHandler.postDelayed(new Runnable() {
                             @Override
                             public void run() {
-                                if ("".equals(msg))
-                                    Toast.makeText(HomeActivity.this, getString(R.string.hm_notok), Toast.LENGTH_SHORT).show();
-                                else
-                                    Toast.makeText(HomeActivity.this, msg, Toast.LENGTH_SHORT).show();
+                                Toast.makeText(HomeActivity.this, shown, Toast.LENGTH_LONG).show();
                                 initData();
                             }
                         }, 50);
