@@ -138,4 +138,10 @@
     <style name="surfaceType_texture">
         <item name="surface_type">texture_view</item>
     </style>
+
+    <!-- 海报圆角（ShapeableImageView 用）：外框 8.9mm 圆角 - 1mm 边距 ≈ 7.9mm -->
+    <style name="PosterRound">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">7.9mm</item>
+    </style>
 </resources>

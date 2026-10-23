@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海报底部渐变遮罩：从透明渐变到深黑，
+     替代原来的不透明标题条——文字"浮"在海报上而不是"贴"一块补丁。
+     底部两角跟随海报圆角（7.9mm），避免方形遮罩压住圆角海报。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="270"
+        android:startColor="#00000000"
+        android:centerColor="#66000000"
+        android:endColor="#E6000000" />
+    <corners
+        android:bottomLeftRadius="7.9mm"
+        android:bottomRightRadius="7.9mm" />
+</shape>
