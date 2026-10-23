@@ -279,7 +279,7 @@
     <string name="home_key_ok">OK</string>
     <string name="home_hint_enter">进入</string>
     <string name="home_all_apps">全部功能</string>
-    <string name="home_sec_hint">← → 切换分类，上方实时预览该分类最热的一部</string>
+    <string name="home_sec_hint">← → 选择入口，上方实时预览</string>
     <string name="home_greet_morning">上午好</string>
     <string name="home_greet_noon">中午好</string>
     <string name="home_greet_afternoon">下午好</string>
@@ -292,17 +292,11 @@
     <string name="home_app_search_sub">全站找片</string>
     <string name="home_app_live">直播</string>
     <string name="home_app_live_sub">电视直播</string>
-    <string name="home_app_ai">问 AI</string>
-    <string name="home_app_ai_sub">说句话找片</string>
+    <string name="home_app_home">首页</string>
     <string name="home_app_sort_sub">进入分类</string>
     <string name="home_hero_loading">正在读取这个分类…</string>
     <string name="home_hero_tag_hot">本周最热</string>
-    <string name="home_hero_tag_ai">用一句话找片</string>
-    <string name="home_hero_ai_title">想看点什么？</string>
-    <string name="home_hero_ai_desc">按 OK 进入，说一句或者选个例子，AI 直接把条件翻译成筛选，给你能播的结果。</string>
-    <string name="home_hero_ai_meta">“90 年代的香港爱情片” · “刘德华演的警匪片” · “适合孩子看的动画”</string>
     <string name="home_hero_func_title">%1$s</string>
     <string name="home_hero_func_desc">按 OK 进入 %1$s。</string>
-    <string name="home_ai_todo">AI 找片还在移植中，先进搜索页</string>
 
 </resources>

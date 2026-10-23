@@ -524,11 +524,6 @@ public class HomeActivity extends BaseActivity {
             case HomeAppAdapter.KIND_LIVE:
                 jumpActivity(LivePlayActivity.class);
                 break;
-            case HomeAppAdapter.KIND_AI:
-                // 分流器还没移植，先进搜索页，别让按钮没反应
-                Toast.makeText(this, getString(R.string.home_ai_todo), Toast.LENGTH_SHORT).show();
-                jumpActivity(SearchActivity.class);
-                break;
         }
     }
 
@@ -539,10 +534,6 @@ public class HomeActivity extends BaseActivity {
     private void updateHero(HomeAppAdapter.Entry e) {
         if (e == null) return;
         currentHeroEntry = e;
-        if (e.kind == HomeAppAdapter.KIND_AI) {
-            paintHeroAI();
-            return;
-        }
         if (e.kind == HomeAppAdapter.KIND_SORT && e.sort != null) {
             Movie.Video cached = heroCache.get(e.sort.id);
             if (cached != null) {
@@ -635,25 +626,6 @@ public class HomeActivity extends BaseActivity {
         heroPosterImg.setImageDrawable(null);
         heroArt.setBackgroundColor(0xFF0D0D13);
         heroArt.setAlpha(1f);
-    }
-
-    private void paintHeroAI() {
-        heroArt.setImageDrawable(null);
-        heroArt.setBackgroundResource(R.drawable.h_hero_ai_bg);
-        heroArt.setAlpha(1f);
-        heroPosterImg.setImageDrawable(null);
-        heroPosterImg.setBackgroundResource(R.drawable.h_poster_ai_bg);
-        heroPosterLetter.setVisibility(View.VISIBLE);
-        heroPosterLetter.setTextSize(TypedValue.COMPLEX_UNIT_MM, 45.6f);
-        heroPosterLetter.setTextColor(0xE6DDD8FF);
-        heroPosterLetter.setText("✦");
-
-        heroTag.setText(R.string.home_hero_tag_ai);
-        heroTitle.setText(R.string.home_hero_ai_title);
-        heroMeta.setText(R.string.home_hero_ai_meta);
-        heroDesc.setText(R.string.home_hero_ai_desc);
-        heroHint.setText(R.string.home_hint_enter);
-        heroFadeIn();
     }
 
     private static String firstChar(String s) {
@@ -941,9 +913,29 @@ public class HomeActivity extends BaseActivity {
         buildAppEntries();
     }
 
-    /** 把站点分类、三个功能入口、直播、问 AI 拼成底部一行 */
+    /**
+     * 底部入口行，对齐手机端的信息密度：只留 5 个入口。
+     * 首页（进分类，预览第一个分类的热片）+ 观看历史 + 收藏 + 搜索 + 直播。
+     * 站点分类不再平铺——进「首页」后顶部分类 Tab 可达全部分类；
+     * 问 AI 入口删除（手机端 2026-10-22 已整页下线 AI）。
+     */
     private void buildAppEntries() {
         List<HomeAppAdapter.Entry> list = new ArrayList<>();
+
+        // 「首页」：复用 KIND_SORT 通道，预览卡能直接展示热片海报；进内容层后可切全部分类
+        List<MovieSort.SortData> sorts = sortAdapter.getData();
+        if (!sorts.isEmpty()) {
+            HomeAppAdapter.Entry home = new HomeAppAdapter.Entry();
+            home.kind = HomeAppAdapter.KIND_SORT;
+            home.key = "home";
+            home.name = getString(R.string.home_app_home);
+            home.sub = getString(R.string.home_app_sort_sub);
+            home.icon = R.drawable.h_ic_home;
+            home.tint = 0xFF5A8CFF;
+            home.sortIndex = 0;
+            home.sort = sorts.get(0);
+            list.add(home);
+        }
 
         list.add(funcEntry("hist", getString(R.string.home_app_hist), getString(R.string.home_app_hist_sub),
                 R.drawable.h_ic_hist, 0xFFFF7A45));
@@ -951,21 +943,6 @@ public class HomeActivity extends BaseActivity {
                 R.drawable.h_ic_fav, 0xFFFFB454));
         list.add(funcEntry("search", getString(R.string.home_app_search), getString(R.string.home_app_search_sub),
                 R.drawable.h_ic_search, 0xFF5A96FF));
-
-        List<MovieSort.SortData> sorts = sortAdapter.getData();
-        for (int i = 0; i < sorts.size(); i++) {
-            MovieSort.SortData d = sorts.get(i);
-            HomeAppAdapter.Entry e = new HomeAppAdapter.Entry();
-            e.kind = HomeAppAdapter.KIND_SORT;
-            e.key = d.id;
-            e.name = d.name;
-            e.sub = getString(R.string.home_app_sort_sub);
-            e.icon = iconForSort(d);
-            e.tint = tintForIndex(i);
-            e.sortIndex = i;
-            e.sort = d;
-            list.add(e);
-        }
 
         HomeAppAdapter.Entry live = new HomeAppAdapter.Entry();
         live.kind = HomeAppAdapter.KIND_LIVE;
@@ -975,15 +952,6 @@ public class HomeActivity extends BaseActivity {
         live.icon = R.drawable.h_ic_live;
         live.tint = 0xFFFF463C;
         list.add(live);
-
-        HomeAppAdapter.Entry ai = new HomeAppAdapter.Entry();
-        ai.kind = HomeAppAdapter.KIND_AI;
-        ai.key = "ai";
-        ai.name = getString(R.string.home_app_ai);
-        ai.sub = getString(R.string.home_app_ai_sub);
-        ai.icon = R.drawable.h_ic_ai;
-        ai.tint = 0xFFDCD6FF;
-        list.add(ai);
 
         appAdapter.setData(list);
 
@@ -1008,28 +976,6 @@ public class HomeActivity extends BaseActivity {
         e.icon = icon;
         e.tint = tint;
         return e;
-    }
-
-    /** 按分类名猜图标：站点 tid 各站不同，只能靠名称判断 */
-    private int iconForSort(MovieSort.SortData d) {
-        String name = d.name == null ? "" : d.name;
-        if (name.contains("电影") || name.contains("片")) return R.drawable.h_ic_film;
-        if (name.contains("剧") || name.contains("电视")) return R.drawable.h_ic_tv;
-        if (name.contains("综艺") || name.contains("秀") || name.contains("演")) return R.drawable.h_ic_variety;
-        if (name.contains("动漫") || name.contains("动画") || name.contains("番")) return R.drawable.h_ic_anime;
-        if (name.contains("直播") || name.contains("频道")) return R.drawable.h_ic_live;
-        // 兜底按顺序轮换，避免整排图标一模一样
-        int[] fallback = {R.drawable.h_ic_film, R.drawable.h_ic_tv, R.drawable.h_ic_variety, R.drawable.h_ic_anime};
-        return fallback[Math.abs(name.hashCode()) % fallback.length];
-    }
-
-    /** 分类图标配色按位置轮换（设计稿 8 色） */
-    private int tintForIndex(int i) {
-        int[] palette = {
-                0xFF5A8CFF, 0xFFA85ADC, 0xFFF0785A, 0xFFF06096,
-                0xFF6BC8A0, 0xFFFFB454, 0xFF62C0F0, 0xFFC8B45A
-        };
-        return palette[i % palette.length];
     }
 
     // =====================================================================
