@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 角标（年份/备注）：小元素用小圆角，不再一坨圆 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <solid android:color="@color/color_000000_60" />
-    <corners android:radius="@dimen/vs_5" />
+    <corners android:radius="2.5mm" />
 </shape>

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 分类 Tab：焦点态与全站统一——主题色描边 + 主题色淡底，不再叠加白框 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape>
             <corners android:radius="20mm"/>
-            <solid android:color="?attr/color_theme_50"/>
-	    <!--添加选中外边框-->
-	    <stroke android:width="2mm" android:color="@android:color/white" />
+            <solid android:color="?attr/color_theme_40"/>
+            <stroke android:width="1.6mm" android:color="?attr/color_theme" />
         </shape>
     </item>
     <item android:state_focused="false">

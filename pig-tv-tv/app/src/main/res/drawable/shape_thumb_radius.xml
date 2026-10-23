@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- APP软件管理图标和略缩图单独圆角背景 -->
+<!-- APP软件管理图标和略缩图单独圆角背景
+     焦点态：主题色描边 + 主题色淡底（跟多主题走，不再是死白）；
+     非焦点：近乎透明的衬底，让海报自己是主角。
+     圆角对齐首页竖版海报（h_poster_radius = 8.9mm），全站统一。 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape>
-            <corners android:radius="14px" />
-            <stroke android:width="2mm" android:color="@color/color_FFFFFF" />
+            <corners android:radius="8.9mm" />
+            <stroke android:width="1.6mm" android:color="?attr/color_theme" />
             <solid android:color="?attr/color_theme_40" />
         </shape>
     </item>
     <item android:state_focused="false">
         <shape>
-            <corners android:radius="14px" />
-            <solid android:color="#36ffffff"/>
+            <corners android:radius="8.9mm" />
+            <solid android:color="#14FFFFFF"/>
         </shape>
     </item>
 </selector>

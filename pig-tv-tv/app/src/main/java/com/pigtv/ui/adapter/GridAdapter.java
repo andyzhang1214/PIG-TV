@@ -40,6 +40,22 @@ public class GridAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
 
     @Override
     protected void convert(BaseViewHolder helper, Movie.Video item) {
+        // 焦点动效：与首页入口卡同一套规范（1.06 / 180ms），全站手感统一。
+        // 复用可能残留上一格的放大态，先归位。
+        final View root = helper.itemView;
+        root.setScaleX(1f);
+        root.setScaleY(1f);
+        root.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                v.animate()
+                        .scaleX(hasFocus ? 1.06f : 1f)
+                        .scaleY(hasFocus ? 1.06f : 1f)
+                        .setDuration(hasFocus ? 180 : 120)
+                        .start();
+            }
+        });
+
         if (this.mShowList) {
             helper.setText(R.id.tvNote, item.note);
             helper.setText(R.id.tvName, item.name);
