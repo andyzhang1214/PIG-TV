@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 分类页海报墙（v8）
+     对齐设计稿 .grid .card：海报在上、片名在下（.cap 在 pic 外面），
+     焦点加白环 + 轻微放大（1.06，动效由 GridAdapter 统一处理）。
+
+     注意：GridAdapter.applyStyleToImage() 会按 style 比例重设
+     ivThumb「父容器」的宽高，所以 ivThumb 的直接父级必须是一个
+     只包海报的容器，不能再把片名塞进这个容器里。
+
+     id 保持与 item_grid 一致（tvYear/tvArea/tvLang/tvNote/tvName/tvActor/ivThumb），
+     GridAdapter 不需要感知布局变化。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/v8_grid_ring"
+    android:focusable="true"
+    android:orientation="vertical"
+    android:padding="@dimen/vs_2">
+
+    <!-- 海报本体 -->
+    <FrameLayout
+        android:layout_width="@dimen/v8_wall_card_w"
+        android:layout_height="@dimen/v8_wall_card_h"
+        android:layout_marginStart="2.6mm"
+        android:layout_marginTop="2.6mm"
+        android:layout_marginEnd="2.6mm">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivThumb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            app:shapeAppearanceOverlay="@style/PosterRound" />
+
+        <!-- 左上角标：年份/地区/语言 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="@dimen/vs_6"
+            android:layout_marginTop="@dimen/vs_6"
+            android:layout_marginRight="@dimen/vs_6"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvYear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/vs_3"
+                android:layout_marginRight="@dimen/vs_3"
+                android:background="@drawable/shape_badge_small"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:paddingLeft="@dimen/vs_4"
+                android:paddingRight="@dimen/vs_4"
+                android:paddingTop="@dimen/vs_1"
+                android:paddingBottom="@dimen/vs_1"
+                android:singleLine="true"
+                android:textColor="#E6FFFFFF"
+                android:textSize="@dimen/ts_14" />
+
+            <TextView
+                android:id="@+id/tvArea"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/vs_3"
+                android:layout_marginRight="@dimen/vs_3"
+                android:background="@drawable/shape_badge_small"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:paddingLeft="@dimen/vs_4"
+                android:paddingRight="@dimen/vs_4"
+                android:paddingTop="@dimen/vs_1"
+                android:paddingBottom="@dimen/vs_1"
+                android:singleLine="true"
+                android:textColor="#E6FFFFFF"
+                android:textSize="@dimen/ts_14" />
+
+            <TextView
+                android:id="@+id/tvLang"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/shape_badge_small"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:paddingLeft="@dimen/vs_4"
+                android:paddingRight="@dimen/vs_4"
+                android:paddingTop="@dimen/vs_1"
+                android:paddingBottom="@dimen/vs_1"
+                android:singleLine="true"
+                android:textColor="#E6FFFFFF"
+                android:textSize="@dimen/ts_14" />
+
+        </LinearLayout>
+
+        <!-- 右上角「已完结 / 更新至 xx」小标 -->
+        <TextView
+            android:id="@+id/tvNote"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="@dimen/vs_6"
+            android:layout_marginEnd="@dimen/vs_6"
+            android:background="@drawable/shape_badge_small"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxWidth="120mm"
+            android:paddingLeft="@dimen/vs_4"
+            android:paddingRight="@dimen/vs_4"
+            android:paddingTop="@dimen/vs_1"
+            android:paddingBottom="@dimen/vs_1"
+            android:singleLine="true"
+            android:textColor="#E6FFFFFF"
+            android:textSize="@dimen/ts_12"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:id="@+id/delFrameLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:background="@drawable/shape_user_delete"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/imageView"
+                android:layout_width="@dimen/vs_80"
+                android:layout_height="@dimen/vs_80"
+                android:layout_gravity="center"
+                android:layout_marginBottom="@dimen/vs_20"
+                android:src="@drawable/icon_delete" />
+        </FrameLayout>
+
+    </FrameLayout>
+
+    <!-- 片名（设计稿 .cap 在 pic 下面，不在海报里压字） -->
+    <TextView
+        android:id="@+id/tvName"
+        android:layout_width="@dimen/v8_wall_card_w"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="2.6mm"
+        android:layout_marginTop="@dimen/v8_wall_name_mt"
+        android:ellipsize="end"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:duplicateParentState="true"
+        android:text="Title"
+        android:textColor="@color/v8_grid_name"
+        android:textSize="@dimen/v8_wall_name" />
+
+    <!-- 演员：默认隐藏，保持 id 存在 -->
+    <TextView
+        android:id="@+id/tvActor"
+        android:layout_width="@dimen/v8_wall_card_w"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="#8CFFFFFF"
+        android:textSize="@dimen/ts_12"
+        android:visibility="gone" />
+
+</LinearLayout>

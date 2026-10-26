@@ -23,6 +23,7 @@ import com.pigtv.bean.Movie;
 import com.pigtv.bean.MovieSort;
 import com.pigtv.bean.SourceBean;
 import com.pigtv.event.RefreshEvent;
+import com.pigtv.event.SortPageEvent;
 import com.pigtv.ui.activity.DetailActivity;
 import com.pigtv.ui.activity.FastSearchActivity;
 import com.pigtv.ui.activity.SearchActivity;
@@ -189,7 +190,9 @@ public class GridFragment extends BaseLazyFragment {
         }
         mGridView.setHasFixedSize(true);
         style=ImgUtil.initStyle();
-        gridAdapter = new GridAdapter(isFolederMode(), style);
+        // 首页 v8 分类页：右栏要塞 6 列，用缩小版卡片（item_grid_v8）；
+        // 站点自己指定了图片风格（style != null）时仍按它来，不硬盖
+        gridAdapter = new GridAdapter(isFolederMode(), style, R.layout.item_grid_v8);
         this.page = 1;
         this.maxPage = 1;
         this.isLoad = false;
@@ -201,7 +204,9 @@ public class GridFragment extends BaseLazyFragment {
         if (isFolederMode()) {
             mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
         } else {
-            int spanCount = isBaseOnWidth() ? 5 : 6;
+            // 分类页（v10）：分类搬到顶栏后左列腾空，5 列大卡正好铺满 1218 的版心，
+            // 卡片尺寸和推荐页那行完全同款（215×322mm）。
+            int spanCount = 5;
             if (style != null) {
                 spanCount = ImgUtil.spanCountByStyle(style, spanCount);
             }
@@ -222,12 +227,13 @@ public class GridFragment extends BaseLazyFragment {
         mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
+                // 放大动效统一由 GridAdapter 的 OnFocusChangeListener 处理（1.06 / 180ms）。
+                // 这里原本还会弹 1.2 倍 BounceInterpolator，两套动效打架，
+                // 1.2 倍的卡片会盖住隔壁格，v8 分类页直接交给 adapter。
             }
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                itemView.animate().scaleX(1.2f).scaleY(1.2f).setDuration(300).setInterpolator(new BounceInterpolator()).start();
             }
 
             @Override
@@ -309,6 +315,11 @@ public class GridFragment extends BaseLazyFragment {
                         showSuccess();
                         isLoad = true;
                         gridAdapter.setNewData(absXml.movie.videoList);
+                        // 把第一条抛给 HomeActivity，让 hero 换成「这个分类的最新一部」
+                        if (sortData != null) {
+                            EventBus.getDefault().post(new SortPageEvent(
+                                    sortData.id, absXml.movie.videoList.get(0)));
+                        }
                     } else {
                         gridAdapter.addData(absXml.movie.videoList);
                     }
@@ -367,6 +378,12 @@ public class GridFragment extends BaseLazyFragment {
     public void scrollTop() {
         isTop = true;
         mGridView.scrollToPosition(0);
+    }
+
+    /** 把焦点交给海报墙（分类页从左列按 → 时调用） */
+    public void requestGridFocus() {
+        if (mGridView == null) return;
+        if (!mGridView.hasFocus()) mGridView.requestFocus();
     }
 
     public void showFilter() {

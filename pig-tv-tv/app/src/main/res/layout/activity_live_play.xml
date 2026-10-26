@@ -1,7 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    直播页
+
+    外层 live_page_root 是给 v8 顶栏留的位置，不能挪进 live_root 里：
+    live_root 会被 LoadSir 整个接管（空态/加载态直接把 live_root 隐藏掉），
+    顶栏要是挂在它里面，源站没频道的时候顶栏也跟着消失，
+    用户就又只剩「按返回」一条路 —— 也就是说必须放在 LoadSir 管辖范围之外。
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/live_page_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF0B0A0C">
+
+<FrameLayout
     android:id="@+id/live_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -38,7 +52,10 @@
         android:id="@+id/tvLeftChannelListLayout"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:layout_margin="@dimen/vs_20"
+        android:layout_marginStart="@dimen/vs_20"
+        android:layout_marginTop="78mm"
+        android:layout_marginEnd="@dimen/vs_20"
+        android:layout_marginBottom="@dimen/vs_20"
         android:background="@drawable/bg_live"
         android:baselineAligned="false"
         android:orientation="horizontal">
@@ -690,6 +707,73 @@
             android:layout_height="@dimen/vs_40"
             android:layout_gravity="center"
             android:src="@drawable/v_back" />
+    </LinearLayout>
+
+</FrameLayout>
+
+    <!-- ============ v8 顶栏 ============ -->
+    <!-- 和首页 / 收藏 / 历史 / 搜索同一套：一排标签 + 右侧时钟。
+         选台态和空态都在，左右一按就能切到别的标签，不用退回首页再点。
+         焦点落到哪一格就直接切过去（focusSwitch），跟首页手感一致。 -->
+    <LinearLayout
+        android:id="@+id/liveTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="@drawable/v8_topbar_scrim"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/h_edge"
+        android:paddingTop="@dimen/v8_nav_top"
+        android:paddingEnd="@dimen/h_edge"
+        android:paddingBottom="16mm"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/v8_nav_h"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/liveNavBox"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/v8_nav_h"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/liveTopTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.02"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="@dimen/v8_clock_tx" />
+
+                <TextView
+                    android:id="@+id/liveTopDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1.9mm"
+                    android:includeFontPadding="false"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="@dimen/v8_date_tx" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
     </LinearLayout>
 
 </FrameLayout>

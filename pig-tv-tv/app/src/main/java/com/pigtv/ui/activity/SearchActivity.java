@@ -55,6 +55,7 @@ import com.pigtv.util.FastClickCheckUtil;
 import com.pigtv.util.HawkConfig;
 import com.pigtv.util.SearchHelper;
 import com.pigtv.util.SettingsUtil;
+import com.pigtv.util.V8TopBar;
 import com.pigtv.viewmodel.SourceViewModel;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -134,6 +135,14 @@ public class SearchActivity extends BaseActivity {
         initView();
         initViewModel();
         initData();
+        // 顶上多了导航栏，系统默认会把焦点丢给第一个可聚焦的导航项；
+        // 搜索页的入口一直是最上面那个「全局搜索」按钮，把焦点还给它
+        filterBtn.post(new Runnable() {
+            @Override
+            public void run() {
+                filterBtn.requestFocus();
+            }
+        });
     }
 
     /*
@@ -193,6 +202,7 @@ public class SearchActivity extends BaseActivity {
 
     private void initView() {
         EventBus.getDefault().register(this);
+        V8TopBar.attach(this, V8TopBar.NAV_SEARCH);
         llLayout = findViewById(R.id.llLayout);
         llWord = findViewById(R.id.llWord);
         etSearch = findViewById(R.id.etSearch);

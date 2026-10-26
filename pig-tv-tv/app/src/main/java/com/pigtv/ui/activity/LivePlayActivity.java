@@ -13,6 +13,7 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -33,6 +34,7 @@ import com.pigtv.base.App;
 import com.pigtv.base.BaseActivity;
 import com.pigtv.bean.Epginfo;
 import com.pigtv.bean.LiveChannelGroup;
+import com.pigtv.callback.LiveEmptyCallback;
 import com.pigtv.bean.LiveChannelItem;
 import com.pigtv.bean.LiveEpgDate;
 import com.pigtv.bean.LivePlayerManager;
@@ -54,6 +56,9 @@ import com.pigtv.util.FastClickCheckUtil;
 import com.pigtv.util.HawkConfig;
 import com.pigtv.util.HawkUtils;
 import com.pigtv.util.JavaUtil;
+import com.pigtv.util.LOG;
+import com.pigtv.util.LivePreload;
+import com.pigtv.util.V8TopBar;
 import com.pigtv.util.live.TxtSubscribe;
 import com.google.gson.JsonArray;
 import com.lzy.okgo.OkGo;
@@ -100,6 +105,11 @@ public class LivePlayActivity extends BaseActivity {
     // Main View
     private VideoView mVideoView;
     private LiveController controller;
+
+    // v8 顶栏：选台态 / 空态时浮在画面顶部，和首页同一排标签
+    private View liveTopBar;
+    private View liveNavCurrent;
+    private boolean liveTopBarShown = false;
 
     // Left Channel View
     private LinearLayout tvLeftChannelListLayout;
@@ -231,6 +241,8 @@ public class LivePlayActivity extends BaseActivity {
 
         EventBus.getDefault().register(this);
         setLoadSir(findViewById(R.id.live_root));
+        // 顶栏挂在 LoadSir 之外（live_page_root 下），空态里也还在
+        initLiveTopBar();
         mVideoView = findViewById(R.id.mVideoView);
 
         tvSelectedChannel = findViewById(R.id.tv_selected_channel);
@@ -362,6 +374,20 @@ public class LivePlayActivity extends BaseActivity {
 
     @Override
     public void onBackPressed() {
+        // 空态：什么都没在播，也没有任何浮层可收，一次返回就直接走。
+        // 注意这个判断必须在下面几个 visibility 分支之前——空态时 initLiveState()
+        // 从来没跑过，tvLeftChannelListLayout 还是 XML 里的默认 VISIBLE，
+        // 先判断可见性会走成「收起频道列表」，于是按返回像没反应。
+        if (liveEmptyShown) {
+            super.onBackPressed();
+            return;
+        }
+        // 焦点正停在顶栏：先把它收掉、焦点还给频道列表，再按一次才是收列表
+        if (liveTopBarShown && liveTopBar != null && liveTopBar.hasFocus()) {
+            focusBackToChannelList();
+            forceHideLiveTopBar();
+            return;
+        }
         if (tvLeftChannelListLayout.getVisibility() == View.VISIBLE) {
             mHandler.removeCallbacks(mHideChannelListRun);
             mHandler.post(mHideChannelListRun);
@@ -434,6 +460,18 @@ public class LivePlayActivity extends BaseActivity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
+            // 顶栏 ↔ 频道列表的上下焦点桥，必须在其它按键处理之前
+            if (handleTopBarKey(keyCode)) return true;
+            // 空态/失败态：OK 就是「重试」。这里必须先拦，否则会走下面
+            // showChannelList()，弹一个没有频道的列表出来，等于二次伤害。
+            // 焦点在顶栏上时不拦 —— 那一下 OK 是给导航项自己的。
+            if (liveEmptyShown && !(liveTopBar != null && liveTopBar.hasFocus())) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER
+                        || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+                    retryLoadChannelList();
+                    return true;
+                }
+            }
             if (keyCode == KeyEvent.KEYCODE_MENU) {
                 showSettingGroup();
             } else if (!isListOrSettingLayoutVisible()) {
@@ -612,6 +650,8 @@ public class LivePlayActivity extends BaseActivity {
                         .setDuration(250)
                         .setInterpolator(new DecelerateInterpolator())
                         .setListener(null);
+                // 顶栏跟着列表一起出来：切到直播也能直接横切标签，不用退回首页
+                showLiveTopBar();
                 mHandler.removeCallbacks(mHideChannelListRun);
                 mHandler.postDelayed(mHideChannelListRun, 6000);
                 mHandler.postDelayed(mUpdateLayout, 255);   // Workaround Fix : SurfaceView
@@ -630,6 +670,11 @@ public class LivePlayActivity extends BaseActivity {
     private final Runnable mHideChannelListRun = new Runnable() {
         @Override
         public void run() {
+            // 焦点已经上到顶栏：列表先别收，否则用户在标签间挪一步就踩空
+            if (liveTopBar != null && liveTopBar.hasFocus()) {
+                mHandler.postDelayed(this, 3000);
+                return;
+            }
             ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) tvLeftChannelListLayout.getLayoutParams();
             if (tvLeftChannelListLayout.getVisibility() == View.VISIBLE) {
                 tvLeftChannelListLayout.animate()
@@ -643,8 +688,11 @@ public class LivePlayActivity extends BaseActivity {
                                 super.onAnimationEnd(animation);
                                 tvLeftChannelListLayout.setVisibility(View.INVISIBLE);
                                 tvLeftChannelListLayout.clearAnimation();
+                                hideLiveTopBar();
                             }
                         });
+            } else {
+                hideLiveTopBar();
             }
         }
     };
@@ -1005,6 +1053,8 @@ public class LivePlayActivity extends BaseActivity {
                     holder.itemView.requestFocus();
                 tvRightSettingLayout.setVisibility(View.VISIBLE);
                 tvRightSettingLayout.setAlpha(0.0f);
+                // 设置面板从右边进来，会跟顶栏右边的时钟叠在一起，先把顶栏收掉
+                forceHideLiveTopBar();
                 tvRightSettingLayout.setTranslationX(tvRightSettingLayout.getWidth() / 2);
                 tvRightSettingLayout.animate()
                         .translationX(0)
@@ -1719,41 +1769,139 @@ public class LivePlayActivity extends BaseActivity {
         mHandler.postDelayed(mHideSettingLayoutRun, 5000);
     }
 
+    /**
+     * 频道表就绪：关掉看门狗、退出空态、进正常播放流程。
+     * 以前这里散着写 showSuccess() + initLiveState()，加状态机会漏一条分支。
+     */
+    private void liveReady() {
+        liveEmptyShown = false;
+        mHandler.removeCallbacks(mLiveTimeoutRun);
+        showSuccess();
+        initLiveState();
+        // 进页面先把频道列表亮出来 —— 顶栏只在列表态出现，用户第一眼就能看到
+        // 顶上那排标签，想切走直接左右按，不必先退回首页。6 秒没人动它自己收。
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!isFinishing() && !liveEmptyShown) showChannelList();
+            }
+        }, 400);
+    }
+
+    /** 停在直播页显示「为什么没有内容」，而不是 Toast 完就把用户踢回首页 */
+    private void showLiveEmpty(final String title, final String sub) {
+        liveEmptyShown = true;
+        mHandler.removeCallbacks(mLiveTimeoutRun);
+        showCallback(LiveEmptyCallback.class);
+        applyLiveEmptyText(title, sub);
+        // 空态也要留住顶栏：这才是「没内容也能切走」的关键，
+        // 否则用户只能一路按返回。顶栏在外层，不会被 LoadSir 的空态盖掉。
+        showLiveTopBar();
+        // 空态里没有任何可聚焦的东西，把焦点交给顶栏，左右就能选标签
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (liveEmptyShown && liveTopBarShown && liveNavCurrent != null
+                        && getCurrentFocus() == null) {
+                    liveNavCurrent.requestFocus();
+                }
+            }
+        }, 150);
+        // LoadSir 1.3.8 的 Callback 视图是构建期就 inflate 好的，onAttach/onViewCreate
+        // 在它内部没有调用点，所以文案只能拿到视图之后自己写；再补一帧，防首次时序差。
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                applyLiveEmptyText(title, sub);
+            }
+        });
+    }
+
+    private void applyLiveEmptyText(String title, String sub) {
+        View t = findViewById(R.id.lvEmptyTitle);
+        if (t instanceof TextView && title != null) ((TextView) t).setText(title);
+        View s = findViewById(R.id.lvEmptySub);
+        if (s instanceof TextView && sub != null) ((TextView) s).setText(sub);
+    }
+
+    private void retryLoadChannelList() {
+        showLoading();
+        initLiveChannelList();
+    }
+
     private void initLiveChannelList() {
         List<LiveChannelGroup> list = ApiConfig.get().getChannelGroupList();
-        if (list.isEmpty()) {
-            Toast.makeText(App.getInstance(), getString(R.string.act_live_play_empty_channel), Toast.LENGTH_SHORT).show();
-            finish();
+        if (list == null || list.isEmpty()) {
+            showLiveEmpty("直播频道还没准备好",
+                    "当前接口没有提供直播频道\n换一个片源，或稍后再进来看看");
             return;
         }
-
-        if (list.size() == 1 && list.get(0).getGroupName().startsWith("http://127.0.0.1")) {
+        if (LivePreload.isProxyOnly(list)) {
+            // 配置里只给了 127.0.0.1 代理地址，真实频道表要另外拉。
+            // 首页焦点停在「直播」时已经预热过一次，这里先等它的结果，别重复请求。
+            if (LivePreload.getState() == LivePreload.ST_LOADING) {
+                showLoading();
+                waitPreload(0);
+                return;
+            }
             loadProxyLives(list.get(0).getGroupName());
-        } else {
-            liveChannelGroupList.clear();
-            liveChannelGroupList.addAll(list);
-            showSuccess();
-            initLiveState();
+            return;
         }
+        liveChannelGroupList.clear();
+        liveChannelGroupList.addAll(list);
+        liveReady();
+    }
+
+    /** 等预热结果，最多 6 秒；超时就自己再拉一次 */
+    private void waitPreload(final int tick) {
+        if (LivePreload.isReady()) {
+            initLiveChannelList();
+            return;
+        }
+        if (tick >= 60) {
+            List<LiveChannelGroup> list = ApiConfig.get().getChannelGroupList();
+            if (LivePreload.isProxyOnly(list)) {
+                loadProxyLives(list.get(0).getGroupName());
+            } else {
+                initLiveChannelList();
+            }
+            return;
+        }
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                waitPreload(tick + 1);
+            }
+        }, 100);
     }
 
     //加载列表
     public void loadProxyLives(String url) {
-        try {
-            Uri parsedUrl = Uri.parse(url);
-            url = new String(Base64.decode(parsedUrl.getQueryParameter("ext"), Base64.DEFAULT | Base64.URL_SAFE | Base64.NO_WRAP), "UTF-8");
-            if (url.equals("")) {
-                Toast.makeText(App.getInstance(), getString(R.string.act_live_play_empty_live_url), Toast.LENGTH_LONG).show();
-                finish();
-                return;
+        final String proxyUrl = url;
+        String realUrl = LivePreload.decodeProxyUrl(url);
+        if (realUrl == null) {
+            // 兼容老逻辑：偶尔 ext 用的是非 URL_SAFE 的 base64
+            try {
+                Uri parsedUrl = Uri.parse(url);
+                realUrl = new String(Base64.decode(parsedUrl.getQueryParameter("ext"),
+                        Base64.DEFAULT | Base64.URL_SAFE | Base64.NO_WRAP), "UTF-8");
+            } catch (Throwable th) {
+                realUrl = null;
             }
-        } catch (Throwable th) {
-            Toast.makeText(App.getInstance(), getString(R.string.act_live_play_empty_channel), Toast.LENGTH_SHORT).show();
-            finish();
+        }
+        if (realUrl == null || realUrl.trim().isEmpty()) {
+            showLiveEmpty("直播地址解析失败",
+                    "这个片源的直播配置不完整\n换一个片源试试，或反馈给配置作者");
             return;
         }
+        final String url2 = realUrl.trim();
+
         showLoading();
-        OkGo.<String>get(url).execute(new AbsCallback<String>() {
+        // 看门狗：源站挂住的时候 OkGo 可能几十秒才超时，用户只会觉得「一直在加载」
+        mHandler.removeCallbacks(mLiveTimeoutRun);
+        mHandler.postDelayed(mLiveTimeoutRun, LIVE_LOAD_TIMEOUT_MS);
+
+        OkGo.<String>get(url2).execute(new AbsCallback<String>() {
 
             @Override
             public String convertResponse(okhttp3.Response response) throws Throwable {
@@ -1769,9 +1917,9 @@ public class LivePlayActivity extends BaseActivity {
 
                 ApiConfig.get().loadLives(livesArray);
                 List<LiveChannelGroup> list = ApiConfig.get().getChannelGroupList();
-                if (list.isEmpty()) {
-                    Toast.makeText(App.getInstance(), getString(R.string.act_live_play_empty_channel), Toast.LENGTH_SHORT).show();
-                    finish();
+                if (list == null || list.isEmpty() || LivePreload.isProxyOnly(list)) {
+                    showLiveEmpty("这份直播源是空的",
+                            "地址能连通，但里面没有解析出任何频道\n换一个片源试试");
                     return;
                 }
                 liveChannelGroupList.clear();
@@ -1780,8 +1928,7 @@ public class LivePlayActivity extends BaseActivity {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        LivePlayActivity.this.showSuccess();
-                        initLiveState();
+                        liveReady();
                     }
                 });
             }
@@ -1789,11 +1936,27 @@ public class LivePlayActivity extends BaseActivity {
             @Override
             public void onError(Response<String> response) {
                 super.onError(response);
-                Toast.makeText(App.getInstance(), getString(R.string.act_live_play_network_error), Toast.LENGTH_LONG).show();
-                finish();
+                Throwable t = response == null ? null : response.getException();
+                String why = t == null ? "" : "（" + t.getClass().getSimpleName() + "）";
+                LOG.e("echo---LivePlayActivity loadProxyLives error " + proxyUrl + " " + t);
+                showLiveEmpty("直播源连不上" + why,
+                        "这个片源的直播地址暂时打不开\n按 OK 重试，或者换个片源再进来");
             }
         });
     }
+
+    private static final long LIVE_LOAD_TIMEOUT_MS = 15_000L;
+
+    private boolean liveEmptyShown = false;
+
+    private final Runnable mLiveTimeoutRun = new Runnable() {
+        @Override
+        public void run() {
+            if (liveEmptyShown) return;
+            showLiveEmpty("直播源响应太慢",
+                    "等了 15 秒还没拿到频道表\n按 OK 重试，或换个片源再进来");
+        }
+    };
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void refresh(RefreshEvent event) {
@@ -1831,6 +1994,7 @@ public class LivePlayActivity extends BaseActivity {
         showNetSpeed();
         tvLeftChannelListLayout.setVisibility(View.INVISIBLE);
         tvRightSettingLayout.setVisibility(View.INVISIBLE);
+        forceHideLiveTopBar();
 
         liveChannelGroupAdapter.setNewData(liveChannelGroupList);
         selectChannelGroup(lastChannelGroupIndex, false, lastLiveChannelIndex);
@@ -1838,6 +2002,118 @@ public class LivePlayActivity extends BaseActivity {
 
     private boolean isListOrSettingLayoutVisible() {
         return tvLeftChannelListLayout.getVisibility() == View.VISIBLE || tvRightSettingLayout.getVisibility() == View.VISIBLE;
+    }
+
+    // =====================================================================
+    //  v8 顶栏
+    // =====================================================================
+
+    private void initLiveTopBar() {
+        liveTopBar = findViewById(R.id.liveTopBar);
+        // 直播页自己也有一个 tvTime（播放器码流时间），id 会撞，
+        // 所以顶栏用 liveNavBox / liveTopTime / liveTopDate 这组独立 id。
+        // focusSwitch=true：焦点落到哪一格就直接切页，跟首页一致。
+        liveNavCurrent = V8TopBar.attach(this, V8TopBar.NAV_LIVE,
+                R.id.liveNavBox, R.id.liveTopTime, R.id.liveTopDate, true);
+    }
+
+    private void showLiveTopBar() {
+        if (liveTopBar == null || liveTopBarShown) return;
+        liveTopBarShown = true;
+        liveTopBar.animate().cancel();
+        liveTopBar.setAlpha(0f);
+        liveTopBar.setVisibility(View.VISIBLE);
+        liveTopBar.animate().alpha(1f).setDuration(160)
+                .setInterpolator(new DecelerateInterpolator()).start();
+    }
+
+    private void hideLiveTopBar() {
+        if (liveTopBar == null || !liveTopBarShown) return;
+        // 焦点还在顶栏上（或正往下走）就别收，用户还在挑标签
+        if (liveTopBar.hasFocus()) return;
+        forceHideLiveTopBar();
+    }
+
+    private void forceHideLiveTopBar() {
+        if (liveTopBar == null) return;
+        liveTopBarShown = false;
+        liveTopBar.animate().cancel();
+        liveTopBar.setAlpha(1f);
+        liveTopBar.setVisibility(View.GONE);
+    }
+
+    /**
+     * 顶栏与频道列表之间的焦点桥。
+     * <p>
+     * 列表停在第一项时再按 ↑ → 进顶栏；焦点在顶栏按 ↓ → 回列表。
+     * 没这座桥的话顶栏就是个看得见摸不着的装饰，切标签还得按返回。
+     *
+     * @return true 表示这个键已经被吃掉，不再往下传
+     */
+    private boolean handleTopBarKey(int keyCode) {
+        if (!liveTopBarShown || liveTopBar == null) return false;
+
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && liveTopBar.hasFocus()) {
+            return focusBackToChannelList();
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP && listAtTopOrEmpty()) {
+            if (liveNavCurrent != null) {
+                liveNavCurrent.requestFocus();
+            } else {
+                liveTopBar.requestFocus();
+            }
+            // 人已经在顶栏上了，别让频道列表按 6 秒自动收
+            mHandler.removeCallbacks(mHideChannelListRun);
+            return true;
+        }
+        return false;
+    }
+
+    /** 空态，或者焦点停在频道/分组列表的第一项 */
+    private boolean listAtTopOrEmpty() {
+        if (liveEmptyShown) return true;
+        View focus = getCurrentFocus();
+        if (focus == null) return false;
+        if (isDescendantOf(mGroupGridView, focus)) {
+            return mGroupGridView.getSelectedPosition() <= 0;
+        }
+        if (isDescendantOf(mChannelGridView, focus)) {
+            return mChannelGridView.getSelectedPosition() <= 0;
+        }
+        return false;
+    }
+
+    private boolean focusBackToChannelList() {
+        if (liveEmptyShown) {
+            // 空态没有列表可回，↓ 就当作重试
+            retryLoadChannelList();
+            return true;
+        }
+        if (tvLeftChannelListLayout.getVisibility() != View.VISIBLE) {
+            showChannelList();
+            return true;
+        }
+        RecyclerView.ViewHolder holder =
+                mChannelGridView.findViewHolderForAdapterPosition(Math.max(currentLiveChannelIndex, 0));
+        if (holder != null) {
+            holder.itemView.requestFocus();
+        } else {
+            mGroupGridView.requestFocus();
+        }
+        mHandler.removeCallbacks(mHideChannelListRun);
+        mHandler.postDelayed(mHideChannelListRun, 6000);
+        return true;
+    }
+
+    private boolean isDescendantOf(View parent, View child) {
+        if (parent == null || child == null) return false;
+        View p = child;
+        while (p != null) {
+            if (p == parent) return true;
+            ViewParent vp = p.getParent();
+            p = vp instanceof View ? (View) vp : null;
+        }
+        return false;
     }
 
     private void initLiveSettingGroupList() {

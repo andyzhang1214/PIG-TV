@@ -368,8 +368,34 @@ public class SourceViewModel extends ViewModel {
         }
     }
 
+    /* ==================================================================
+       分类列表请求：两条通道
+       ------------------------------------------------------------------
+       老通道（cb == null）：结果统一 post 到 listResult，只适用于「同一时刻
+       只有一个请求在飞」的场景（分类页网格、分页加载）。
+
+       新通道（cb != null）：结果直接回给调用方。首页 v8 要同时为 4 个分类
+       各拉一页，如果还共用 listResult，四行数据必然串台——A 行的结果被画到
+       B 行上，B 行永远空着。回调式让「谁请求的、结果给谁」变成一对一。
+       ================================================================== */
+    public interface ListCallback {
+        void done(AbsXml absXml);
+    }
+
+    private void deliverList(AbsXml absXml, ListCallback cb) {
+        if (cb != null) {
+            cb.done(absXml);
+        } else {
+            listResult.postValue(absXml);
+        }
+    }
+
     // categoryContent
     public void getList(MovieSort.SortData sortData, int page) {
+        getList(sortData, page, null);
+    }
+
+    public void getList(MovieSort.SortData sortData, int page, ListCallback cb) {
         SourceBean homeSourceBean = ApiConfig.get().getHomeSourceBean();
         int type = homeSourceBean.getType();
         if (type == 3) {
@@ -378,10 +404,10 @@ public class SourceViewModel extends ViewModel {
                 public void run() {
                     try {
                         Spider sp = ApiConfig.get().getCSP(homeSourceBean);
-                        json(listResult, sp.categoryContent(sortData.id, page + "", true, sortData.filterSelect), homeSourceBean.getKey());
+                        deliverList(json(null, sp.categoryContent(sortData.id, page + "", true, sortData.filterSelect), homeSourceBean.getKey()), cb);
                     } catch (Throwable th) {
                         th.printStackTrace();
-                        listResult.postValue(null);
+                        deliverList(null, cb);
                     }
                 }
             });
@@ -408,17 +434,17 @@ public class SourceViewModel extends ViewModel {
                         public void onSuccess(Response<String> response) {
                             if (type == 0) {
                                 String xml = response.body();
-                                xml(listResult, xml, homeSourceBean.getKey());
+                                deliverList(xml(null, xml, homeSourceBean.getKey()), cb);
                             } else {
                                 String json = response.body();
-                                json(listResult, json, homeSourceBean.getKey());
+                                deliverList(json(null, json, homeSourceBean.getKey()), cb);
                             }
                         }
 
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
-                            listResult.postValue(null);
+                            deliverList(null, cb);
                         }
                     });
         } else if (type == 4) {
@@ -453,17 +479,17 @@ public class SourceViewModel extends ViewModel {
                         public void onSuccess(Response<String> response) {
                             String json = response.body();
                             LOG.i(json);
-                            json(listResult, json, homeSourceBean.getKey());
+                            deliverList(json(null, json, homeSourceBean.getKey()), cb);
                         }
 
                         @Override
                         public void onError(Response<String> response) {
                             super.onError(response);
-                            listResult.postValue(null);
+                            deliverList(null, cb);
                         }
                     });
         } else {
-            listResult.postValue(null);
+            deliverList(null, cb);
         }
     }
 

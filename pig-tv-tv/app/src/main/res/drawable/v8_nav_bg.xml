@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 顶栏导航项：
+     焦点 → 整块反白药丸；
+     当前页（selected，焦点已经跑到内容里）→ 一圈 1mm 细白描边。
+     以前当前页用的是 #26FFFFFF 的淡白底，形状和焦点白药丸完全一样、只是深浅不同，
+     远看分不清「我在哪一页」和「焦点在哪」；改成描边之后两者语义彻底分开，
+     在浅色剧照背景上也不会糊成一块。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="@dimen/v8_nav_h" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#0DFFFFFF" />
+            <stroke
+                android:width="1mm"
+                android:color="#66FFFFFF" />
+            <corners android:radius="@dimen/v8_nav_h" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+            <corners android:radius="@dimen/v8_nav_h" />
+        </shape>
+    </item>
+</selector>

@@ -33,7 +33,6 @@
             android:clickable="false"
             android:focusable="true"
             android:minWidth="@dimen/vs_150"
-            android:nextFocusUp="@id/mGridViewCategory"
             android:orientation="horizontal"
             android:padding="@dimen/vs_15">
 

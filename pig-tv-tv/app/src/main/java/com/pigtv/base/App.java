@@ -11,6 +11,7 @@ import com.github.catvod.crawler.JarLoader;
 import com.github.catvod.crawler.JsLoader;
 import com.pigtv.R;
 import com.pigtv.callback.EmptyCallback;
+import com.pigtv.callback.LiveEmptyCallback;
 import com.pigtv.callback.LoadingCallback;
 import com.pigtv.data.AppDataManager;
 import com.pigtv.server.ControlManager;
@@ -78,6 +79,9 @@ public class App extends MultiDexApplication {
         LoadSir.beginBuilder()
                 .addCallback(new EmptyCallback())
                 .addCallback(new LoadingCallback())
+                // 直播页自己的空态（能说清「为什么没有内容」+ 按 OK 重试），
+                // 必须在 Builder 里登记，否则 showCallback(LiveEmptyCallback.class) 取不到实例
+                .addCallback(new LiveEmptyCallback())
                 .commit();
         AutoSizeConfig.getInstance().setCustomFragment(true).getUnitsManager()
                 .setSupportDP(false)

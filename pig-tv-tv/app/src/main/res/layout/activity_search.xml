@@ -1,10 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 搜索略缩图页面 -->
+<!-- 搜索略缩图页面
+     外层加了和首页同一套的 v8 顶栏（品牌 / 导航 / 时钟），
+     原来三栏内容整体下移一层，避免从首页跳过来时顶上那排标签变样。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal">
+    android:orientation="vertical">
+
+    <!-- ================= v8 顶栏 ================= -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/h_edge"
+        android:paddingTop="@dimen/v8_nav_top"
+        android:paddingEnd="@dimen/h_edge">
+
+        <TextView
+            android:id="@+id/tvBrand"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/v8_nav_h"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.06"
+            android:text="@string/app_name"
+            android:textColor="#FFFFFFFF"
+            android:textSize="@dimen/v8_brand_tx"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/navBox"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/v8_nav_h"
+            android:gravity="center_vertical"
+            android:orientation="horizontal" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.02"
+                android:textColor="#FFFFFFFF"
+                android:textSize="@dimen/v8_clock_tx" />
+
+            <TextView
+                android:id="@+id/tvDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1.9mm"
+                android:includeFontPadding="false"
+                android:textColor="#80FFFFFF"
+                android:textSize="@dimen/v8_date_tx" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
 
     <LinearLayout
         android:layout_width="@dimen/vs_420"
@@ -228,5 +301,6 @@
             app:tv_horizontalSpacingWithMargins="@dimen/vs_5"
             app:tv_verticalSpacingWithMargins="@dimen/vs_5"
             app:tv_selectedItemIsCentered="true" />
+    </LinearLayout>
     </LinearLayout>
 </LinearLayout>

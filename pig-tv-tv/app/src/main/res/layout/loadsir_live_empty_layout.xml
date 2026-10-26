@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    直播页「暂无内容 / 加载失败」状态页。
+
+    以前这里是一条 Toast 加 finish()：用户点「直播」→ 转圈 → 被踢回首页，
+    完全不知道发生了什么。现在停在本页，把原因写清楚，并且告诉用户
+    「按 OK 重试、按返回退出」——遥控器上只可能是这两个动作。
+
+    视觉上跟首页 v8 一套语言：小写字母间距标签 + 大标题 + 一条极细的分隔线 +
+    低对比度的操作提示，不用插画，避免和整体调性打架。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF0B0A0C">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <!-- 小标签 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="3.8mm"
+                android:layout_height="3.8mm"
+                android:background="@drawable/h_dot_accent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5.7mm"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.2"
+                android:text="LIVE"
+                android:textColor="#8CFFFFFF"
+                android:textSize="9mm" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/lvEmptyTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="9mm"
+            android:includeFontPadding="false"
+            android:text="直播频道还没准备好"
+            android:textColor="#FFFFFFFF"
+            android:textSize="@dimen/ts_24"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/lvEmptySub"
+            android:layout_width="380mm"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7mm"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.4"
+            android:text="当前接口没有返回任何直播频道"
+            android:textColor="#8CFFFFFF"
+            android:textSize="@dimen/ts_15" />
+
+        <View
+            android:layout_width="46mm"
+            android:layout_height="1.4mm"
+            android:layout_marginTop="13mm"
+            android:background="#33FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="9mm"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.04"
+            android:text="按 OK 重新加载　·　按返回键返回"
+            android:textColor="#59FFFFFF"
+            android:textSize="@dimen/ts_14" />
+
+    </LinearLayout>
+
+</FrameLayout>

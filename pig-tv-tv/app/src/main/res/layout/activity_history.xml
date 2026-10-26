@@ -1,94 +1,119 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 播放历史略缩图页面 -->
+<!-- 播放历史略缩图页面
+     顶部换成和首页同一套的 v8 顶栏（品牌 / 导航 / 时钟），
+     原来的「▎观看历史」大标题去掉了 —— 导航里已经高亮「观看历史」。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <!-- ================= v8 顶栏 ================= -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clipChildren="false"
         android:clipToPadding="false"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingLeft="@dimen/vs_50"
-        android:paddingTop="@dimen/vs_20"
-        android:paddingRight="@dimen/vs_50"
-        android:paddingBottom="@dimen/vs_15">
-
-        <View
-            android:layout_width="@dimen/vs_5"
-            android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:layout_marginTop="@dimen/vs_8"
-            android:layout_marginEnd="@dimen/vs_12"
-            android:layout_marginRight="@dimen/vs_12"
-            android:layout_marginBottom="@dimen/vs_8"
-            android:background="?attr/color_theme" />
+        android:paddingStart="@dimen/h_edge"
+        android:paddingTop="@dimen/v8_nav_top"
+        android:paddingEnd="@dimen/h_edge">
 
         <TextView
+            android:id="@+id/tvBrand"
             android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_50"
-            android:drawablePadding="@dimen/vs_10"
-            android:gravity="center"
-            android:text="@string/act_hist"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_34"
-            android:textStyle="bold" />
+            android:layout_height="@dimen/v8_nav_h"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.06"
+            android:text="@string/app_name"
+            android:textColor="#FFFFFFFF"
+            android:textSize="@dimen/v8_brand_tx"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/navBox"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/v8_nav_h"
+            android:gravity="center_vertical"
+            android:orientation="horizontal" />
 
         <Space
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="1dp"
             android:layout_weight="1" />
 
         <TextView
             android:id="@+id/tvDelTip"
             android:layout_width="wrap_content"
-            android:layout_height="@dimen/vs_50"
-            android:layout_gravity="center"
-            android:layout_marginStart="@dimen/vs_10"
-            android:layout_marginEnd="@dimen/vs_10"
+            android:layout_height="@dimen/v8_nav_h"
+            android:layout_marginEnd="8mm"
             android:focusable="false"
             android:focusableInTouchMode="false"
             android:gravity="center"
             android:text="@string/act_hist_sel"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_24"
+            android:textColor="#99FFFFFF"
+            android:textSize="@dimen/ts_18"
             android:visibility="gone" />
 
         <ImageView
             android:id="@+id/tvDelete"
-            android:layout_width="@dimen/vs_50"
-            android:layout_height="@dimen/vs_50"
-            android:layout_marginStart="@dimen/vs_10"
-            android:layout_marginEnd="@dimen/vs_10"
-            android:gravity="center"
+            android:layout_width="@dimen/v8_nav_h"
+            android:layout_height="@dimen/v8_nav_h"
+            android:layout_marginEnd="6mm"
             android:background="@drawable/button_dialog_vod"
-            android:focusable="false"
+            android:focusable="true"
             android:focusableInTouchMode="false"
-            android:padding="@dimen/vs_5"
+            android:padding="7mm"
             android:src="@drawable/icon_delete" />
 
         <ImageView
             android:id="@+id/tvClear"
-            android:layout_width="@dimen/vs_50"
-            android:layout_height="@dimen/vs_50"
-            android:layout_marginStart="@dimen/vs_10"
-            android:layout_marginEnd="@dimen/vs_10"
-            android:gravity="center"
+            android:layout_width="@dimen/v8_nav_h"
+            android:layout_height="@dimen/v8_nav_h"
             android:background="@drawable/button_dialog_vod"
-            android:focusable="false"
+            android:focusable="true"
             android:focusableInTouchMode="false"
-            android:padding="@dimen/vs_5"
+            android:padding="7mm"
             android:src="@drawable/icon_clear" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14mm"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.02"
+                android:textColor="#FFFFFFFF"
+                android:textSize="@dimen/v8_clock_tx" />
+
+            <TextView
+                android:id="@+id/tvDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1.9mm"
+                android:includeFontPadding="false"
+                android:textColor="#80FFFFFF"
+                android:textSize="@dimen/v8_date_tx" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
     <com.owen.tvrecyclerview.widget.TvRecyclerView
         android:id="@+id/mGridView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="10mm"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:paddingLeft="@dimen/vs_60"

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 弹层列表项：焦点白底反黑；「当前项」用金色描边标出来（不再用 √ 前缀，
+     字符对齐会歪，而且看着像草稿） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="9.5mm" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#1FFFFFFF" />
+            <stroke android:width="1.2mm" android:color="#E8C08C" />
+            <corners android:radius="9.5mm" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#14FFFFFF" />
+            <stroke android:width="0.6mm" android:color="#26FFFFFF" />
+            <corners android:radius="9.5mm" />
+        </shape>
+    </item>
+</selector>

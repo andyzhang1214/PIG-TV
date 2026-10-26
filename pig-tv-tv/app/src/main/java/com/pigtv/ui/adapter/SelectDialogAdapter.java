@@ -85,19 +85,27 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
     }
 
     @Override
-    public void onBindViewHolder(@NonNull @NotNull SelectDialogAdapter.SelectViewHolder holder, @SuppressLint("RecyclerView") int position) {    
-        T value = data.get(position);
+    public void onBindViewHolder(@NonNull @NotNull SelectDialogAdapter.SelectViewHolder holder, @SuppressLint("RecyclerView") final int position) {
+        final T value = data.get(position);
         String name = dialogInterface.getDisplay(value);
-        if (!muteCheck && position == select)
-            name = "√ " + name;
-        ((TextView) holder.itemView.findViewById(R.id.tvName)).setText(name);
+        boolean isSelected = !muteCheck && position == select;
+
+        TextView tv = holder.itemView.findViewById(R.id.tvName);
+        tv.setText(name);
+
+        // 当前项不再靠「√ 」前缀，改成整块的 selected 态：背景金描边 + 右下金点
+        holder.itemView.setSelected(isSelected);
+        View dot = holder.itemView.findViewById(R.id.dot);
+        if (dot != null) dot.setVisibility(isSelected ? View.VISIBLE : View.GONE);
+
+        final boolean current = isSelected;
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (!muteCheck && position == select)
-                    return;
-                notifyItemChanged(select);
+                if (current) return;
+                int old = select;
                 select = position;
+                notifyItemChanged(old);
                 notifyItemChanged(select);
                 dialogInterface.click(value, position);
             }

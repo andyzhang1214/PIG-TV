@@ -91,6 +91,35 @@ public class ModelSettingFragment extends BaseLazyFragment {
         return new ModelSettingFragment().setArguments();
     }
 
+    /**
+     * 配置中心左侧分组 → 右侧对应设置项。
+     *
+     * 不拆 Fragment：这一页 800 多行逻辑（弹窗、Hawk 写入、播放器切换）都在一个
+     * 生命周期里，硬拆成 4 份只会把状态拆散。左侧只当索引用，点一下把焦点送过去，
+     * ScrollView 会自己把那一行滚进视野。
+     */
+    public void focusSection(int section) {
+        if (getView() == null) return;
+        int id;
+        switch (section) {
+            case 0:
+                id = R.id.llApi;
+                break;
+            case 1:
+                id = R.id.llPlay;
+                break;
+            case 2:
+                id = R.id.llLocale;
+                break;
+            default:
+                id = R.id.llDns;
+                break;
+        }
+        View v = getView().findViewById(id);
+        if (v == null) v = getView().findViewById(R.id.llDebug);
+        if (v != null) v.requestFocus();
+    }
+
     public ModelSettingFragment setArguments() {
         return this;
     }

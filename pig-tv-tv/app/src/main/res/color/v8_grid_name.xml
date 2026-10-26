@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 分类页片名：默认 70% 白，卡片拿到焦点时提亮到纯白（设计稿 .card.focused .cap） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FFFFFFFF" />
+    <item android:state_pressed="true" android:color="#FFFFFFFF" />
+    <item android:color="#B3FFFFFF" />
+</selector>

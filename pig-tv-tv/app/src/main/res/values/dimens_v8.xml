@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    首页 v8 尺寸表（内容流 + 分类页）
+
+    与 dimens_home.xml 同一套换算规则：mm 是真实物理毫米，基准 55 寸 16:9
+    （1217.6mm × 685mm），1 设计 px = 0.634mm。屏幕实际尺寸变了也成立。
+
+    垂直排布（首屏，单位 mm）：
+        26 ─ 56   顶栏（品牌 + 导航 + 源胶囊 + 齿轮 + 时钟）
+        78 ─ 196  hero 信息（标签 / 片名 / 元信息 / 简介）
+       204 ─ 226  操作按钮
+       208 ─ 685  内容流（浏览态整体上移 v8_lines_lift，露出更多行）
+-->
+<resources>
+
+    <!-- ============ 顶栏 ============ -->
+    <dimen name="v8_nav_top">26mm</dimen>
+    <dimen name="v8_nav_h">30mm</dimen>
+    <dimen name="v8_nav_pad">10mm</dimen>
+    <dimen name="v8_nav_gap">4mm</dimen>
+    <dimen name="v8_nav_tx">15.2mm</dimen>
+    <dimen name="v8_brand_tx">15.2mm</dimen>
+    <dimen name="v8_brand_gap">26mm</dimen>
+    <dimen name="v8_clock_tx">12.7mm</dimen>
+    <dimen name="v8_date_tx">9.5mm</dimen>
+    <!-- 顶栏三组之间那条 1mm 竖线（内容类 | 工具类） -->
+    <dimen name="v8_nav_sep_h">17mm</dimen>
+    <dimen name="v8_nav_sep_gap">5mm</dimen>
+
+    <!-- ============ 右侧胶囊（源 / 齿轮） ============ -->
+    <dimen name="v8_pill_h">28mm</dimen>
+    <dimen name="v8_pill_pad">11mm</dimen>
+    <dimen name="v8_pill_gap">6mm</dimen>
+    <dimen name="v8_pill_tx">10.8mm</dimen>
+    <dimen name="v8_pill_ico">11.4mm</dimen>
+    <dimen name="v8_pill_dot">4.4mm</dimen>
+    <dimen name="v8_pill_radius">14mm</dimen>
+
+    <!-- ============ hero 信息 ============ -->
+    <dimen name="v8_hero_top">72mm</dimen>
+    <dimen name="v8_hero_w">560mm</dimen>
+    <dimen name="v8_hero_tag">9mm</dimen>
+    <dimen name="v8_hero_tag_dot">3.8mm</dimen>
+    <dimen name="v8_hero_title">31mm</dimen>
+    <dimen name="v8_hero_title_mt">7.6mm</dimen>
+    <dimen name="v8_hero_meta">10.8mm</dimen>
+    <dimen name="v8_hero_meta_mt">6.3mm</dimen>
+    <dimen name="v8_hero_desc">9.5mm</dimen>
+    <dimen name="v8_hero_desc_mt">6.3mm</dimen>
+    <dimen name="v8_hero_lift">-58mm</dimen>
+
+    <!-- ============ 操作按钮 ============ -->
+    <dimen name="v8_btn_top">190mm</dimen>
+    <dimen name="v8_btn_h">21mm</dimen>
+    <dimen name="v8_btn_pad">15mm</dimen>
+    <dimen name="v8_btn_tx">10.1mm</dimen>
+    <dimen name="v8_btn_gap">8mm</dimen>
+    <dimen name="v8_btn_radius">10.5mm</dimen>
+
+    <!-- ============ 内容流 ============ -->
+    <dimen name="v8_lines_top">240mm</dimen>
+    <dimen name="v8_lines_lift">96mm</dimen>
+    <dimen name="v8_line_head">16mm</dimen>
+    <dimen name="v8_line_head_mb">7.6mm</dimen>
+    <dimen name="v8_line_gap">16mm</dimen>
+    <dimen name="v8_line_pad_end">45.6mm</dimen>
+    <dimen name="v8_line_body_h">240mm</dimen>
+
+    <!-- 行内海报：196 × 294 设计 px => 124 × 186 mm（2:3） -->
+    <dimen name="v8_card_w">146mm</dimen>
+    <dimen name="v8_card_h">219mm</dimen>
+    <dimen name="v8_card_gap">13mm</dimen>
+    <dimen name="v8_card_name">11mm</dimen>
+    <dimen name="v8_card_name_mt">5.1mm</dimen>
+    <dimen name="v8_card_radius">6.3mm</dimen>
+    <dimen name="v8_card_badge">8.2mm</dimen>
+
+    <!-- ============ 分类页 ============ -->
+    <dimen name="v8_cat_w">170mm</dimen>
+    <dimen name="v8_cat_item_h">26mm</dimen>
+    <dimen name="v8_cat_tx">11.4mm</dimen>
+    <dimen name="v8_cat_cnt">8.9mm</dimen>
+    <dimen name="v8_cat_pad">9mm</dimen>
+    <dimen name="v8_cat_top">86mm</dimen>
+    <dimen name="v8_chip_h">19mm</dimen>
+    <dimen name="v8_chip_pad">11mm</dimen>
+    <dimen name="v8_chip_tx">9.5mm</dimen>
+    <dimen name="v8_cat_title">16.5mm</dimen>
+    <dimen name="v8_grid_w">132mm</dimen>
+    <dimen name="v8_grid_h">198mm</dimen>
+
+    <!-- ============ 首页顶部：推荐大卡行 ============ -->
+    <!-- 首页只有「推荐」一块，卡片做大到把首屏填满，横向可滑看全部：
+         卡宽 215mm + 间距 12mm，一屏正好 5 张；卡高 322mm 是 2:3，海报不裁。
+         改宽度要同步 v8_wall_h（卡高 + 片名行）。 -->
+    <dimen name="v8_wall_h">352mm</dimen>
+    <dimen name="v8_wall_card_w">215mm</dimen>
+    <dimen name="v8_wall_card_h">322mm</dimen>
+    <dimen name="v8_wall_gap">12mm</dimen>
+    <dimen name="v8_wall_name">13mm</dimen>
+    <dimen name="v8_wall_name_mt">5.5mm</dimen>
+    <dimen name="v8_wall_sub">10.4mm</dimen>
+
+
+</resources>

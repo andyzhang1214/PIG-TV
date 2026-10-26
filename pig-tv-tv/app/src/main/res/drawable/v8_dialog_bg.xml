@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 弹层底板：深色玻璃 + 大圆角，跟首页 v8 同一套色（#0B0A0C 系） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#F2131218" />
+    <stroke android:width="0.8mm" android:color="#1FFFFFFF" />
+    <corners android:radius="14mm" />
+</shape>

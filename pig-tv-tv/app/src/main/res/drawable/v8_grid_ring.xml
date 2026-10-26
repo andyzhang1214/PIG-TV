@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 分类页海报墙卡片外框：焦点时加白环（设计稿 .grid .card.focused 的 box-shadow 0 0 0 4px #fff） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+            <stroke android:width="1mm" android:color="#FFFFFFFF" />
+            <corners android:radius="7mm" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+            <corners android:radius="7mm" />
+        </shape>
+    </item>
+</selector>

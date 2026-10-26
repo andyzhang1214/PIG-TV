@@ -90,7 +90,9 @@
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowIsFloating">true</item>
         <item name="android:windowFrame">@null</item>
-        <item name="android:backgroundDimEnabled">false</item>
+        <!-- 弹层后面压暗 72%：首页太亮的时候，弹层自己没个底气，字和背景会糊成一片 -->
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.72</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowFullscreen">true</item>

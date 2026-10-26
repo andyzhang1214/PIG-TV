@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 顶栏导航字：默认 72% 白，焦点反黑（白药丸上） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FF0B0A0C" />
+    <item android:state_selected="true" android:color="#FFFFFFFF" />
+    <item android:color="#B8FFFFFF" />
+</selector>

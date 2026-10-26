@@ -30,11 +30,21 @@ public class GridAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
      * 如果 style 传 null，则采用 item_grid.xml 中的默认尺寸
      */
     public GridAdapter(boolean showList, ImgUtil.Style style) {
-        super( showList ? R.layout.item_list:R.layout.item_grid, new ArrayList<>());
+        this(showList, style, 0);
+    }
+
+    /**
+     * @param layoutRes 网格模式下的 item 布局；0 表示用默认的 item_grid。
+     *                  首页 v8 的分类页要塞 6 列，用的是 item_grid_v8（小卡），
+     *                  搜索/收藏/历史页仍用大卡，互不影响。
+     */
+    public GridAdapter(boolean showList, ImgUtil.Style style, int layoutRes) {
+        super(showList ? R.layout.item_list
+                : (layoutRes != 0 ? layoutRes : R.layout.item_grid), new ArrayList<>());
         this.mShowList = showList;
-        if(style!=null ){
-            if(style.type.equals("list"))this.mShowList=true;
-            this.defaultWidth=ImgUtil.getStyleDefaultWidth(style);
+        if (style != null) {
+            if (style.type.equals("list")) this.mShowList = true;
+            this.defaultWidth = ImgUtil.getStyleDefaultWidth(style);
         }
         this.style = style;
     }

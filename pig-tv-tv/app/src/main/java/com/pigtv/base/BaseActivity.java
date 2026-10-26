@@ -234,6 +234,13 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
     }
 
+    /** 显示任意一种 LoadSir 状态页（直播页的「暂无内容」要用自己的文案，所以开这个口子） */
+    protected void showCallback(Class<? extends Callback> callback) {
+        if (null != mLoadService) {
+            mLoadService.showCallback(callback);
+        }
+    }
+
     protected void showSuccess() {
         if (null != mLoadService) {
             mLoadService.showSuccess();

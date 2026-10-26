@@ -292,11 +292,67 @@
     <string name="home_app_search_sub">全站找片</string>
     <string name="home_app_live">直播</string>
     <string name="home_app_live_sub">电视直播</string>
-    <string name="home_app_home">首页</string>
+    <string name="home_app_home">推荐</string>
     <string name="home_app_sort_sub">进入分类</string>
     <string name="home_hero_loading">正在读取这个分类…</string>
     <string name="home_hero_tag_hot">本周最热</string>
     <string name="home_hero_func_title">%1$s</string>
     <string name="home_hero_func_desc">按 OK 进入 %1$s。</string>
+
+    <!-- ================= 首页 v8（内容流 / 分类页） ================= -->
+    <string name="v8_nav_cat">分类</string>
+    <string name="v8_view_all">查看全部</string>
+    <string name="v8_view_all_count">%1$s 部</string>
+    <string name="v8_play_now">立即播放</string>
+    <string name="v8_collect">收藏</string>
+    <string name="v8_collected">已收藏</string>
+    <string name="v8_hero_desc_default">按 OK 看详情 · 长按卡片可全站搜索这部剧</string>
+    <string name="v8_setting_title">配置中心</string>
+    <string name="v8_sec_api">接口</string>
+    <string name="v8_sec_play">播放</string>
+    <string name="v8_sec_display">显示</string>
+    <string name="v8_sec_adv">高级</string>
+    <string name="v8_cat_index">分类</string>
+    <string name="v8_hint_home">↑↓ 切换行 · ←→ 选片 · OK 进入 · MENU 切换片源</string>
+    <string name="v8_hint_home_single">← → 选片 · OK 继续观看 · MENU 切换片源</string>
+    <string name="v8_hint_cat">← → 分类 / 海报墙 · OK 进入 · BACK 回首页</string>
+    <string name="v8_line_continue">继续观看</string>
+    <string name="v8_line_continue_sub">看了不到一半</string>
+    <string name="v8_wall_title">观看历史</string>
+    <string name="v8_wall_sub">接着上次的进度看 · 最近 %1$d 部</string>
+    <string name="v8_wall_empty">还没有播放记录，随便点一部开始看吧</string>
+    <string name="v8_rec_title">推荐内容</string>
+    <string name="v8_rec_from">来自 %1$s</string>
+    <string name="v8_line_loading">正在读取…</string>
+    <string name="v8_line_empty">这个分类暂时没有内容</string>
+    <string name="v8_line_fail">这个分类没读到内容，按 OK 重试</string>
+    <string name="v8_filter">筛选</string>
+    <string name="v8_dlg_hint">OK 确定 · BACK 取消 · ← → ↑ ↓ 选择</string>
+    <string name="v8_count_unit">%1$d 部</string>
+    <string name="v8_hero_none_tag">暂无内容</string>
+    <string name="v8_hero_none_title">这个片源没有内容</string>
+    <string name="v8_hero_none_desc">接口连上了，但首页推荐和分类都没给出影片。在顶栏换一个片源试试。</string>
+    <string name="v8_hero_connecting">正在连接接口，稍等一下…</string>
+    <string name="v8_hint_home_none">接口没有响应 · MENU 换片源 · BACK 退出</string>
+
+    <!-- ================= 首页 v10（顶栏标签页 / 历史） ================= -->
+    <string name="v8_nav_hist">历史</string>
+    <string name="v8_nav_more">更多</string>
+    <string name="v8_hint_rec">← → 选片 · OK 继续观看 · MENU 切换片源</string>
+    <string name="v8_hint_grid">↑ 回顶栏 · ← → 换片 · OK 进入详情</string>
+    <string name="v8_hint_hist">↑ 回顶栏 · ← → 选片 · OK 继续观看 · MENU 切换片源</string>
+    <string name="v8_hist_tag">上次看到</string>
+    <string name="v8_cat_tag">最新%1$s</string>
+    <string name="v8_cat_connecting">正在读取这个分类，稍等一下…</string>
+    <string name="v8_hist_continue">继续播放</string>
+    <string name="v8_hist_empty_title">还没有看过什么</string>
+    <string name="v8_hist_empty_desc">在任意影片上按 OK 就开始播放了，看到哪儿会自动记在这儿 —— 下次从这一格接着往下看。</string>
+    <string name="v8_hist_empty_hint">← → 换个标签 · OK 回推荐挑一部</string>
+    <string name="v8_hist_sub">看到 %1$s</string>
+    <string name="v8_cat_empty_loading">正在读取这个分类…</string>
+    <string name="v8_more_title">全部分类</string>
+    <!-- 顶栏片源胶囊的兜底文案：config 里 site.name 可能为空，
+         空着就只剩一个圆点加箭头，看着像没加载出来 -->
+    <string name="v8_pill_fallback">换源</string>
 
 </resources>

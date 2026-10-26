@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 全局空态：和首页 v8 同一套排版语言（小标签 + 一行主文案 + 一行说明），
+     用文字和留白表达「这里确实没有东西」，比一张彩色插画安静，也不会在
+     分类页、详情页、搜索页之间显得风格不统一。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -10,19 +13,34 @@
         android:gravity="center_horizontal"
         android:orientation="vertical">
 
-        <ImageView
-            android:layout_width="@dimen/vs_120"
-            android:layout_height="@dimen/vs_120"
-            android:src="@drawable/icon_empty" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.28"
+            android:text="EMPTY"
+            android:textColor="#4DFFFFFF"
+            android:textSize="@dimen/ts_12" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/vs_20"
-            android:gravity="center"
-            android:text="没找到数据"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/ts_24" />
+            android:layout_marginTop="7mm"
+            android:includeFontPadding="false"
+            android:text="这里还没有内容"
+            android:textColor="#D9FFFFFF"
+            android:textSize="@dimen/ts_20"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6mm"
+            android:includeFontPadding="false"
+            android:text="换个分类、换个片源，或者稍后再来看看"
+            android:textColor="#59FFFFFF"
+            android:textSize="@dimen/ts_14" />
+
     </LinearLayout>
 
 </FrameLayout>

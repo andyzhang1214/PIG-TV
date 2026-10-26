@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 首页「推荐」行里的一格（大卡）。
+     宽度固定 v8_wall_card_w：这一行是横向滑动的，不能像网格那样交给 LayoutManager 均分。
+     控件 id 与 item_home_poster 保持一致 —— HomeLineAdapter 用同一套绑定代码。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="@dimen/v8_wall_card_w"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/v8_wall_card_h">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivThumb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            app:shapeAppearanceOverlay="@style/PosterRound" />
+
+        <View
+            android:id="@+id/vRing"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/v8_poster_ring"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/v8_card_badge"
+            android:layout_marginTop="@dimen/v8_card_badge"
+            android:background="@drawable/shape_badge_small"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxWidth="@dimen/v8_wall_card_h"
+            android:paddingLeft="5mm"
+            android:paddingTop="1.6mm"
+            android:paddingRight="5mm"
+            android:paddingBottom="1.6mm"
+            android:singleLine="true"
+            android:textColor="#F2FFFFFF"
+            android:textSize="@dimen/ts_18"
+            android:visibility="gone" />
+
+        <!-- 已看进度：历史卡底部一条细进度，比文字角标省地方。
+             外层当底槽，里面那条按比例拉宽（adapter 里设 LayoutParams.width）。 -->
+        <FrameLayout
+            android:id="@+id/progressBar"
+            android:layout_width="match_parent"
+            android:layout_height="1.8mm"
+            android:layout_gravity="bottom"
+            android:background="#33FFFFFF"
+            android:visibility="gone">
+
+            <View
+                android:id="@+id/progressFill"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:background="#F2FFFFFF" />
+        </FrameLayout>
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/tvName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/v8_wall_name_mt"
+        android:ellipsize="end"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:textColor="#A6FFFFFF"
+        android:textSize="@dimen/v8_wall_name" />
+
+    <!-- 第二行：历史页写「看到 32:18」，分类页保持隐藏（只占一个 0 高度的位） -->
+    <TextView
+        android:id="@+id/tvSub"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1.6mm"
+        android:ellipsize="end"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:textColor="#59FFFFFF"
+        android:textSize="@dimen/v8_wall_sub"
+        android:visibility="gone" />
+
+</LinearLayout>

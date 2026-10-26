@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    历史页空态。
+
+    一面空墙不如一句话。做成居中的一块大字排版，不做卡片框 ——
+    带框的空态在电视上看着像报错提示，用户第一反应是「是不是坏了」。
+    视觉语言和其它空态一致：小标签 + 大标题 + 两句说明 + 细线 + 按键提示。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="@dimen/h_edge"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="3.8mm"
+                android:layout_height="3.8mm"
+                android:background="@drawable/h_dot_accent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5.7mm"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.2"
+                android:text="HISTORY"
+                android:textColor="#8CFFFFFF"
+                android:textSize="9mm" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="9mm"
+            android:includeFontPadding="false"
+            android:text="@string/v8_hist_empty_title"
+            android:textColor="#FFFFFFFF"
+            android:textSize="@dimen/ts_30"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="9mm"
+            android:lineSpacingMultiplier="1.5"
+            android:text="@string/v8_hist_empty_desc"
+            android:textColor="#8CFFFFFF"
+            android:textSize="@dimen/ts_15" />
+
+        <View
+            android:layout_width="40mm"
+            android:layout_height="1.2mm"
+            android:layout_marginTop="20mm"
+            android:background="#26FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14mm"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.04"
+            android:text="@string/v8_hist_empty_hint"
+            android:textColor="#59FFFFFF"
+            android:textSize="@dimen/ts_14" />
+
+    </LinearLayout>
+
+</FrameLayout>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 顶栏导航项：一个药丸，焦点反白（设计稿 nav li） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/v8_nav_h"
+    android:background="@drawable/v8_nav_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/v8_nav_pad"
+    android:paddingEnd="@dimen/v8_nav_pad">
+
+    <TextView
+        android:id="@+id/tvNav"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:focusable="false"
+        android:duplicateParentState="true"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:textColor="@color/v8_nav_tx"
+        android:textSize="@dimen/v8_nav_tx"
+        android:textStyle="bold" />
+
+</LinearLayout>

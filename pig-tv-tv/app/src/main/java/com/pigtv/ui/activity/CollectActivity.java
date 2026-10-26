@@ -18,6 +18,7 @@ import com.pigtv.ui.adapter.CollectAdapter;
 import com.pigtv.ui.dialog.ConfirmClearDialog;
 import com.pigtv.util.FastClickCheckUtil;
 import com.pigtv.util.HawkConfig;
+import com.pigtv.util.V8TopBar;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
 
@@ -33,6 +34,8 @@ public class CollectActivity extends BaseActivity {
     private ImageView tvDelete;
     private ImageView tvClear;
     private TvRecyclerView mGridView;
+    /** 顶栏里「收藏」那一项，从列表按 ↑ 时把焦点还给它 */
+    private View navCurrent;
     public static CollectAdapter collectAdapter;
     private boolean delMode = false;
 
@@ -66,6 +69,14 @@ public class CollectActivity extends BaseActivity {
         tvDelete = findViewById(R.id.tvDelete);
         tvClear = findViewById(R.id.tvClear);
         mGridView = findViewById(R.id.mGridView);
+        navCurrent = V8TopBar.attach(this, V8TopBar.NAV_FAV);
+        // 进来先把焦点给海报墙，别停在顶栏（停在顶栏的话看不出这是收藏页）
+        mGridView.post(new Runnable() {
+            @Override
+            public void run() {
+                if (!mGridView.hasFocus()) mGridView.requestFocus();
+            }
+        });
         mGridView.setHasFixedSize(true);
         mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 5 : 6));
         collectAdapter = new CollectAdapter();
@@ -87,6 +98,8 @@ public class CollectActivity extends BaseActivity {
             @Override
             public boolean onInBorderKeyEvent(int direction, View focused) {
                 if (direction == View.FOCUS_UP) {
+                    // 先回到顶栏当前页那一项（收藏），顺着导航就能去别的页面
+                    if (navCurrent != null && navCurrent.requestFocus()) return true;
                     tvDelete.setFocusable(true);
                     tvClear.setFocusable(true);
                     tvDelete.requestFocus();

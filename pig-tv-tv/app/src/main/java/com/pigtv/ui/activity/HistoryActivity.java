@@ -16,6 +16,7 @@ import com.pigtv.ui.adapter.HistoryAdapter;
 import com.pigtv.ui.dialog.ConfirmClearDialog;
 import com.pigtv.util.FastClickCheckUtil;
 import com.pigtv.util.HawkConfig;
+import com.pigtv.util.V8TopBar;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
 import com.owen.tvrecyclerview.widget.V7GridLayoutManager;
 
@@ -36,6 +37,8 @@ public class HistoryActivity extends BaseActivity {
     private ImageView tvDelete;
     private ImageView tvClear;
     private TvRecyclerView mGridView;
+    /** 顶栏里「观看历史」那一项，从列表按 ↑ 时把焦点还给它 */
+    private View navCurrent;
     public static HistoryAdapter historyAdapter;
     private boolean delMode = false;
 
@@ -69,6 +72,14 @@ public class HistoryActivity extends BaseActivity {
         tvDelete = findViewById(R.id.tvDelete);
         tvClear = findViewById(R.id.tvClear);
         mGridView = findViewById(R.id.mGridView);
+        navCurrent = V8TopBar.attach(this, V8TopBar.NAV_HIST);
+        // 进来先把焦点给海报墙，别停在顶栏（停在顶栏的话看不出这是历史页）
+        mGridView.post(new Runnable() {
+            @Override
+            public void run() {
+                if (!mGridView.hasFocus()) mGridView.requestFocus();
+            }
+        });
         mGridView.setHasFixedSize(true);
         mGridView.setLayoutManager(new V7GridLayoutManager(this.mContext, isBaseOnWidth() ? 5 : 6));
         historyAdapter = new HistoryAdapter();
@@ -90,6 +101,9 @@ public class HistoryActivity extends BaseActivity {
             @Override
             public boolean onInBorderKeyEvent(int direction, View focused) {
                 if (direction == View.FOCUS_UP) {
+                    // 先回到顶栏当前页那一项（收藏/历史），顺着导航就能去别的页面；
+                    // 拿不到再退回删除按钮
+                    if (navCurrent != null && navCurrent.requestFocus()) return true;
                     tvDelete.setFocusable(true);
                     tvClear.setFocusable(true);
                     tvDelete.requestFocus();

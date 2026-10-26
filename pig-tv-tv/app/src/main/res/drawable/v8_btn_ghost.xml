@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- hero 次按钮（收藏）：玻璃底白字，焦点反白 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="@dimen/v8_btn_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#26FFFFFF" />
+            <stroke android:width="0.8mm" android:color="#4DFFFFFF" />
+            <corners android:radius="@dimen/v8_btn_radius" />
+        </shape>
+    </item>
+</selector>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 首页 v8 背景遮罩（垂直）
+     比 v6 更深：v8 的背景是从竖版海报 centerCrop 放大的，中间常常压着一行大字，
+     遮罩不给够，hero 的片名和背景文字会互相咬。
+     0% .95 / 45% .55 / 100% .96，色偏中性冷黑 #0B0A0C。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:centerColor="#8C0B0A0C"
+        android:centerY="0.45"
+        android:endColor="#F50B0A0C"
+        android:startColor="#F20B0A0C"
+        android:type="linear" />
+</shape>

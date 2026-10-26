@@ -65,38 +65,31 @@ public class SettingActivity extends BaseActivity {
         sortAdapter = new SettingMenuAdapter();
         mGridView.setAdapter(sortAdapter);
         mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
-        sortAdapter.setOnItemChildClickListener(new BaseQuickAdapter.OnItemChildClickListener() {
+        mGridView.setSpacingWithMargins(0, 0);
+        // 左侧分组只是索引：点一下把焦点送到右侧对应的设置项，
+        // 不切页（右侧本来就是一整页，切页会让用户以为设置丢了一半）
+        sortAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
-            public void onItemChildClick(BaseQuickAdapter adapter, View view, int position) {
-                if (view.getId() == R.id.tvName) {
-                    if (view.getParent() != null) {
-                        ((ViewGroup) view.getParent()).requestFocus();
-                        sortFocused = position;
-                        if (sortFocused != defaultSelected) {
-                            defaultSelected = sortFocused;
-                            mViewPager.setCurrentItem(sortFocused, false);
-                        }
-                    }
-                }
+            public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
+                sortFocused = position;
+                sortAdapter.setSelected(position);
+                focusSection(position);
             }
         });
         mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
                 if (itemView != null) {
-                    TextView tvName = itemView.findViewById(R.id.tvName);
-                    tvName.setTextColor(getResources().getColor(R.color.color_FFFFFF_70));
+                    itemView.animate().scaleX(1f).scaleY(1f).setDuration(140).start();
                 }
             }
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                if (itemView != null) {
-                    sortChange = true;
-                    sortFocused = position;
-                    TextView tvName = itemView.findViewById(R.id.tvName);
-                    tvName.setTextColor(Color.WHITE);
-                }
+                if (itemView == null) return;
+                itemView.animate().scaleX(1.03f).scaleY(1.03f).setDuration(140).start();
+                sortChange = true;
+                sortFocused = position;
             }
 
             @Override
@@ -106,6 +99,15 @@ public class SettingActivity extends BaseActivity {
         });
     }
 
+    /** 把焦点送到右侧某个分组的第一项 */
+    private void focusSection(int position) {
+        if (fragments.isEmpty()) return;
+        BaseLazyFragment f = fragments.get(0);
+        if (f instanceof ModelSettingFragment) {
+            ((ModelSettingFragment) f).focusSection(position);
+        }
+    }
+
     private void initData() {
         currentApi = Hawk.get(HawkConfig.API_URL, "");
         currentLive = Hawk.get(HawkConfig.LIVE_URL, "");
@@ -113,7 +115,10 @@ public class SettingActivity extends BaseActivity {
         homeRec = Hawk.get(HawkConfig.HOME_REC, 0);
         dnsOpt = Hawk.get(HawkConfig.DOH_URL, 0);
         List<String> sortList = new ArrayList<>();
-        sortList.add("设置其他");
+        sortList.add(getString(R.string.v8_sec_api));
+        sortList.add(getString(R.string.v8_sec_play));
+        sortList.add(getString(R.string.v8_sec_display));
+        sortList.add(getString(R.string.v8_sec_adv));
         sortAdapter.setNewData(sortList);
         initViewPager();
     }
@@ -123,6 +128,16 @@ public class SettingActivity extends BaseActivity {
         pageAdapter = new SettingPageAdapter(getSupportFragmentManager(), fragments);
         mViewPager.setAdapter(pageAdapter);
         mViewPager.setCurrentItem(0);
+        // 焦点先落在左侧「接口」分组，用户一眼知道这里有 4 个分区
+        mGridView.post(new Runnable() {
+            @Override
+            public void run() {
+                View v = mGridView.getLayoutManager() == null ? null
+                        : mGridView.getLayoutManager().findViewByPosition(0);
+                if (v != null) v.requestFocus();
+                else mGridView.requestFocus();
+            }
+        });
     }
 
     private final Runnable mDataRunnable = new Runnable() {

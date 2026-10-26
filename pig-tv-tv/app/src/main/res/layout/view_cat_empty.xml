@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    分类页「这个接口没有分类」状态页。
+
+    原来的分类页第一格永远是原版 TVBox 的 UserFragment（历史/直播/搜索/收藏/推送/文件
+    六个旧快捷入口 + 豆瓣热播）。v8 顶栏已经把这些入口全收进导航了，再露一次就是
+    两套 UI 撞在一起，用户看到只会以为「出 bug 了」。
+
+    所以：站点没有真实分类时，不再切到那一页，而是停在这里把原因讲清楚。
+    视觉语言与直播空态、全局空态一致：小标签 + 大标题 + 细线 + 操作提示。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF0B0A0C">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="3.8mm"
+                android:layout_height="3.8mm"
+                android:background="@drawable/h_dot_accent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5.7mm"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.2"
+                android:text="CATEGORY"
+                android:textColor="#8CFFFFFF"
+                android:textSize="9mm" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="9mm"
+            android:includeFontPadding="false"
+            android:text="这个接口没有分类"
+            android:textColor="#FFFFFFFF"
+            android:textSize="@dimen/ts_24"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8mm"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.5"
+            android:text="当前片源只给了首页推荐，没有可浏览的分类。\n在顶栏换一个片源，或回到「推荐」看首页内容。"
+            android:textColor="#8CFFFFFF"
+            android:textSize="@dimen/ts_15" />
+
+        <View
+            android:layout_width="40mm"
+            android:layout_height="1.2mm"
+            android:layout_marginTop="20mm"
+            android:background="#26FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14mm"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.04"
+            android:text="按 ← 回「推荐」　·　按 BACK 回首页"
+            android:textColor="#59FFFFFF"
+            android:textSize="@dimen/ts_14" />
+
+    </LinearLayout>
+
+</FrameLayout>

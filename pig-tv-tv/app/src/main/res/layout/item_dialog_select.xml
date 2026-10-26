@@ -1,17 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/tvName"
+<!-- 弹层列表项：默认暗底细描边，焦点白底反黑，当前项金描边 + 金点。
+     不再用「√ 名字」标当前项——字符前缀会把整行文字推歪。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_gravity="center"
-    android:background="@drawable/button_dialog_main"
+    android:background="@drawable/v8_dialog_item_bg"
     android:clickable="true"
     android:focusable="true"
-    android:gravity="center"
-    android:padding="@dimen/vs_10"
-    android:text="@{name}"
-    android:textColor="@color/color_FFFFFF"
-    android:textSize="@dimen/ts_24"
-    tools:text="Source Name" />
+    android:focusableInTouchMode="false"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/vs_60"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/vs_15"
+    android:paddingTop="@dimen/vs_10"
+    android:paddingEnd="@dimen/vs_12"
+    android:paddingBottom="@dimen/vs_10">
+
+    <TextView
+        android:id="@+id/tvName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:duplicateParentState="true"
+        android:ellipsize="end"
+        android:gravity="start|center_vertical"
+        android:singleLine="true"
+        android:textColor="@color/v8_dialog_item_tx"
+        android:textSize="@dimen/ts_18" />
+
+    <View
+        android:id="@+id/dot"
+        android:layout_width="7mm"
+        android:layout_height="7mm"
+        android:layout_marginStart="6mm"
+        android:background="@drawable/h_dot_accent"
+        android:visibility="gone" />
+
+</LinearLayout>
