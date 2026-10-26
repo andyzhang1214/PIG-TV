@@ -24,11 +24,16 @@
 </head>
 <body>
 
-<div id="bg"></div>
+<!-- #amb 是「当前海报的模糊环境光」：同一张图放大 1.36 倍 + blur + 提饱和，
+     铺满整屏再压一层半透明黑。不取像素求主色 —— WebView 里 canvas 读跨域图
+     会被污染，取色还要多一条原生桥；模糊同一张图观感几乎一样且零成本。 -->
+<div id="bg"><div id="amb"></div></div>
 
 <div id="scroll">
 
   <!-- ================= 首页 ================= -->
+  <!-- v11：首屏就是一部片。hero 全出血（.hdr 也悬浮在它上面），
+       原来那条搜索胶囊移到右上角圆钮里，省下 60dp 给海报。 -->
   <section id="pH" class="page on">
     <div class="hdr">
       <div>
@@ -37,14 +42,13 @@
           <svg class="ic hdrArrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg>
         </div>
       </div>
+      <div class="hbtn" onclick="openSearch()">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+      </div>
     </div>
 
-    <div class="search" onclick="openSearch()">
-      <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-      <div class="ph">搜片名、演员、类型</div>
-      <!-- 右侧原来有个「问 AI」圆钮，2026-10-22 整页删除 AI 后这里也一起去掉 -->
-    </div>
-
+    <!-- 内容全部由 renderHero() 渲染：信息区（标签/片名/meta/简介/按钮）
+         压在 .heroBot 里，占位态会自动退回圆角卡片 -->
     <div class="hero" id="hero" onclick="heroClick()"></div>
 
     <!-- 冷启动先铺上一次的首页数据时，必须让用户知道「这是旧的」。
@@ -53,8 +57,14 @@
 
     <!-- 分类入口已移除：底部 Tab 里就是分类，首页不再重复一排图标 -->
 
+    <!-- 继续观看：回访用户最常用的入口，所以提到首屏第二块 -->
     <div id="contWrap" style="display:none">
-      <div class="sec"><div><span class="secT">继续观看</span></div></div>
+      <div class="sec">
+        <div><span class="secT">继续观看</span></div>
+        <div class="more" onclick="go('me')">全部
+          <svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+      </div>
       <div class="crow" id="crow"></div>
     </div>
 
@@ -74,7 +84,13 @@
     <!-- 和其它页一样有一个「分类」标题：纯粹是为了把 chips 从状态栏底下顶下来。
          没有标题时 chips 会贴在 y=14px，被状态栏的时间和挖孔屏前摄压住
          （.hdr 自带 calc(26px + var(--sat))，安全区由原生注入）。 -->
-    <div class="hdr"><div><span class="htitle">分类</span></div></div>
+    <div class="hdr">
+      <div><span class="htitle">分类</span></div>
+      <!-- 和首页同一个搜索入口：搜索是全局动作，不占底部 Tab 格位 -->
+      <div class="hbtn" onclick="openSearch()">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+      </div>
+    </div>
     <!-- 分类 chips 和筛选条直接排在页面顶部（不吸顶、不做「更多」收纳）：
          片源给十几个分类时宁可让这一行横向滚，也别把它们藏起来。 -->
     <div class="chips" id="catChips"></div>
@@ -214,7 +230,7 @@
   <section id="pL" class="page">
     <div class="hdr">
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="back" onclick="go('me')" style="margin:0">
+        <div class="back" onclick="backFromList()" style="margin:0">
           <svg class="ic" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7"/></svg>
         </div>
         <div class="htitle" id="listTitle">收藏</div>
@@ -242,6 +258,13 @@
   <div class="tab" data-p="live" onclick="go('live')">
     <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2.2"/><path d="M8 8V5.6M16 8V5.6"/><circle cx="12" cy="14" r="2.1" fill="currentColor" stroke="none"/></svg>
     <span>直播</span>
+  </div>
+  <!-- 第四个 Tab：收藏。原来只能从「我的」里点进去，v11 把它提到一级入口
+       （回访用户除了继续观看，第二个高频动作就是打开收藏）。
+       走的是同一个 openListPage('fav')，没有新增页面，也没新增桥方法。 -->
+  <div class="tab" data-p="fav" onclick="openListPage('fav')">
+    <svg class="ic" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.7-7.5-9.4A4.1 4.1 0 0 1 12 7.6a4.1 4.1 0 0 1 7.5 3C19.5 15.3 12 20 12 20Z"/></svg>
+    <span>收藏</span>
   </div>
   <div class="tab" data-p="me" onclick="go('me')">
     <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.6-3.6 3.6-5.6 7.2-5.6s6.6 2 7.2 5.6"/></svg>
@@ -509,15 +532,20 @@ function artImg(v){
 /* =====================================================================
    卡片
    ===================================================================== */
+/* v11 的卡：.pc 是外层（可点），.pcPoster 才是 2:3 的海报区，
+   .pcT 落到卡下面 —— 源站海报本身就常带片名/宣传语，
+   再压一层中文标题会打架，所以标题一律放卡外。 */
 function posterHTML(v, idx, cls, hook){
+  var stat = nz(v.note) || metaLine(v);
   return '<div class="pc ' + (cls || '') + '" onclick="' + (hook || 'openDetail') + '(' + idx + ')">' +
-    '<div class="pcArt" style="' + artBg(v) + '">' + artImg(v) + '</div>' +
-    '<div class="pcMute"></div>' +
-    '<div class="pcCh">' + esc(nz(v.name).charAt(0) || '猪') + '</div>' +
-    '<div class="pcScrim"></div>' +
-    (cls === 'sm' ? '' : (idx === 0 ? '<div class="pcBadge hot">热播</div>' : '')) +
+    '<div class="pcPoster">' +
+      '<div class="pcArt" style="' + artBg(v) + '">' + artImg(v) + '</div>' +
+      '<div class="pcCh">' + esc(nz(v.name).charAt(0) || '猪') + '</div>' +
+      '<div class="pcScrim"></div>' +
+      (cls === 'sm' ? '' : (idx === 0 ? '<div class="pcBadge hot">热播</div>' : '')) +
+      (stat ? '<div class="pcB">' + esc(stat) + '</div>' : '') +
+    '</div>' +
     '<div class="pcT">' + esc(v.name) + '</div>' +
-    '<div class="pcB">' + esc(metaLine(v)) + '</div>' +
   '</div>';
 }
 function metaLine(v){
@@ -532,12 +560,34 @@ function metaLine(v){
 /* =====================================================================
    首页
    ===================================================================== */
+/* 从 note 里抠总集数：「更新至 12 集」「全 40 集」「共 8 集」都认，
+   抠不到返回 0（历史里的进度条就靠它算百分比，没有就整条不画） */
+function epsOf(note){
+  var m = /(?:共|全|更新至|更新到)\s*(\d+)\s*集/.exec(String(note || ''));
+  return m ? Number(m[1]) : 0;
+}
+
+/* 环境光：把当前这张海报丢给 #amb，CSS 负责放大模糊。
+   没有图（占位态 / 源站没给 pic）就整层淡出，退回 #bg 的渐变兜底。 */
+function setAmb(pic){
+  var el = document.getElementById('amb');
+  if (!el) return;
+  if (pic){
+    el.style.backgroundImage = 'url("' + String(pic).replace(/["\\]/g, '') + '")';
+    el.classList.add('on');
+  } else {
+    el.classList.remove('on');
+    el.style.backgroundImage = '';
+  }
+}
+
 function renderHero(){
   var el = document.getElementById('hero');
   /* 占位态（没片 / 加载中 / 出错）没有海报，hero 就不该再套「深色渐变 + 恒白字」，
      否则浅色主题下就是白字压米白底 —— 等于没有字。 */
   el.classList.toggle('ph', !ST.hero.length);
   if (!ST.hero.length){
+    setAmb('');
     /* 组件还在下载：把进度条接着显示出来，别切个 Tab 回来就退回「还没有内容」 */
     if (!ST.err && jarProg.got){ onJarProgress(jarProg); return; }
     el.innerHTML =
@@ -560,19 +610,89 @@ function renderHero(){
     return;
   }
   var v = ST.hero[ST.heroIdx % ST.hero.length];
+  setAmb(v.pic);
   el.innerHTML =
-    '<div class="heroArt" style="' + heroGrad() + '">' + artImg(v) +
-      '<div class="ring" style="left:-18%;top:-30%;width:74%;padding-bottom:74%"></div>' +
-    '</div>' +
+    /* 底色按片名哈希取色（每部片不一样），image 盖在上面。
+       源站没给 pic 时下面还有一层首字水印，不至于是一块纯黑。 */
+    '<div class="heroArt" style="' + artBg(v) + '">' + artImg(v) + '</div>' +
+    '<div class="heroCh">' + esc(nz(v.name).charAt(0) || '猪') + '</div>' +
     '<div class="heroScrim"></div>' +
-    '<div class="heroTag">今日推荐</div>' +
     '<div class="heroNum">0' + ((ST.heroIdx % ST.hero.length) + 1) + ' / 0' + ST.hero.length + '</div>' +
     '<div class="heroBot">' +
+      '<span class="heroTag">今日推荐</span>' +
       '<div class="heroT">' + esc(v.name) + '</div>' +
-      '<div class="heroM">' + esc(metaLine(v)) + '</div>' +
-      '<div class="heroD">' + esc((v.des || v.note || '').replace(/\s+/g, ' ').slice(0, 60)) + '</div>' +
-    '</div>' +
-    '<div class="playBtn"><svg class="ic" viewBox="0 0 24 24"><path d="M8 5.4l11 6.6-11 6.6z"/></svg></div>';
+      '<div class="heroM">' + heroMeta(v) + '</div>' +
+      '<div class="heroD">' + esc((v.des || v.note || '').replace(/\s+/g, ' ').slice(0, 70)) + '</div>' +
+      heroTags(v) +
+      '<div class="heroActs">' +
+        /* 「立即播放」直接开播：PhoneBridge.play 的 flag 传空会自动取第一条线路、
+           第一集（startPlay 里 flag 为空就 fallback 到 seriesMap 的 keySet 首项），
+           所以不需要先去详情页转一圈。 */
+        '<div class="heroBtn play" onclick="heroPlay(event)">' +
+          '<svg class="ic" viewBox="0 0 24 24"><path d="M8 5.4l11 6.6-11 6.6z"/></svg>立即播放' +
+        '</div>' +
+        '<div class="heroBtn ghost" id="heroFavBtn" onclick="heroFav(event)">' +
+          '<svg class="ic" viewBox="0 0 24 24"><path d="M6.5 4.5h11v15l-5.5-4-5.5 4z"/></svg>收藏' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  paintHeroFav();
+}
+
+/* meta 行：年份加粗吃品牌色，竖线分隔。设计稿的顺序是 年份 / 地区 / 类型 / 更新备注 */
+function heroMeta(v){
+  var p = [];
+  if (v.year) p.push('<b>' + esc(v.year) + '</b>');
+  if (v.area) p.push(esc(v.area));
+  if (v.type) p.push(esc(v.type));
+  if (v.note) p.push(esc(v.note));
+  return p.length ? p.join('<i></i>') : esc(metaLine(v));
+}
+
+/* 标签排：全部是我们接口真有的字段。
+   刻意不用红绿 —— 影视语境里红绿会被读成「好评 / 差评」，
+   所以统一走橙色系，只在「更新进度」这一枚上用 hot。
+   注意不要从 note 里再解析一遍集数补第四枚：note 本身就是「全 40 集」，
+   补出来会是两枚一模一样的数字。 */
+function heroTags(v){
+  var t = [];
+  if (v.note) t.push('<span class="hot">' + esc(v.note) + '</span>');
+  if (v.lang) t.push('<span>' + esc(v.lang) + '</span>');
+  if (v.area) t.push('<span>' + esc(v.area) + '</span>');
+  if (v.year && !v.area) t.push('<span>' + esc(v.year) + '</span>');
+  return t.length ? '<div class="heroTags">' + t.join('') + '</div>' : '';
+}
+
+/* 首屏「立即播放」：不和 heroClick 抢事件（父容器 onclick 是进详情） */
+function heroPlay(e){
+  if (e && e.stopPropagation) e.stopPropagation();
+  var v = ST.hero[ST.heroIdx % ST.hero.length];
+  if (!v || !nz(v.id)){ heroClick(); return; }
+  AndroidPhone.play(nz(v.key), nz(v.id), '', '0');
+}
+
+function heroFav(e){
+  if (e && e.stopPropagation) e.stopPropagation();
+  var v = ST.hero[ST.heroIdx % ST.hero.length];
+  if (!v || !nz(v.id)) return;
+  ncall('favToggle', [nz(v.key), nz(v.id), nz(v.name), nz(v.pic)], function(r){
+    toast(r && r.fav ? '已收藏' : '已取消收藏');
+    var b = document.getElementById('heroFavBtn');
+    if (b) b.classList.toggle('on', !!(r && r.fav));
+    loadHist();
+  });
+}
+
+/* 进首页时把收藏态回填到首屏按钮上（换片 / 冷启动都要重新问一次） */
+function paintHeroFav(){
+  var v = ST.hero[ST.heroIdx % ST.hero.length];
+  var b = document.getElementById('heroFavBtn');
+  if (!b || !v || !nz(v.id)) return;
+  b.classList.remove('on');
+  ncall('isFav', [nz(v.key), nz(v.id)], function(r){
+    var btn = document.getElementById('heroFavBtn');
+    if (btn) btn.classList.toggle('on', !!(r && r.fav));
+  });
 }
 
 function bindHeroSwipe(){
@@ -600,18 +720,35 @@ function heroClick(){
 /* 首页分类入口（#cats）、ICONS / ic() / catIcon() 已随 2026-10 的分类页重构一起删除：
    底部 Tab 直接进分类页，首页那块九宫格不再存在，留着是纯死代码。 */
 
+/* 历史的进度：本地只存了「看到第几集」和 playNote，没有总集数和观看时长。
+   总集数从 note（更新至 12 集 / 全 40 集）里解析，解析不到就不画进度条 ——
+   宁可少一根线，也不要拿随机数糊一个看着像真的百分比。 */
+function histProg(v){
+  var ep = Number(v.ep || 0) + 1;
+  var total = epsOf(v.note);
+  var pct = total > 1 ? Math.min(100, Math.max(4, Math.round(ep / total * 100))) : 0;
+  return {
+    ep: ep >= 1 && v.ep != null ? ('第 ' + (ep < 10 ? '0' + ep : ep) + ' 集') : '',
+    pct: pct,
+    sub: [v.year, v.type].filter(Boolean).join(' · ') || '继续观看'
+  };
+}
+
 function renderCont(){
   var wrap = document.getElementById('contWrap');
   if (!ST.hist.length){ wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
   document.getElementById('crow').innerHTML = ST.hist.slice(0, 8).map(function(v, i){
+    var p = histProg(v);
     return '<div class="cw" onclick="openHist(' + i + ')">' +
       '<div class="cwT" style="' + artBg(v) + '">' + artImg(v) +
-        '<div class="cwBig">' + esc(nz(v.name).charAt(0)) + '</div>' +
-        '<div class="cwP"><i style="width:' + (28 + (i * 9) % 60) + '%"></i></div>' +
+        '<div class="cwScrim"></div>' +
+        '<div class="cwPlay"><svg class="ic" viewBox="0 0 24 24"><path d="M8 5.4l11 6.6-11 6.6z"/></svg></div>' +
+        (p.ep ? '<div class="cwEp">' + esc(p.ep) + '</div>' : '') +
+        (p.pct ? '<div class="cwP"><i style="width:' + p.pct + '%"></i></div>' : '') +
       '</div>' +
       '<div class="cwN">' + esc(v.name) + '</div>' +
-      '<div class="cwS">' + esc(v.note || '继续观看') + '</div>' +
+      '<div class="cwS">' + esc(p.sub) + '</div>' +
     '</div>';
   }).join('');
 }
@@ -1922,6 +2059,9 @@ function resetLive(){ liveSt = {loaded:false, loading:false, seq:liveSt.seq + 1,
    收藏 / 历史 列表页
    ===================================================================== */
 function openListPage(kind){
+  /* 记下来是从哪一页进来的：底栏「收藏」是全局入口，点进去再返回时
+     要回到原来那一页，不能一律跳「我的」。 */
+  state.listFrom = state.page || 'me';
   go('list');
   var list = kind === 'fav' ? ST.fav : ST.hist;
   document.getElementById('listTitle').textContent = kind === 'fav' ? '我的收藏' : '观看历史';
@@ -1933,14 +2073,20 @@ function openListPage(kind){
   grid.innerHTML = list.map(function(v, i){
     return '<div class="pc sm" onclick="' +
       (kind === 'fav' ? 'openDetailByVod(ST.fav[' + i + '])' : 'openHist(' + i + ')') + '">' +
-      '<div class="pcArt" style="' + artBg(v) + '">' + artImg(v) + '</div>' +
-      '<div class="pcMute"></div>' +
-      '<div class="pcCh">' + esc(nz(v.name).charAt(0)) + '</div>' +
-      '<div class="pcScrim"></div>' +
+      '<div class="pcPoster">' +
+        '<div class="pcArt" style="' + artBg(v) + '">' + artImg(v) + '</div>' +
+        '<div class="pcCh">' + esc(nz(v.name).charAt(0)) + '</div>' +
+        '<div class="pcScrim"></div>' +
+        '<div class="pcB">' + esc(v.note || metaLine(v)) + '</div>' +
+      '</div>' +
       '<div class="pcT">' + esc(v.name) + '</div>' +
-      '<div class="pcB">' + esc(v.note || metaLine(v)) + '</div>' +
     '</div>';
   }).join('');
+}
+
+/* 列表页的返回：回到进来之前那一页 */
+function backFromList(){
+  go(state.listFrom || 'me');
 }
 
 /* =====================================================================
@@ -2563,7 +2709,9 @@ function go(p){
     var el = document.getElementById(map[k]);
     if (el) el.classList.toggle('on', k === p);
   });
-  var tabOf = {home:'home', cat:'cat', live:'live', me:'me', list:'me'};
+  /* tabOf：列表页（收藏/历史）算在「收藏」这一格上，
+     这样从底栏点「收藏」进来时高亮的是收藏，而不是「我的」 */
+  var tabOf = {home:'home', cat:'cat', live:'live', me:'me', list:'fav'};
   document.querySelectorAll('.tab').forEach(function(t){
     t.classList.toggle('on', t.dataset.p === tabOf[p]);
   });

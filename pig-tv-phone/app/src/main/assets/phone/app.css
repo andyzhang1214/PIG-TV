@@ -1,117 +1,101 @@
 /* =====================================================================
-   主题变量
+   猪猪影视 · 手机版 v11（海报先行）
    ---------------------------------------------------------------------
+   这一版把「整屏海报 + 色调跟着海报走」的语言落到真机上：
+     · 首页首屏就是一部片，竖图铺满，片名 40px
+     · 背景环境光用同一张海报放大模糊，不取像素
+     · 卡片统一成「海报 + 卡下片名」，3 列墙
+     · 底栏是悬浮胶囊，选中项橙底橙图标
+
+   铁律（改这个文件前先读）：
+     1) 海报/hero 上的文字恒为白色 —— 底下永远是深色遮罩，
+        跟着 --tx 走的话浅色主题下会变成深字压深底，直接看不见。
+     2) 页面正文只能走 --tx / --tx2 / --tx3，不能写死白/黑。
+     3) 所有尺寸用 --pad / --tabh 这类变量，pad.css 靠覆盖它们适配平板，
+        在具体规则里写死像素会让两套样式打架。
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   主题变量
    深色是默认值；浅色由两处触发：
      1) @media (prefers-color-scheme:light) —— 未指定主题时跟随系统
      2) html[data-theme="light"]            —— 原生按用户选择注入
-   注意 media 那条必须写成 :root:not([data-theme])：
+   media 那条必须写成 :root:not([data-theme])：
    用户手动选了「浅色」而系统是深色时，WebView 的 prefers-color-scheme 仍是 dark，
    只有让 media 块在已有 data-theme 时整体失效，才能做到「手动压过系统」。
-   反之手动选「深色」而系统是浅色时，data-theme="dark" 不命中任何浅色规则 → 回落 :root。
-   ===================================================================== */
+   --------------------------------------------------------------------- */
 :root{
-    color-scheme:dark;
-    /* --ink 是「正文色的 rgb 三元组」，所有半透明覆盖层都写成 rgba(var(--ink),a)，
-       这样一套规则能同时服务白字深底和黑字浅底 */
-    --ink:255,255,255;
-    --bg:#07070A;
-    --tx:#FFFFFF;
-    --tx2:rgba(255,255,255,.62);
-    --tx3:rgba(255,255,255,.40);
-    --ac:#FF7A45;
-    --ac2:#FFB454;
-    --err:#FF6B6B;              /* 失败提示：不能和 12px 灰字一个待遇，否则用户以为没反应 */
-    --tint:255,90,60;
-    --card:rgba(255,255,255,.065);
-    --card2:rgba(255,255,255,.11);
-    --line:rgba(255,255,255,.085);
-    --divider:rgba(255,255,255,.055);
-    --sheet:#0B0B11;            /* 详情面板、搜索层的实底 */
-    --sheet-rgb:11,11,17;
-    --panel:#16161D;            /* 确认弹窗 */
-    --overlay:rgba(6,5,8,.96);  /* 配置 / 换源这类全屏层 */
-    --tabBg:rgba(9,9,13,.92);
-    --btnSolid:#FFFFFF;         /* 主按钮实底 */
-    --btnInk:#14100C;           /* 主按钮上的字 */
-    --posterBg:#15151C;         /* 海报没加载出来时的占位底 */
-    --scrim:rgba(0,0,0,.82);
-    --mask:rgba(0,0,0,.66);
-    --shadowHero:0 20px 44px rgba(0,0,0,.6);
-    --shadowCard:0 8px 20px rgba(0,0,0,.4);
-    --noise:.05;
-    /* 背景：左上暖红光 + 右上紫光 + 底部冷蓝，压一层暗角 */
-    --bgGrad:
-      radial-gradient(520px 380px at 18% 2%,rgba(196,28,34,.52),transparent 66%),
-      radial-gradient(420px 340px at 88% 10%,rgba(118,18,64,.34),transparent 70%),
-      radial-gradient(700px 520px at 50% 106%,rgba(26,30,58,.42),transparent 74%),
-      linear-gradient(172deg,#0C0509 0%,#08060A 42%,#050506 100%);
-    --bgVig:radial-gradient(120% 78% at 50% 34%,transparent 42%,rgba(0,0,0,.58) 100%);
-    --ease:cubic-bezier(.22,1,.36,1);
-    --tabh:62px;
-    /* 底部 Dock（iOS 悬浮玻璃条）。背景/描边/顶部高光/落影/选中态全在这几个变量里，
-       深色是默认值，两套浅色在下面各自覆盖 —— 别在 #tabs 里写死颜色，
-       否则浅色模式下会出现「浅底上压一块黑玻璃」。 */
-    --dockBg:rgba(20,20,26,.78);
-    --dockLine:rgba(255,255,255,.10);
-    --dockHi:rgba(255,255,255,.20);   /* 顶边那道高光，玻璃质感主要靠它 */
-    --dockShadow:0 14px 34px rgba(0,0,0,.52),0 2px 8px rgba(0,0,0,.38);
-    --dockSel:rgba(255,122,69,.17);
-    --dockSelLine:rgba(255,122,69,.30);
-    /* 状态栏 / 导航栏高度：Android WebView 的 env(safe-area-inset-*) 恒为 0，
-       实际值由原生 PhoneActivity 在页面加载后注入（--sat / --sab）。 */
-    --sat:env(safe-area-inset-top,0px);
-    --sab:env(safe-area-inset-bottom,0px);
-  }
-  /* 浅色：暖米白底 + 同样的三个光斑，只是淡很多，避免白得像张纸。
-     :not([data-theme]) 表示「用户还没做选择」，这时才跟随系统。 */
-  @media (prefers-color-scheme:light){
-    :root:not([data-theme]){
-      color-scheme:light;
-      --ink:23,24,28;
-      --bg:#F5F1EC;
-      --tx:#17181C;
-      --tx2:rgba(23,24,28,.64);
-      --tx3:rgba(23,24,28,.50);
-      --ac:#E25A1E;
-      --ac2:#F08A2C;
-      --err:#C62828;
-      --tint:210,80,30;
-      --card:rgba(255,255,255,.62);
-      --card2:rgba(255,255,255,.92);
-      --line:rgba(23,24,28,.10);
-      --divider:rgba(23,24,28,.07);
-      --sheet:#FFFFFF;
-      --sheet-rgb:255,255,255;
-      --panel:#FFFFFF;
-      --overlay:rgba(250,247,243,.985);
-      --tabBg:rgba(252,249,245,.92);
-      --btnSolid:#17181C;
-      --btnInk:#FFFFFF;
-      --posterBg:#E5E0D9;
-      --scrim:rgba(0,0,0,.55);
-      --mask:rgba(48,38,30,.40);
-      --shadowHero:0 18px 36px rgba(70,45,30,.16);
-      --shadowCard:0 8px 18px rgba(70,45,30,.12);
-      --noise:.028;
-      --bgGrad:
-        radial-gradient(520px 380px at 18% 2%,rgba(255,140,100,.26),transparent 66%),
-        radial-gradient(420px 340px at 88% 10%,rgba(255,190,130,.22),transparent 70%),
-        radial-gradient(700px 520px at 50% 106%,rgba(150,160,205,.24),transparent 74%),
-        linear-gradient(172deg,#FDF9F4 0%,#F6F2EC 44%,#EFEAE3 100%);
-      --bgVig:radial-gradient(120% 78% at 50% 34%,transparent 50%,rgba(150,135,120,.22) 100%);
-      --dockBg:rgba(255,255,255,.82);
-      --dockLine:rgba(23,24,28,.09);
-      --dockHi:rgba(255,255,255,.90);
-      --dockShadow:0 12px 28px rgba(70,45,30,.16),0 1px 3px rgba(70,45,30,.10);
-      --dockSel:rgba(226,90,30,.12);
-      --dockSelLine:rgba(226,90,30,.26);
-    }
-  }
-  /* 原生兜底：老 WebView 不认识 prefers-color-scheme 时靠这个属性切 */
-  html[data-theme="light"]{
+  color-scheme:dark;
+
+  /* --ink 是「正文色的 rgb 三元组」，所有半透明覆盖层都写成 rgba(var(--ink),a)，
+     这样一套规则能同时服务白字深底和黑字浅底 */
+  --ink:255,255,255;
+  --bg:#07070A;
+  --bg-rgb:7,7,10;
+  --tx:#FFFFFF;
+  --tx2:rgba(255,255,255,.64);
+  --tx3:rgba(255,255,255,.42);
+
+  /* 品牌色：橙金。全站的主按钮、选中态、强调数字都用这两个 */
+  --ac:#FF7A45;
+  --ac2:#FFB454;
+  --acInk:#241005;              /* 压在橙底上的字 */
+  --err:#FF6B6B;
+  --tint:255,90,60;
+
+  --card:rgba(255,255,255,.065);
+  --card2:rgba(255,255,255,.11);
+  --line:rgba(255,255,255,.085);
+  --divider:rgba(255,255,255,.055);
+
+  --sheet:#0B0B11;
+  --sheet-rgb:11,11,17;
+  --panel:#16161D;
+  --overlay:rgba(6,5,8,.96);
+  --tabBg:rgba(9,9,13,.92);
+  --btnSolid:#FFFFFF;
+  --btnInk:#14100C;
+  --posterBg:#15151C;
+  --scrim:rgba(0,0,0,.82);
+  --mask:rgba(0,0,0,.66);
+  --shadowHero:0 20px 44px rgba(0,0,0,.6);
+  --shadowCard:0 8px 20px rgba(0,0,0,.4);
+  --noise:.05;
+
+  /* 页面底：v11 起大面积交给「海报环境光」，这层只做兜底，
+     所以比原来那套红紫光斑克制得多，避免和海报自身的色调打架 */
+  --bgGrad:
+    radial-gradient(520px 420px at 16% 0%,rgba(196,28,34,.22),transparent 68%),
+    radial-gradient(460px 380px at 90% 8%,rgba(118,18,64,.16),transparent 72%),
+    linear-gradient(178deg,#0B0509 0%,#08060A 46%,#050506 100%);
+  --bgVig:radial-gradient(122% 80% at 50% 30%,transparent 44%,rgba(0,0,0,.56) 100%);
+
+  --ease:cubic-bezier(.22,1,.36,1);
+  --tabh:64px;
+  --pad:20px;
+
+  /* 底部 Dock（悬浮玻璃条）。背景/描边/顶部高光/落影/选中态全在这几个变量里，
+     深色是默认值，两套浅色在下面各自覆盖 —— 别在 #tabs 里写死颜色，
+     否则浅色模式下会出现「浅底上压一块黑玻璃」。 */
+  --dockBg:rgba(12,12,16,.74);
+  --dockLine:rgba(255,255,255,.10);
+  --dockHi:rgba(255,255,255,.18);
+  --dockShadow:0 16px 38px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.38);
+  --dockSel:rgba(255,122,69,.17);
+  --dockSelLine:rgba(255,122,69,.32);
+
+  /* 状态栏 / 导航栏高度：Android WebView 的 env(safe-area-inset-*) 恒为 0，
+     实际值由原生 PhoneActivity 在页面加载后注入（--sat / --sab）。 */
+  --sat:env(safe-area-inset-top,0px);
+  --sab:env(safe-area-inset-bottom,0px);
+}
+/* 浅色：暖米白底。:not([data-theme]) 表示「用户还没做选择」，这时才跟随系统。 */
+@media (prefers-color-scheme:light){
+  :root:not([data-theme]){
     color-scheme:light;
     --ink:23,24,28;
     --bg:#F5F1EC;
+    --bg-rgb:245,241,236;
     --tx:#17181C;
     --tx2:rgba(23,24,28,.64);
     --tx3:rgba(23,24,28,.50);
@@ -137,385 +121,553 @@
     --shadowCard:0 8px 18px rgba(70,45,30,.12);
     --noise:.028;
     --bgGrad:
-      radial-gradient(520px 380px at 18% 2%,rgba(255,140,100,.26),transparent 66%),
-      radial-gradient(420px 340px at 88% 10%,rgba(255,190,130,.22),transparent 70%),
-      radial-gradient(700px 520px at 50% 106%,rgba(150,160,205,.24),transparent 74%),
-      linear-gradient(172deg,#FDF9F4 0%,#F6F2EC 44%,#EFEAE3 100%);
-    --bgVig:radial-gradient(120% 78% at 50% 34%,transparent 50%,rgba(150,135,120,.22) 100%);
-    --dockBg:rgba(255,255,255,.82);
+      radial-gradient(520px 420px at 16% 0%,rgba(255,140,100,.18),transparent 68%),
+      radial-gradient(460px 380px at 90% 8%,rgba(255,190,130,.14),transparent 72%),
+      linear-gradient(178deg,#FDF9F4 0%,#F6F2EC 46%,#EFEAE3 100%);
+    --bgVig:radial-gradient(122% 80% at 50% 30%,transparent 52%,rgba(150,135,120,.20) 100%);
+    --dockBg:rgba(255,255,255,.84);
     --dockLine:rgba(23,24,28,.09);
     --dockHi:rgba(255,255,255,.90);
     --dockShadow:0 12px 28px rgba(70,45,30,.16),0 1px 3px rgba(70,45,30,.10);
     --dockSel:rgba(226,90,30,.12);
     --dockSelLine:rgba(226,90,30,.26);
   }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{
-    margin:0;height:100%;background:var(--bg);color:var(--tx);overflow:hidden;
-    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
-    font-size:14px;user-select:none;-webkit-font-smoothing:antialiased;
-  }
-  svg{display:block}
-  .ic{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+}
+/* 原生兜底：老 WebView 不认识 prefers-color-scheme 时靠这个属性切 */
+html[data-theme="light"]{
+  color-scheme:light;
+  --ink:23,24,28;
+  --bg:#F5F1EC;
+  --bg-rgb:245,241,236;
+  --tx:#17181C;
+  --tx2:rgba(23,24,28,.64);
+  --tx3:rgba(23,24,28,.50);
+  --ac:#E25A1E;
+  --ac2:#F08A2C;
+  --err:#C62828;
+  --tint:210,80,30;
+  --card:rgba(255,255,255,.62);
+  --card2:rgba(255,255,255,.92);
+  --line:rgba(23,24,28,.10);
+  --divider:rgba(23,24,28,.07);
+  --sheet:#FFFFFF;
+  --sheet-rgb:255,255,255;
+  --panel:#FFFFFF;
+  --overlay:rgba(250,247,243,.985);
+  --tabBg:rgba(252,249,245,.92);
+  --btnSolid:#17181C;
+  --btnInk:#FFFFFF;
+  --posterBg:#E5E0D9;
+  --scrim:rgba(0,0,0,.55);
+  --mask:rgba(48,38,30,.40);
+  --shadowHero:0 18px 36px rgba(70,45,30,.16);
+  --shadowCard:0 8px 18px rgba(70,45,30,.12);
+  --noise:.028;
+  --bgGrad:
+    radial-gradient(520px 420px at 16% 0%,rgba(255,140,100,.18),transparent 68%),
+    radial-gradient(460px 380px at 90% 8%,rgba(255,190,130,.14),transparent 72%),
+    linear-gradient(178deg,#FDF9F4 0%,#F6F2EC 46%,#EFEAE3 100%);
+  --bgVig:radial-gradient(122% 80% at 50% 30%,transparent 52%,rgba(150,135,120,.20) 100%);
+  --dockBg:rgba(255,255,255,.84);
+  --dockLine:rgba(23,24,28,.09);
+  --dockHi:rgba(255,255,255,.90);
+  --dockShadow:0 12px 28px rgba(70,45,30,.16),0 1px 3px rgba(70,45,30,.10);
+  --dockSel:rgba(226,90,30,.12);
+  --dockSelLine:rgba(226,90,30,.26);
+}
 
-  /* ---------- 背景 ----------
-     三层：渐变光斑（--bgGrad）→ 暗角/亮角（--bgVig）→ 极细噪点。
-     噪点那层用 SVG 的 feTurbulence 生成，不到 1KB，深浅两套通用，
-     作用是把大面积渐变的色带打散，看着不像"糊了一层"。
-     主题切换时只换变量，不重排 DOM。 */
-  #bg{position:fixed;inset:0;z-index:0;pointer-events:none;
-    background:var(--bgGrad);transition:background .3s linear}
-  #bg::after{content:"";position:absolute;inset:0;background:var(--bgVig)}
-  #bg::before{content:"";position:absolute;inset:0;opacity:var(--noise);pointer-events:none;
-    background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{
+  margin:0;height:100%;background:var(--bg);color:var(--tx);overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px;user-select:none;-webkit-font-smoothing:antialiased;
+}
+svg{display:block}
+.ic{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 
-  /* ---------- 滚动容器 ---------- */
-  /* Dock 是悬空的（离底 10dp + 安全区），滚动区要按「Dock 顶边」再留白，
-     否则最后一行内容会被玻璃条压住 */
-  #scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;overflow-x:hidden;
-    -webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;
-    padding-bottom:calc(var(--tabh) + var(--sab) + 36px);scrollbar-width:none}
-  #scroll::-webkit-scrollbar{display:none}
+/* ---------- 背景 ----------
+   三层：#amb（当前海报的模糊环境光）→ 渐变光斑 → 暗角 + 极细噪点。
+   环境光才是 v11 的主角，光斑只在没有海报时兜底，所以压得很淡。
+   噪点用 SVG feTurbulence 生成，不到 1KB，作用是把大色块打散，
+   否则 blur 出来的背景会有一圈圈色带。 */
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none;background:var(--bgGrad);
+  transition:background .3s linear}
+#amb{position:absolute;inset:-18%;background-size:cover;background-position:center;
+  filter:blur(46px) saturate(1.7);opacity:0;transition:opacity .55s var(--ease)}
+#amb.on{opacity:.55}
+#amb::after{content:"";position:absolute;inset:0;background:rgba(6,6,9,.52)}
+#bg::after{content:"";position:absolute;inset:0;background:var(--bgVig)}
+#bg::before{content:"";position:absolute;inset:0;opacity:var(--noise);pointer-events:none;
+  background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
 
-  .page{display:none}
-  .page.on{display:block;animation:pin .26s var(--ease)}
-  @keyframes pin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* ---------- 滚动容器 ---------- */
+/* Dock 是悬空的（离底 12dp + 安全区），滚动区要按「Dock 顶边」再留白，
+   否则最后一行内容会被玻璃条压住 */
+#scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;
+  padding-bottom:calc(var(--tabh) + var(--sab) + 40px);scrollbar-width:none}
+#scroll::-webkit-scrollbar{display:none}
 
-  /* ---------- 顶部标题 ---------- */
-  .hdr{padding:calc(26px + var(--sat)) 16px 0;display:flex;
-    align-items:flex-start;justify-content:space-between;gap:12px}
-  .htitle{font-size:23px;font-weight:700;letter-spacing:-.2px;line-height:1.24}
+.page{display:none}
+.page.on{display:block;animation:pin .26s var(--ease)}
+@keyframes pin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-  /* ---------- 搜索条 ---------- */
-  .search{margin:16px 16px 0;height:46px;border-radius:23px;background:var(--card);
-    border:1px solid var(--line);display:flex;align-items:center;gap:9px;padding:0 5px 0 14px;
-    transition:transform .16s var(--ease)}
-  .search:active{transform:scale(.985)}
-  .search > .ic{width:18px;height:18px;color:var(--tx3);flex:0 0 auto}
-  .search .ph{flex:1;font-size:13.5px;color:var(--tx3);white-space:nowrap;
-    overflow:hidden;text-overflow:ellipsis}
-  .mic{width:36px;height:36px;border-radius:18px;background:var(--card2);
-    display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  .mic .ic{width:17px;height:17px;color:rgba(var(--ink),.72)}
+/* ---------- 顶部标题 ---------- */
+/* v11 的标题是「重、紧、大」：行高 1.1、字重 800、字距收紧一点，
+   比原来 700/23px 更有杂志感 */
+.hdr{padding:calc(26px + var(--sat)) var(--pad) 0;display:flex;
+  align-items:flex-start;justify-content:space-between;gap:12px}
+.htitle{font-size:23px;font-weight:800;letter-spacing:-.3px;line-height:1.14}
+/* 首次进入时的副标题（分类页 / 我的页共用） */
+.hsub{margin-top:5px;font-size:11.5px;color:var(--tx3)}
 
-  /* ---------- Hero ---------- */
-  .hero{margin:16px 16px 0;height:208px;border-radius:20px;position:relative;overflow:hidden;
-    box-shadow:var(--shadowHero);transition:transform .18s var(--ease)}
-  .hero:active{transform:scale(.985)}
-  .heroArt{position:absolute;inset:0}
-  .heroArt .ring{position:absolute;border-radius:50%;border:1px solid rgba(var(--ink),.14)}
-  .heroScrim{position:absolute;inset:0;
-    background:linear-gradient(180deg,rgba(0,0,0,.20) 0%,rgba(0,0,0,.04) 34%,rgba(0,0,0,.80) 100%)}
-  .heroTag{position:absolute;left:14px;top:13px;font-size:10.5px;font-weight:650;
-    padding:4px 9px;border-radius:8px;color:#1A1008;
-    background:linear-gradient(135deg,var(--ac),var(--ac2))}
-  .heroNum{position:absolute;right:14px;top:14px;font-size:10.5px;color:rgba(255,255,255,.5);
-    text-shadow:0 1px 6px rgba(0,0,0,.45);
-    font-variant-numeric:tabular-nums;letter-spacing:.5px}
-  .heroBot{position:absolute;left:15px;right:15px;bottom:14px}
-  /* 占位态（没片 / 加载中 / 出错）：卡上没有海报，只有一层主题色底。
-     这种时候不能再套「恒白字 + 深色遮罩」——浅色主题下白字压米白底等于没有字。
-     文字/按钮全部换成跟主题走的变量，深色浅色都对。 */
-  .hero.ph{background:var(--card2);border:1px solid var(--line);box-shadow:var(--shadowCard)}
-  .hero.ph .heroT{color:var(--tx);text-shadow:none}
-  .hero.ph .heroM{color:var(--tx2)}
-  .hero.ph .heroD{color:var(--tx3)}
-  .hero.ph .heroRT{background:rgba(var(--ink),.06);border-color:rgba(var(--ink),.18);
-    color:var(--tx);backdrop-filter:none;-webkit-backdrop-filter:none}
-  .hero.ph .heroRT:active{background:rgba(var(--ink),.12)}
-  /* hero 上的文字恒为白色：.heroScrim 是固定深色渐变（与主题无关），
-     所以标题不能跟着 --tx 走，否则浅色主题下会变成深字压深底。 */
-  .heroT{font-size:20px;font-weight:700;letter-spacing:.2px;color:#fff;
-    text-shadow:0 2px 14px rgba(0,0,0,.5)}
-  .heroM{font-size:11px;color:rgba(255,255,255,.68);margin-top:5px}
-  .heroD{font-size:11px;line-height:1.52;color:rgba(255,255,255,.50);margin-top:6px;
-    padding-right:58px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-    overflow:hidden}
-  .playBtn{position:absolute;right:14px;bottom:14px;width:44px;height:44px;border-radius:22px;
-    background:var(--btnSolid);display:flex;align-items:center;justify-content:center;
-    box-shadow:var(--shadowCard);transition:transform .16s var(--ease)}
-  .playBtn:active{transform:scale(.9)}
-  .playBtn .ic{width:18px;height:18px;color:var(--btnInk);fill:currentColor;stroke:none;margin-left:2px}
+/* ---------- 首页顶栏：悬浮在海报上 ----------
+   首页的 .hdr 不占文档流，hero 才能从 y=0 全出血到状态栏底下。 */
+#pH .hdr{position:absolute;left:0;right:0;z-index:6;
+  top:calc(8px + var(--sat));padding:0 var(--pad);
+  pointer-events:none}
+#pH .hdr > *{pointer-events:auto}
+/* 源名胶囊：半透明玻璃底 + 一点橙点，左上角压在海报上也要能看清 */
+#pH .htitleWrap{display:inline-flex;align-items:center;gap:7px;height:34px;
+  padding:0 12px;border-radius:17px;
+  background:rgba(20,20,26,.52);border:1px solid rgba(255,255,255,.14);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 6px 18px rgba(0,0,0,.28)}
+#pH .htitle{font-size:12.5px;font-weight:700;color:#fff;letter-spacing:0;
+  max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pH .htitleWrap::before{content:"";width:8px;height:8px;border-radius:50%;flex:0 0 auto;
+  background:linear-gradient(140deg,var(--ac),var(--ac2));
+  box-shadow:0 0 0 3px rgba(255,122,69,.18)}
+#pH .hdrArrow{width:13px;height:13px;color:rgba(255,255,255,.7)}
+/* 右上角圆钮：搜索（设计稿把搜索从首页正文移到这颗钮里） */
+.hbtn{width:34px;height:34px;border-radius:17px;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(20,20,26,.52);border:1px solid rgba(255,255,255,.14);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.hbtn .ic{width:17px;height:17px;color:#fff;stroke-width:2}
+.hbtn:active{transform:scale(.94)}
 
-  /* ---------- 区块标题 ---------- */
-  .sec{margin:22px 16px 0;display:flex;align-items:baseline;justify-content:space-between}
-  .secT{font-size:16.5px;font-weight:650;letter-spacing:.1px}
-  .secS{font-size:10.5px;color:var(--tx3);margin-left:7px;font-weight:400}
-  .more{font-size:11.5px;color:var(--tx3);display:flex;align-items:center;gap:1px}
-  .more .ic{width:13px;height:13px}
-
-  /* ---------- 分类入口 ---------- */
-  .cats{margin:13px 10px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:11px 0}
-  .cat{display:flex;flex-direction:column;align-items:center;gap:6px;padding:2px 0}
-  .catI{width:50px;height:50px;border-radius:16px;background:var(--card);
-    border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
-    transition:transform .16s var(--ease),background .16s}
-  .catI .ic{width:22px;height:22px;color:rgba(var(--ink),.86)}
-  .catL{font-size:10.5px;color:var(--tx2)}
-  .cat:active .catI{transform:scale(.92);background:var(--card2)}
-
-  /* ---------- 继续观看 ---------- */
-  .crow{margin:13px 0 0;display:flex;gap:10px;overflow-x:auto;padding:0 16px 3px;
-    scrollbar-width:none}
-  .crow::-webkit-scrollbar{display:none}
-  .cw{width:138px;flex:0 0 auto}
-  .cwT{height:78px;border-radius:12px;position:relative;overflow:hidden;
-    box-shadow:var(--shadowCard)}
-  .cwBig{position:absolute;left:9px;bottom:7px;font-size:26px;font-weight:800;
-    color:rgba(255,255,255,.16)}
-  .cwP{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(0,0,0,.4)}
-  .cwP i{display:block;height:100%;background:var(--ac);border-radius:0 2px 2px 0}
-  .cwN{font-size:11.5px;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cwS{font-size:9.5px;color:var(--tx3);margin-top:2px;white-space:nowrap;overflow:hidden;
-    text-overflow:ellipsis}
-
-  /* ---------- 海报网格 ---------- */
-  .grid2{margin:13px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:11px}
-  .grid3{margin:13px 16px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .pc{position:relative;overflow:hidden;border-radius:14px;background:var(--posterBg);
-    transition:transform .16s var(--ease)}
-  .pc:active{transform:scale(.965)}
-  /* 高度用 padding 百分比跟着宽度走，保证各种屏宽下海报都是同一个 2:3 比例 */
-  .grid2 .pc{height:0;padding-bottom:138%}
-  .grid3 .pc{height:0;padding-bottom:136%;border-radius:11px}
-  .pcArt{position:absolute;inset:0;filter:saturate(.86) brightness(.94)}
-  .pcMute{position:absolute;inset:0;
-    background:linear-gradient(172deg,rgba(8,8,12,.06),rgba(8,8,12,.30) 58%,rgba(8,8,12,.46))}
-  .pcCh{position:absolute;left:0;right:0;top:36%;text-align:center;font-size:60px;
-    font-weight:800;color:rgba(255,255,255,.10);letter-spacing:-2px;line-height:1}
-  .grid3 .pcCh{font-size:42px;top:34%}
-  .pcScrim{position:absolute;inset:0;
-    background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.74) 100%)}
-  .pcBadge{position:absolute;left:8px;top:8px;font-size:9px;padding:3px 6px;border-radius:6px;
-    background:rgba(0,0,0,.46);border:1px solid rgba(255,255,255,.16);color:#fff;
-    backdrop-filter:blur(6px)}
-  .pcBadge.hot{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#1A1008;
-    border-color:transparent;font-weight:650}
-  /* 片名压在 .pcScrim（固定深色渐变）上，必须恒为白字：
-     跟着 --tx 走的话，浅色主题下会变成深字压深底，片名直接看不见 */
-  .pcT{position:absolute;left:10px;right:10px;bottom:21px;font-size:12px;font-weight:600;
-    line-height:1.28;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-    overflow:hidden;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.5)}
-  .grid3 .pcT{font-size:10.5px;bottom:18px;left:8px;right:8px}
-  .pcB{position:absolute;left:10px;right:10px;bottom:7px;font-size:9.5px;color:rgba(255,255,255,.52)}
-  .grid3 .pcB{font-size:8.5px;left:8px;bottom:5px}
-
-  /* ---------- 分类页 ---------- */
-  /* 只管布局；.chip 的外观统一在下面「分类 tab」那段定义。
-     这里原来还抄了一份 .chip/.chip.on，样式被后者整段覆盖成了死规则，
-     改 chip 时容易改到不生效的那一份，已删除。 */
-  .chips{margin:14px 0 0;display:flex;gap:8px;overflow-x:auto;padding:0 16px 3px;
-    scrollbar-width:none}
-  .chips::-webkit-scrollbar{display:none}
-
-  /* ---------- AI 页 ---------- */
-  .aitop{padding:calc(24px + var(--sat)) 16px 0;display:flex;align-items:center;gap:11px}
-  .back{width:36px;height:36px;border-radius:12px;background:var(--card);border:1px solid var(--line);
-    display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  .back .ic{width:18px;height:18px;color:var(--tx)}
-  .aitopT{font-size:17px;font-weight:700}
-  .aitopS{font-size:10.5px;color:var(--tx3);margin-top:2px}
-
-  .aiin{margin:16px 16px 0;border-radius:20px;padding:15px 15px 13px;
-    background:linear-gradient(152deg,rgba(124,108,255,.24),rgba(124,108,255,.07) 60%,rgba(90,80,200,.05));
-    border:1px solid rgba(150,134,255,.26);
-    box-shadow:0 14px 34px rgba(50,36,140,.24)}
-  .aiinQ{width:100%;border:0;outline:0;background:transparent;color:var(--tx);
-    font-size:15px;line-height:1.5;resize:none;font-family:inherit;min-height:44px}
-  .aiinQ::placeholder{color:var(--tx3)}
-  .aiinBar{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
-  .aiinHint{font-size:10px;color:var(--tx3);display:flex;align-items:center;gap:5px}
-  .aiinHint .ic{width:13px;height:13px}
-  .send{width:42px;height:42px;border-radius:21px;display:flex;align-items:center;
-    justify-content:center;background:linear-gradient(140deg,#9C8CFF,#6B57E8 56%,#4B3AC4);
-    box-shadow:0 8px 20px rgba(107,87,232,.45);transition:transform .16s var(--ease)}
-  .send:active{transform:scale(.9)}
-  .send .ic{width:19px;height:19px;color:#fff}
-
-  .exlab{margin:18px 16px 0;font-size:10.5px;color:var(--tx3);letter-spacing:.4px}
-  .ex{display:flex;flex-direction:column;gap:8px;margin:9px 16px 0}
-  .exc{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:14px;
-    background:var(--card);border:1px solid var(--line);font-size:12.5px;color:rgba(var(--ink),.82)}
-  .exc .ic{width:15px;height:15px;color:var(--tx3);flex:0 0 auto}
-  .exc:active{background:var(--card2)}
-
-  .cap{margin:18px 16px 0;border-radius:16px;padding:14px 15px 8px;background:var(--card);
-    border:1px solid var(--line);box-shadow:var(--shadowCard)}
-  .capH{font-size:10.5px;color:var(--tx3);letter-spacing:.4px;margin-bottom:6px}
-  .capR{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--divider)}
-  .capR:first-of-type{border-top:0}
-  .capR b{flex:0 0 42px;font-size:11.5px;font-weight:600;color:rgba(var(--ink),.8)}
-  .capR span{flex:1;font-size:11.5px;line-height:1.55;color:var(--tx3)}
-
-  .parse{margin:16px 16px 0;border-radius:16px;padding:12px 13px;
-    background:rgba(124,108,255,.10);border:1px solid rgba(150,134,255,.20)}
-  .parseH{font-size:10.5px;color:var(--tx2);display:flex;align-items:center;
-    justify-content:space-between}
-  .parseQ{font-size:11px;color:var(--tx3);max-width:66%;white-space:nowrap;overflow:hidden;
-    text-overflow:ellipsis}
-  .pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
-  .pills span{font-size:11px;padding:5px 10px;border-radius:9px;
-    background:var(--card2);color:var(--tx);border:1px solid var(--line)}
-  .pills span b{font-weight:600;color:var(--tx)}
-  .pills span.alt{background:transparent;border-style:dashed;color:var(--tx3)}
-
-  /* ---------- 我的 ---------- */
-  /* 顶部不再放「头像 + 站点名 + 统计」的卡片：那一块展示的全是接口侧信息，
-     而收藏 / 历史的数量本来就在下面两行的右侧，卡片只是重复了一遍。
-     第一块从这里直接开始，所以单独给一点上间距。 */
-  .melist{margin:4px 16px 0;border-radius:18px;overflow:hidden;background:var(--card);
-    border:1px solid var(--line);box-shadow:var(--shadowCard)}
-  .melist.top{margin-top:16px}
-  .meitem{display:flex;align-items:center;gap:12px;padding:14px 15px;font-size:13.5px;
-    border-bottom:1px solid var(--divider)}
-  .meitem:last-child{border-bottom:0}
-  .meitem:active{background:rgba(var(--ink),.06)}
-  .meitem .ic{width:19px;height:19px;color:rgba(var(--ink),.55);flex:0 0 auto}
-  /* 右侧值可能是完整域名，长了要截断，别把左边的标题挤没 */
-  .meitem .v{margin-left:auto;font-size:11.5px;color:var(--tx3);max-width:58%;text-align:right;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .meitem .chev{width:15px;height:15px;color:var(--tx3);margin-left:auto}
-  /* 分组标题（配置 / 设置 / 播放器 / 系统） */
-  .meSec{margin:20px 20px 7px;font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--tx3)}
-  /* 可点进下一级的行，右侧画个小箭头；用伪元素省掉一堆 svg */
-  .meitem.ar::after{content:'';width:6px;height:6px;margin-left:8px;flex:0 0 auto;border-radius:1px;
-    border-right:1.5px solid rgba(var(--ink),.24);border-bottom:1.5px solid rgba(var(--ink),.24);
-    transform:rotate(-45deg) translateY(-1px)}
-
-  /* ---------- 底部 Dock（iOS 悬浮玻璃条）----------
-     原来是贴底通栏 + 上边框，现在换成悬空的胶囊玻璃条：
-       · 左右各缩进 14dp、离底 10dp（再叠安全区），四周全圆角
-       · 半透明底 + 大模糊 + 细描边 + 顶边高光 + 落影 → 玻璃质感
-       · 选中项是「图标+文字」外面一块圆角药丸，图标轻微上浮并带一点橙色辉光
-     高度仍然只由 --tabh 决定，pad.css 里改 --tabh 就能整体缩放，
-     别在这里写死像素高度，否则两套样式会打架。 */
-  #tabs{position:fixed;left:14px;right:14px;bottom:calc(10px + var(--sab));
-    z-index:40;height:var(--tabh);display:flex;align-items:stretch;padding:0 8px;
-    border-radius:calc(var(--tabh) / 2);
-    background:var(--dockBg);
-    border:1px solid var(--dockLine);
-    box-shadow:var(--dockShadow),inset 0 1px 0 var(--dockHi);
-    /* saturate 压到 150%：默认值再高一点，海报底色会透成一片绿/紫，
-       玻璃条看着发脏；150% 还留着"透"，但主体仍偏中性。 */
-    backdrop-filter:blur(26px) saturate(150%);
-    -webkit-backdrop-filter:blur(26px) saturate(150%)}
-  .tab{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;gap:2px;color:var(--tx3);transition:color .18s var(--ease)}
-  /* 选中态药丸画在 ::after 上，图标和文字各自抬一层盖住它 —— 
-     不这么做的话定位元素会盖住静态的 svg。
-     左右只留 4dp：药丸跟着 dock 自身的圆角做内嵌胶囊，这种「双曲线」是
-     现在 iOS 的原生观感，缩太窄反而像老式标签栏。 */
-  .tab.on::after{content:'';position:absolute;left:4px;right:4px;top:8px;bottom:8px;
-    z-index:0;border-radius:calc(var(--tabh) / 2 - 12px);
-    background:var(--dockSel);border:1px solid var(--dockSelLine)}
-  .tab .ic{position:relative;z-index:1;width:22px;height:22px;
-    transition:transform .26s var(--ease),filter .26s var(--ease)}
-  .tab span{position:relative;z-index:1;font-size:9.5px;letter-spacing:.2px;
-    transition:font-weight .18s}
-  /* 按下反馈走图标缩放，比整块变色更接近 iOS 的手感 */
-  .tab:active .ic{transform:scale(.88)}
-  .tab.on{color:var(--ac)}
-  .tab.on .ic{transform:translateY(-1px);filter:drop-shadow(0 4px 10px rgba(255,122,69,.40))}
-  .tab.on span{font-weight:600}
-
-  /* ---------- 详情弹层 ----------
-     z-index 必须高于搜索层 #sov(70)：从搜索结果点进详情时搜索层没有关闭，
-     压在下面的话用户看到的就是「点了没反应」。
-     仍然低于配置(90)/换源(95)/确认框(96)，那些层是从详情里再往上一层的。 */
-  #detail{position:fixed;inset:0;z-index:76;display:none}
-  #detail.on{display:block}
-  .dMask{position:absolute;inset:0;background:var(--scrim);opacity:0;transition:opacity .26s}
-  #detail.on .dMask{opacity:1}
-  .dSheet{position:absolute;left:0;right:0;bottom:0;max-height:84%;overflow-y:auto;
-    background:var(--sheet);border-radius:24px 24px 0 0;transform:translateY(100%);
-    transition:transform .34s var(--ease);padding-bottom:calc(20px + var(--sab));
-    scrollbar-width:none}
-  .dSheet::-webkit-scrollbar{display:none}
-  #detail.on .dSheet{transform:none}
-  .dHero{height:190px;position:relative;overflow:hidden;border-radius:24px 24px 0 0}
-  .dHero .pcCh{top:30%;font-size:76px}
-  .dHero .dScrim{position:absolute;inset:0;
-    background:linear-gradient(180deg,rgba(var(--sheet-rgb),0) 30%,rgba(var(--sheet-rgb),.62) 74%,rgb(var(--sheet-rgb)) 100%)}
-  .dClose{position:absolute;right:12px;top:12px;width:32px;height:32px;border-radius:16px;
-    background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.14);display:flex;
-    align-items:center;justify-content:center;backdrop-filter:blur(8px)}
-  .dClose .ic{width:15px;height:15px;color:#fff}
-  .dBody{padding:0 16px;margin-top:-26px;position:relative}
-  .dT{font-size:21px;font-weight:700;letter-spacing:.2px}
-  .dM{font-size:11.5px;color:var(--tx2);margin-top:6px}
-  .dTags{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
-  .dTags span{font-size:10.5px;padding:4px 9px;border-radius:8px;background:var(--card);
-    border:1px solid var(--line);color:rgba(var(--ink),.72)}
-  .dD{font-size:12px;line-height:1.62;color:var(--tx3);margin-top:12px}
-  /* 「主演 / 导演」这类行内小标签：比正文重一档，且必须跟着 --ink 走，
-     否则浅色下会变成白底白字（原来是写死的 rgba(255,255,255,.7)） */
-  .dD .dLb{color:rgba(var(--ink),.78);font-weight:600}
-  .dActs{display:flex;gap:9px;margin-top:16px}
-  .dPlay{flex:1;height:46px;border-radius:23px;background:var(--btnSolid);color:var(--btnInk);
-    display:flex;align-items:center;justify-content:center;gap:7px;font-size:14px;font-weight:650}
-  .dPlay .ic{width:17px;height:17px;fill:currentColor;stroke:none}
-  .dFav{width:46px;height:46px;border-radius:23px;background:var(--card);
-    border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
-  .dFav .ic{width:19px;height:19px;color:var(--tx)}
-  .dSec{font-size:12px;color:var(--tx3);margin-top:20px}
-
-  /* 简介：默认 5 行，超出才显示「展开全部」 */
-  .dDes{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;
-    overflow:hidden}
-  .dDes.open{display:block;-webkit-line-clamp:unset;overflow:visible}
-  .dExp{display:none;margin-top:7px;font-size:12px;font-weight:600;color:var(--ac);
-    padding:2px 0;width:fit-content}
-  .dExp:active{opacity:.6}
-
-  /* ---------- 搜索覆盖层 ---------- */
-  #sov{position:fixed;inset:0;z-index:70;display:none;
-    background:var(--overlay);backdrop-filter:blur(18px)}
-  #sov.on{display:block;animation:pin .2s var(--ease)}
-  .sbar{padding:calc(22px + var(--sat)) 16px 0;display:flex;align-items:center;gap:10px}
-  .sin{flex:1;height:44px;border-radius:22px;background:var(--card);border:1px solid var(--line);
-    display:flex;align-items:center;gap:9px;padding:0 14px}
-  .sin .ic{width:17px;height:17px;color:var(--tx3);flex:0 0 auto}
-  .sin input{flex:1;border:0;outline:0;background:transparent;color:var(--tx);font-size:14px;
-    font-family:inherit}
-  .sin input::placeholder{color:var(--tx3)}
-  .scancel{font-size:13.5px;color:var(--tx2);flex:0 0 auto}
-  .shot{padding:16px}
-  .shotH{font-size:10.5px;color:var(--tx3);letter-spacing:.4px;margin-bottom:10px}
-  .words{display:flex;flex-wrap:wrap;gap:8px}
-  .words span{font-size:12px;padding:7px 13px;border-radius:14px;background:var(--card);
-    border:1px solid var(--line);color:rgba(var(--ink),.75)}
-
-  /* ---------- Toast ---------- */
-  #toast{position:fixed;left:50%;bottom:calc(var(--tabh) + var(--sab) + 34px);transform:translate(-50%,14px);
-    z-index:90;max-width:78%;padding:11px 16px;border-radius:13px;background:rgba(30,30,38,.96);
-    border:1px solid rgba(255,255,255,.12);font-size:12px;line-height:1.45;color:#fff;
-    opacity:0;pointer-events:none;transition:opacity .2s,transform .24s var(--ease);
-    box-shadow:0 14px 34px rgba(0,0,0,.6);text-align:center}
-  #toast.on{opacity:1;transform:translate(-50%,0)}
+/* ---------- 搜索条（分类 / 列表等非首页场景仍走这颗胶囊） ---------- */
+.search{margin:16px var(--pad) 0;height:46px;border-radius:23px;background:var(--card);
+  border:1px solid var(--line);display:flex;align-items:center;gap:9px;padding:0 5px 0 14px;
+  transition:transform .16s var(--ease)}
+.search:active{transform:scale(.985)}
+.search > .ic{width:18px;height:18px;color:var(--tx3);flex:0 0 auto}
+.search .ph{flex:1;font-size:13.5px;color:var(--tx3);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.mic{width:36px;height:36px;border-radius:18px;background:var(--card2);
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.mic .ic{width:17px;height:17px;color:rgba(var(--ink),.72)}
 
 /* =====================================================================
-   运行时补充：真实数据需要的东西（图片、加载态、选集、配置页）
+   首页首屏：全出血海报
+   ---------------------------------------------------------------------
+   高度 62vh：手机 844 屏上约 523px，刚好让下面露出「继续观看」的标题，
+   有「还有内容」的暗示。再高就把第二块完全挤出屏，用户以为只有一部片。
+   ===================================================================== */
+.hero{position:relative;margin:0;height:62vh;min-height:400px;max-height:600px;
+  border-radius:0;overflow:hidden;background:var(--posterBg);
+  box-shadow:none;transition:transform .18s var(--ease)}
+.heroArt{position:absolute;inset:0;filter:saturate(.92) brightness(.86)}
+.heroArt .ring{display:none}
+/* 源站没给 pic（或正在加载）时的首字水印：给渐变底一点体积，
+   不然首屏上半截是一块纯黑，看着像没渲染出来 */
+.heroCh{position:absolute;right:2%;top:12%;z-index:1;font-size:190px;font-weight:800;
+  line-height:1;letter-spacing:-10px;color:rgba(255,255,255,.07);pointer-events:none}
+/* 顶部压暗给状态栏/源名胶囊留可读性，底部渐隐到页面底色 -
+   注意最底 16% 是「接近纯黑的不透明层」，白色标题压在这上面才安全，
+   浅色主题下这一层也不能跟着 --bg 变白，否则白字全废。 */
+.heroScrim{position:absolute;inset:0;
+  background:
+    linear-gradient(180deg,rgba(6,6,9,.72) 0%,rgba(6,6,9,.10) 22%,rgba(6,6,9,0) 42%),
+    linear-gradient(0deg,var(--bg) 0%,rgba(6,6,9,.94) 14%,rgba(6,6,9,.55) 36%,rgba(6,6,9,0) 62%)}
+
+/* 信息区：kicker → 大标题 → meta → 简介 → 标签 → 按钮，全部左对齐 */
+.heroBot{position:absolute;left:var(--pad);right:var(--pad);bottom:calc(18px + var(--sab))}
+.heroTag{display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--ac2);
+  text-transform:uppercase;margin-bottom:9px}
+.heroTag::before{content:"";width:14px;height:2px;border-radius:2px;background:var(--ac)}
+.heroNum{position:absolute;right:var(--pad);top:calc(58px + var(--sat));
+  z-index:4;font-size:10.5px;font-weight:600;letter-spacing:.5px;
+  color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums;
+  text-shadow:0 1px 6px rgba(0,0,0,.55)}
+
+/* 海报上的文字恒为白色：底下是固定深色渐变（与主题无关） */
+.heroT{font-size:40px;line-height:1.06;font-weight:800;letter-spacing:-.6px;color:#fff;
+  text-shadow:0 6px 24px rgba(0,0,0,.55);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.heroM{margin-top:11px;font-size:12.5px;line-height:1.4;color:rgba(255,255,255,.80);
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.heroM b{color:var(--ac2);font-weight:700}
+.heroM i{width:1px;height:10px;background:rgba(255,255,255,.28);font-style:normal}
+.heroD{margin-top:9px;font-size:12.5px;line-height:1.55;color:rgba(255,255,255,.62);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* 标签排：更新集数 / 语言 / 清晰度 —— 我们接口真有的字段。
+   刻意不用红绿：影视语境里红绿会被读成好评/差评。 */
+.heroTags{display:flex;gap:7px;margin-top:13px;flex-wrap:wrap}
+.heroTags span{height:24px;padding:0 10px;display:inline-flex;align-items:center;border-radius:7px;
+  font-size:11px;font-weight:600;letter-spacing:.02em;
+  background:rgba(255,255,255,.10);color:rgba(255,255,255,.86);
+  border:1px solid rgba(255,255,255,.10);white-space:nowrap}
+.heroTags span.hot{background:rgba(255,122,69,.16);border-color:rgba(255,122,69,.34);color:#FFC49B}
+.heroActs{display:flex;gap:10px;margin-top:16px}
+.heroBtn{height:46px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;
+  gap:7px;font-size:14.5px;font-weight:700;transition:transform .16s var(--ease)}
+.heroBtn .ic{width:17px;height:17px}
+.heroBtn.play{flex:1;background:linear-gradient(135deg,var(--ac),var(--ac2));color:var(--acInk);
+  box-shadow:0 10px 26px rgba(255,110,60,.34)}
+.heroBtn.play .ic{fill:currentColor;stroke:none}
+.heroBtn.ghost{width:96px;background:rgba(255,255,255,.10);color:#fff;
+  border:1px solid rgba(255,255,255,.16);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.heroBtn.ghost.on{background:linear-gradient(135deg,var(--ac),var(--ac2));color:var(--acInk);
+  border-color:transparent}
+.heroBtn.ghost.on .ic{fill:currentColor;stroke:none}
+.heroBtn:active{transform:scale(.97)}
+
+/* 占位态（没片 / 加载中 / 出错）：没有海报，全出血就变成一块空黑，
+   这时候退回「圆角卡片 + 跟随主题的文字」，深色浅色都对。 */
+.hero.ph{margin:calc(26px + var(--sat)) var(--pad) 0;
+  height:auto;min-height:0;max-height:none;border-radius:22px;
+  background:var(--card2);border:1px solid var(--line);box-shadow:var(--shadowCard)}
+.hero.ph .heroBot{position:static;padding:20px 18px}
+.hero.ph .heroT{color:var(--tx);text-shadow:none;font-size:20px;line-height:1.3}
+.hero.ph .heroM{color:var(--tx2);display:block}
+.hero.ph .heroD{color:var(--tx3);-webkit-line-clamp:3}
+.hero.ph .heroRT{background:rgba(var(--ink),.06);border-color:rgba(var(--ink),.18);
+  color:var(--tx);backdrop-filter:none;-webkit-backdrop-filter:none}
+.hero.ph .heroRT:active{background:rgba(var(--ink),.12)}
+
+/* 播放圆钮（占位态/老结构里的兼容样式，正常首页不用） */
+.playBtn{position:absolute;right:14px;bottom:14px;width:44px;height:44px;border-radius:22px;
+  background:var(--btnSolid);display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadowCard);transition:transform .16s var(--ease)}
+.playBtn:active{transform:scale(.9)}
+.playBtn .ic{width:18px;height:18px;color:var(--btnInk);fill:currentColor;stroke:none;margin-left:2px}
+
+/* ---------- 区块标题 ---------- */
+.sec{margin:22px var(--pad) 0;display:flex;align-items:baseline;justify-content:space-between}
+.secT{font-size:16px;font-weight:700;letter-spacing:.01em}
+.secS{font-size:10.5px;color:var(--tx3);margin-left:7px;font-weight:400}
+.more{font-size:11.5px;color:var(--tx3);display:flex;align-items:center;gap:2px}
+.more .ic{width:13px;height:13px}
+
+/* ---------- 分类入口（已随分类页重构移除，保留选择器无害） ---------- */
+.cats{margin:13px 10px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:11px 0}
+.cat{display:flex;flex-direction:column;align-items:center;gap:6px;padding:2px 0}
+.catI{width:50px;height:50px;border-radius:16px;background:var(--card);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+  transition:transform .16s var(--ease),background .16s}
+.catI .ic{width:22px;height:22px;color:rgba(var(--ink),.86)}
+.catL{font-size:10.5px;color:var(--tx2)}
+.cat:active .catI{transform:scale(.92);background:var(--card2)}
+
+/* =====================================================================
+   继续观看（横滑）
+   ---------------------------------------------------------------------
+   回访用户最常用的入口，所以提到首屏第二块，带集数、进度、播放钮。
+   进度和集数全部来自本地历史（PhoneBridge.history），不是假数据。
+   ===================================================================== */
+.crow{margin:13px 0 0;display:flex;gap:11px;overflow-x:auto;
+  padding:0 var(--pad) 3px;scrollbar-width:none}
+.crow::-webkit-scrollbar{display:none}
+.cw{width:186px;flex:0 0 auto}
+.cwT{position:relative;height:104px;border-radius:12px;overflow:hidden;
+  box-shadow:0 8px 20px rgba(0,0,0,.42)}
+/* 缩略图上的文字/按钮恒白：底下有固定深色遮罩 */
+.cwScrim{position:absolute;inset:0;
+  background:linear-gradient(0deg,rgba(0,0,0,.66),rgba(0,0,0,0) 58%)}
+.cwBig{display:none}
+.cwPlay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:rgba(12,12,16,.46);border:1px solid rgba(255,255,255,.30);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.cwPlay .ic{width:13px;height:13px;color:#fff;fill:currentColor;stroke:none;margin-left:1px}
+.cwEp{position:absolute;left:9px;bottom:8px;font-size:10.5px;font-weight:600;
+  color:rgba(255,255,255,.92);text-shadow:0 1px 4px rgba(0,0,0,.7)}
+.cwP{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.22)}
+.cwP i{display:block;height:100%;border-radius:0 2px 2px 0;
+  background:linear-gradient(90deg,var(--ac),var(--ac2))}
+.cwN{font-size:12.5px;font-weight:600;margin-top:8px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.cwS{font-size:11px;color:var(--tx3);margin-top:2px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+
+/* =====================================================================
+   海报墙
+   ---------------------------------------------------------------------
+   v11 把「片名压在图上」改成「海报 + 卡下片名」：
+     · 3 列，卡宽约 107dp，海报按 2:3 走
+     · 图上只留左下角一行更新备注，片名放卡下 —— 源站海报本身就常带字，
+       再叠一层中文标题会打架
+     · .pc 是外层，.pcPoster 才是有比例的海报区
+   ===================================================================== */
+.grid2{margin:13px var(--pad) 0;display:grid;grid-template-columns:repeat(3,1fr);
+  gap:14px 9px}
+.grid3{margin:13px var(--pad) 0;display:grid;grid-template-columns:repeat(3,1fr);
+  gap:14px 9px}
+.pc{position:relative;min-width:0;border-radius:12px;transition:transform .16s var(--ease)}
+.pc:active{transform:scale(.965)}
+/* 海报区用 padding-bottom 撑 2:3，不用 aspect-ratio：
+   老一点的 WebView（Chrome < 88）不认 aspect-ratio，那一项一失效
+   整块海报高度就是 0 —— 满屏只剩片名，用户会以为图挂了。 */
+.pcPoster{position:relative;width:100%;height:0;padding-bottom:150%;border-radius:11px;
+  overflow:hidden;background:var(--posterBg);box-shadow:0 8px 18px rgba(0,0,0,.40)}
+.pcArt{position:absolute;inset:0;overflow:hidden;filter:saturate(.94) brightness(.96)}
+.pcMute{display:none}
+.pcCh{position:absolute;left:0;right:0;top:34%;text-align:center;font-size:44px;
+  font-weight:800;color:rgba(255,255,255,.12);letter-spacing:-2px;line-height:1}
+.pcScrim{position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(0,0,0,0) 42%,rgba(0,0,0,.72) 100%)}
+.pcBadge{position:absolute;left:7px;top:7px;font-size:9px;padding:3px 6px;border-radius:6px;
+  background:rgba(0,0,0,.46);border:1px solid rgba(255,255,255,.16);color:#fff;
+  backdrop-filter:blur(6px)}
+.pcBadge.hot{background:linear-gradient(135deg,var(--ac),var(--ac2));color:var(--acInk);
+  border-color:transparent;font-weight:700}
+/* 图上左下角那行更新备注（恒白，落在 .pcScrim 上） */
+.pcB{position:absolute;left:7px;right:7px;bottom:6px;font-size:9.5px;font-weight:600;
+  color:rgba(255,255,255,.94);text-shadow:0 1px 5px rgba(0,0,0,.85);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 卡下片名 */
+.pcT{margin:7px 1px 0;font-size:11.5px;font-weight:600;line-height:1.32;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  color:var(--tx)}
+
+/* ---------- 分类页 ---------- */
+.chips{margin:14px 0 0;display:flex;gap:8px;overflow-x:auto;padding:0 var(--pad) 3px;
+  scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+/* 分类 tab / 筛选条 / 详情线路共用 .chip，外观只在这里定义一份 */
+.chip{flex:0 0 auto;height:32px;padding:0 13px;border-radius:16px;
+  display:inline-flex;align-items:center;font-size:12.5px;font-weight:600;
+  background:rgba(var(--ink),.07);border:1px solid var(--line);color:var(--tx2);
+  transition:.16s var(--ease)}
+.chip.on{background:linear-gradient(135deg,var(--ac),var(--ac2));border-color:transparent;
+  color:var(--acInk)}
+.chip.more{padding:0 11px}
+
+/* AI 页（2026-10-22 整页移除，样式留着不占运行成本） */
+.aitop{padding:calc(24px + var(--sat)) var(--pad) 0;display:flex;align-items:center;gap:11px}
+.back{width:36px;height:36px;border-radius:12px;background:var(--card);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.back .ic{width:18px;height:18px;color:var(--tx)}
+.aitopT{font-size:17px;font-weight:700}
+.aitopS{font-size:10.5px;color:var(--tx3);margin-top:2px}
+
+.aiin{margin:16px var(--pad) 0;border-radius:20px;padding:15px 15px 13px;
+  background:linear-gradient(152deg,rgba(124,108,255,.24),rgba(124,108,255,.07) 60%,rgba(90,80,200,.05));
+  border:1px solid rgba(150,134,255,.26);
+  box-shadow:0 14px 34px rgba(50,36,140,.24)}
+.aiinQ{width:100%;border:0;outline:0;background:transparent;color:var(--tx);
+  font-size:15px;line-height:1.5;resize:none;font-family:inherit;min-height:44px}
+.aiinQ::placeholder{color:var(--tx3)}
+.aiinBar{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.aiinHint{font-size:10px;color:var(--tx3);display:flex;align-items:center;gap:5px}
+.aiinHint .ic{width:13px;height:13px}
+.send{width:42px;height:42px;border-radius:21px;display:flex;align-items:center;
+  justify-content:center;background:linear-gradient(140deg,#9C8CFF,#6B57E8 56%,#4B3AC4);
+  box-shadow:0 8px 20px rgba(107,87,232,.45);transition:transform .16s var(--ease)}
+.send:active{transform:scale(.9)}
+.send .ic{width:19px;height:19px;color:#fff}
+
+.exlab{margin:18px var(--pad) 0;font-size:10.5px;color:var(--tx3);letter-spacing:.4px}
+.ex{display:flex;flex-direction:column;gap:8px;margin:9px var(--pad) 0}
+.exc{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:14px;
+  background:var(--card);border:1px solid var(--line);font-size:12.5px;color:rgba(var(--ink),.82)}
+.exc .ic{width:15px;height:15px;color:var(--tx3);flex:0 0 auto}
+.exc:active{background:var(--card2)}
+
+.cap{margin:18px var(--pad) 0;border-radius:16px;padding:14px 15px 8px;background:var(--card);
+  border:1px solid var(--line);box-shadow:var(--shadowCard)}
+.capH{font-size:10.5px;color:var(--tx3);letter-spacing:.4px;margin-bottom:6px}
+.capR{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--divider)}
+.capR:first-of-type{border-top:0}
+.capR b{flex:0 0 42px;font-size:11.5px;font-weight:600;color:rgba(var(--ink),.8)}
+.capR span{flex:1;font-size:11.5px;line-height:1.55;color:var(--tx3)}
+
+.parse{margin:16px var(--pad) 0;border-radius:16px;padding:12px 13px;
+  background:rgba(124,108,255,.10);border:1px solid rgba(150,134,255,.20)}
+.parseH{font-size:10.5px;color:var(--tx2);display:flex;align-items:center;
+  justify-content:space-between}
+.parseQ{font-size:11px;color:var(--tx3);max-width:66%;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.pills span{font-size:11px;padding:5px 10px;border-radius:9px;
+  background:var(--card2);color:var(--tx);border:1px solid var(--line)}
+.pills span b{font-weight:600;color:var(--tx)}
+.pills span.alt{background:transparent;border-style:dashed;color:var(--tx3)}
+
+/* ---------- 我的 ---------- */
+/* 顶部不放「头像 + 站点名 + 统计」卡片：那一块全是接口侧信息，
+   而收藏 / 历史的数量本来就在下面两行的右侧。 */
+.melist{margin:4px var(--pad) 0;border-radius:18px;overflow:hidden;background:var(--card);
+  border:1px solid var(--line);box-shadow:var(--shadowCard)}
+.melist.top{margin-top:16px}
+.meitem{display:flex;align-items:center;gap:12px;padding:14px 15px;font-size:13.5px;
+  border-bottom:1px solid var(--divider)}
+.meitem:last-child{border-bottom:0}
+.meitem:active{background:rgba(var(--ink),.06)}
+.meitem .ic{width:19px;height:19px;color:rgba(var(--ink),.55);flex:0 0 auto}
+/* 右侧值可能是完整域名，长了要截断，别把左边的标题挤没 */
+.meitem .v{margin-left:auto;font-size:11.5px;color:var(--tx3);max-width:58%;text-align:right;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meitem .chev{width:15px;height:15px;color:var(--tx3);margin-left:auto}
+/* 分组标题（配置 / 设置 / 播放器 / 系统） */
+.meSec{margin:20px 24px 7px;font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--tx3)}
+/* 可点进下一级的行，右侧画个小箭头；用伪元素省掉一堆 svg */
+.meitem.ar::after{content:'';width:6px;height:6px;margin-left:8px;flex:0 0 auto;border-radius:1px;
+  border-right:1.5px solid rgba(var(--ink),.24);border-bottom:1.5px solid rgba(var(--ink),.24);
+  transform:rotate(-45deg) translateY(-1px)}
+
+/* =====================================================================
+   底部 Dock（悬浮玻璃胶囊）
+   ---------------------------------------------------------------------
+     · 左右各缩进 14dp、离底 12dp（再叠安全区），四周全圆角
+     · 半透明底 + 大模糊 + 细描边 + 顶边高光 + 落影 → 玻璃质感
+     · 选中项是「图标外一圈橙色药丸」+ 图标文字转橙，未选中只留 42% 白
+   高度只由 --tabh 决定，pad.css 里改它就能整体缩放。
+   ===================================================================== */
+#tabs{position:fixed;left:14px;right:14px;bottom:calc(12px + var(--sab));
+  z-index:40;height:var(--tabh);display:flex;align-items:stretch;padding:0 6px;
+  border-radius:calc(var(--tabh) / 2);
+  background:var(--dockBg);
+  border:1px solid var(--dockLine);
+  box-shadow:var(--dockShadow),inset 0 1px 0 var(--dockHi);
+  /* saturate 压到 150%：默认值再高一点，海报底色会透成一片绿/紫，玻璃条看着发脏 */
+  backdrop-filter:blur(26px) saturate(150%);
+  -webkit-backdrop-filter:blur(26px) saturate(150%)}
+.tab{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;color:var(--tx3);transition:color .18s var(--ease)}
+.tab .ic{position:relative;z-index:1;width:22px;height:22px;
+  transition:transform .26s var(--ease),filter .26s var(--ease)}
+.tab span{position:relative;z-index:1;font-size:9.5px;letter-spacing:.2px;
+  transition:font-weight .18s}
+/* 选中态药丸画在 ::after 上，图标和文字各自抬一层盖住它 */
+.tab.on::after{content:'';position:absolute;left:6px;right:6px;top:9px;bottom:9px;
+  z-index:0;border-radius:calc(var(--tabh) / 2 - 13px);
+  background:var(--dockSel);border:1px solid var(--dockSelLine)}
+.tab:active .ic{transform:scale(.88)}
+.tab.on{color:var(--ac)}
+.tab.on .ic{transform:translateY(-1px);filter:drop-shadow(0 4px 10px rgba(255,122,69,.40))}
+.tab.on span{font-weight:600}
+
+/* =====================================================================
+   详情弹层
+   ---------------------------------------------------------------------
+   z-index 必须高于搜索层 #sov(70)：从搜索结果点进详情时搜索层没有关闭，
+   压在下面的话用户看到的就是「点了没反应」。
+   仍然低于配置(90)/换源(95)/确认框(96)，那些层是从详情里再往上一层的。
+   ===================================================================== */
+#detail{position:fixed;inset:0;z-index:76;display:none}
+#detail.on{display:block}
+.dMask{position:absolute;inset:0;background:var(--scrim);opacity:0;transition:opacity .26s}
+#detail.on .dMask{opacity:1}
+.dSheet{position:absolute;left:0;right:0;bottom:0;max-height:92%;overflow-y:auto;
+  background:var(--sheet);border-radius:24px 24px 0 0;transform:translateY(100%);
+  transition:transform .34s var(--ease);padding-bottom:calc(20px + var(--sab));
+  scrollbar-width:none}
+.dSheet::-webkit-scrollbar{display:none}
+#detail.on .dSheet{transform:none}
+
+/* 头图：v11 靠「海报铺底 + 上下双向渐隐」把标题区托起来，
+   比原来 190px 的横条更像一张剧照 */
+.dHero{position:relative;height:min(44vh,360px);overflow:hidden;border-radius:24px 24px 0 0}
+.dHero .pcCh{top:32%;font-size:76px;color:rgba(255,255,255,.10)}
+.dHero .dScrim{position:absolute;inset:0;
+  background:
+    linear-gradient(180deg,rgba(6,6,9,.62) 0%,rgba(6,6,9,0) 30%),
+    /* 这段的终点是 --sheet（深色是墨黑、浅色是纯白），所以头图是「淡出到面板色」。
+       过渡带要短：拉长到 20%~74% 会在浅色下留下一条很长的灰雾 */
+    linear-gradient(0deg,rgb(var(--sheet-rgb)) 0%,rgba(var(--sheet-rgb),.94) 12%,
+                    rgba(var(--sheet-rgb),.42) 34%,rgba(var(--sheet-rgb),0) 66%)}
+.dClose{position:absolute;right:12px;top:12px;z-index:3;width:34px;height:34px;border-radius:17px;
+  background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.14);display:flex;
+  align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.dClose .ic{width:15px;height:15px;color:#fff}
+
+.dBody{padding:0 var(--pad);margin-top:-38px;position:relative}
+.dT{font-size:29px;line-height:1.14;font-weight:800;letter-spacing:-.4px}
+.dM{margin-top:10px;font-size:12.5px;color:var(--tx2);
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.dM b{color:var(--ac2);font-weight:700}
+/* 标签排：和首页 hero 同一套（更新集数 / 语言 / 线路数） */
+.dTags{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
+.dTags span{height:24px;padding:0 10px;display:inline-flex;align-items:center;border-radius:7px;
+  font-size:11px;font-weight:600;background:rgba(var(--ink),.07);
+  border:1px solid var(--line);color:rgba(var(--ink),.74);white-space:nowrap}
+.dTags span.hot{background:rgba(255,122,69,.14);border-color:rgba(255,122,69,.34);color:var(--ac2)}
+.dD{font-size:12.5px;line-height:1.66;color:var(--tx3);margin-top:12px}
+/* 「主演 / 导演」这类行内小标签：比正文重一档，且必须跟着 --ink 走，
+   否则浅色下会变成白底白字 */
+.dD .dLb{color:rgba(var(--ink),.78);font-weight:600}
+
+/* 播放条：主按钮橙金实底，收藏是方形玻璃钮 */
+.dActs{display:flex;gap:10px;margin-top:16px}
+.dPlay{flex:1;height:48px;border-radius:14px;
+  background:linear-gradient(135deg,var(--ac),var(--ac2));color:var(--acInk);
+  display:flex;align-items:center;justify-content:center;gap:7px;font-size:14.5px;font-weight:700;
+  box-shadow:0 10px 26px rgba(255,110,60,.30)}
+.dPlay .ic{width:17px;height:17px;fill:currentColor;stroke:none}
+.dFav{width:48px;height:48px;border-radius:14px;background:rgba(var(--ink),.08);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.dFav .ic{width:19px;height:19px;color:var(--tx)}
+.dSec{font-size:12px;color:var(--tx3);margin-top:20px;display:flex;
+  align-items:center;justify-content:space-between}
+
+/* 简介：默认 5 行，超出才显示「展开全部」 */
+.dDes{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden}
+.dDes.open{display:block;-webkit-line-clamp:unset;overflow:visible}
+.dExp{display:none;margin-top:7px;font-size:12px;font-weight:600;color:var(--ac2);
+  padding:2px 0;width:fit-content}
+.dExp:active{opacity:.6}
+
+/* ---------- 搜索覆盖层 ---------- */
+#sov{position:fixed;inset:0;z-index:70;display:none;
+  background:var(--overlay);backdrop-filter:blur(18px)}
+#sov.on{display:block;animation:pin .2s var(--ease)}
+.sbar{padding:calc(22px + var(--sat)) var(--pad) 0;display:flex;align-items:center;gap:10px}
+.sin{flex:1;height:44px;border-radius:22px;background:var(--card);border:1px solid var(--line);
+  display:flex;align-items:center;gap:9px;padding:0 14px}
+.sin .ic{width:17px;height:17px;color:var(--tx3);flex:0 0 auto}
+.sin input{flex:1;border:0;outline:0;background:transparent;color:var(--tx);font-size:14px;
+  font-family:inherit}
+.sin input::placeholder{color:var(--tx3)}
+.scancel{font-size:13.5px;color:var(--tx2);flex:0 0 auto}
+.shot{padding:16px var(--pad)}
+.shotH{font-size:10.5px;color:var(--tx3);letter-spacing:.4px;margin-bottom:10px}
+.words{display:flex;flex-wrap:wrap;gap:8px}
+.words span{font-size:12px;padding:7px 13px;border-radius:14px;background:var(--card);
+  border:1px solid var(--line);color:rgba(var(--ink),.75)}
+
+/* ---------- Toast ---------- */
+#toast{position:fixed;left:50%;bottom:calc(var(--tabh) + var(--sab) + 34px);transform:translate(-50%,14px);
+  z-index:90;max-width:78%;padding:11px 16px;border-radius:13px;background:rgba(30,30,38,.96);
+  border:1px solid rgba(255,255,255,.12);font-size:12px;line-height:1.45;color:#fff;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .24s var(--ease);
+  box-shadow:0 14px 34px rgba(0,0,0,.6);text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* =====================================================================
+   运行时补充：真实数据需要的东西（图片、加载态、配置页）
    ===================================================================== */
 
 /* 真实海报：铺满容器，加载失败自动隐藏，露出底下的渐变 */
 .pcArt img,.cwT img,.dHero img,.heroArt img{
   position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;
 }
-/* 注意：.pcArt / .heroArt 原本就是 absolute inset:0，这里不能改它们的 position，
-   否则整个海报层会塌掉。只补 overflow 裁剪 + 给详情页头图定高。 */
-.pcArt,.heroArt{overflow:hidden}
-.cwT{overflow:hidden}
 .cwT img{opacity:.92}
-.heroArt img{opacity:.86}
-.dHero img{opacity:.78}
+.heroArt img{opacity:.92}
+.dHero img{opacity:.80}
 
 /* 加载 / 空态 */
-.loadmore{padding:26px 16px;text-align:center;font-size:11.5px;color:var(--tx3)}
+.loadmore{padding:26px var(--pad);text-align:center;font-size:11.5px;color:var(--tx3)}
 /* 首页「这是上次的内容」提示条：夹在 hero 和「继续观看」之间。
    只是说明，不是错误 —— 用弱化的灰，别做成红色横幅抢戏；
    接口最终连不上时切到 .warn（用 --err），那才是需要用户动手的状态。 */
 .staleTip{
-  margin:10px 16px 2px;padding:9px 12px;border-radius:12px;
+  margin:14px var(--pad) 2px;padding:9px 12px;border-radius:12px;
   background:var(--card);border:1px solid var(--line);
   font-size:11.5px;line-height:1.5;color:var(--tx2);
   display:flex;align-items:center;gap:8px;
@@ -534,35 +686,23 @@
 .emptyS{margin-top:8px;font-size:11.5px;line-height:1.6;color:var(--tx3)}
 
 /* =====================================================================
-   分类页
+   分类页筛选条
    ---------------------------------------------------------------------
-   两层：分类 chips（横向滚动）+ 筛选条 → 海报网格 → 加载更多。
-   片源给多少分类就铺多少，横向滚；筛选每组一个按钮。
-   ===================================================================== */
-
-/* 分类 chips —— 横向滚动 */
-.chips{display:flex;gap:8px;overflow-x:auto;padding:14px 16px 4px;scrollbar-width:none}
-.chips::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;padding:7px 14px;border-radius:16px;font-size:12.5px;
-  background:var(--card);border:1px solid var(--line);
-  color:var(--tx2);transition:.16s var(--ease)}
-.chip.on{background:var(--btnSolid);color:var(--btnInk);border-color:var(--btnSolid);font-weight:600}
-
-/* ---------- 分类页筛选条 ----------
    每个筛选组一个按钮，显示「组名：当前值」；点开底部弹层选值。
-   竖屏放不下 3 行 chips，所以不照抄电视版的横向筛选行。 */
-.fbar{display:flex;gap:8px;overflow-x:auto;padding:9px 16px 0;scrollbar-width:none}
+   竖屏放不下 3 行 chips，所以不照抄电视版的横向筛选行。
+   ===================================================================== */
+.fbar{display:flex;gap:8px;overflow-x:auto;padding:11px var(--pad) 0;scrollbar-width:none}
 .fbar::-webkit-scrollbar{display:none}
-.fbtn{flex:0 0 auto;display:flex;align-items:center;gap:4px;height:31px;padding:0 11px;
-  border-radius:10px;font-size:11.5px;line-height:1;white-space:nowrap;
-  background:var(--card);border:1px solid var(--line);color:var(--tx2);
+.fbtn{flex:0 0 auto;display:flex;align-items:center;gap:5px;height:30px;padding:0 11px;
+  border-radius:9px;font-size:11.5px;font-weight:600;line-height:1;white-space:nowrap;
+  background:rgba(var(--ink),.05);border:1px solid var(--line);color:rgba(var(--ink),.74);
   transition:.16s var(--ease)}
 .fbtn .ic{width:11px;height:11px;color:var(--tx3);flex:0 0 auto}
 .fbtn:active{transform:scale(.96)}
 /* 选过值的按钮要一眼看出来，否则用户忘了自己在筛选里 */
-.fbtn.on{background:rgba(255,122,69,.15);border-color:rgba(255,138,90,.5);
-  color:var(--ac);font-weight:600}
-.fbtn.on .ic{color:var(--ac)}
+.fbtn.on{background:rgba(255,122,69,.14);border-color:rgba(255,122,69,.42);
+  color:var(--ac2);font-weight:700}
+.fbtn.on .ic{color:var(--ac2)}
 .fbtn.reset{background:transparent;border-color:transparent;color:var(--tx3)}
 
 /* ---------- 筛选弹层 ---------- */
@@ -577,31 +717,31 @@
   transform:translateY(101%);transition:transform .26s var(--ease)}
 #flt.on .fltSheet{transform:translateY(0)}
 .fltHead{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;
-  padding:17px 18px 10px;font-size:15.5px;font-weight:700;letter-spacing:-.1px}
+  padding:17px 18px 10px;font-size:15.5px;font-weight:800;letter-spacing:-.1px}
 .fltVals{display:flex;flex-wrap:wrap;gap:8px;padding:2px 18px 6px;overflow-y:auto;
   overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .fltVal{max-width:100%;padding:9px 14px;border-radius:11px;font-size:12.5px;
   background:var(--card);border:1px solid var(--line);color:rgba(var(--ink),.78);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:.14s var(--ease)}
-.fltVal.on{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#1A1008;
+.fltVal.on{background:linear-gradient(135deg,var(--ac),var(--ac2));color:var(--acInk);
   font-weight:650;border-color:transparent}
 .fltVal:active{transform:scale(.96)}
 
 /* 筛选空态里的「清空条件」 */
 .emptyReset{margin-top:14px;font-size:12.5px;font-weight:600;color:var(--ac);padding:4px 0}
 
-/* 选集 */
+/* 选集：v11 统一 38dp 高、10dp 圆角 */
 .epGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 0}
-.ep{padding:10px 4px;border-radius:11px;text-align:center;font-size:12px;
-  background:var(--card);border:1px solid var(--line);
-  color:rgba(var(--ink),.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ep.on{background:linear-gradient(135deg,var(--ac),var(--ac2));color:#1A1008;
+.ep{height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;background:rgba(var(--ink),.06);border:1px solid var(--line);
+  color:rgba(var(--ink),.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ep.on{background:linear-gradient(135deg,var(--ac),var(--ac2));color:var(--acInk);
   font-weight:700;border-color:transparent}
 .ep:active{transform:scale(.95)}
 
 /* 收藏按钮激活态 */
 .dFav.on{background:linear-gradient(135deg,var(--ac),var(--ac2));border-color:transparent}
-.dFav.on .ic{color:#1A1008;fill:currentColor;stroke:none}
+.dFav.on .ic{color:var(--acInk);fill:currentColor;stroke:none}
 
 /* 配置页 */
 #cfg{position:fixed;inset:0;z-index:90;display:none;padding:0 18px;
@@ -609,7 +749,7 @@
   align-items:center;justify-content:center}
 #cfg.on{display:flex}
 .cfgBox{width:100%;max-width:420px}
-.cfgT{font-size:21px;font-weight:700;letter-spacing:-.2px}
+.cfgT{font-size:21px;font-weight:800;letter-spacing:-.3px}
 .cfgS{margin-top:9px;font-size:12px;line-height:1.62;color:var(--tx3);word-break:break-word}
 /* 结果提示不能跟说明文字一个待遇：12px 灰字，失败了用户也看不出来，只会觉得「点了没反应」 */
 #cfgMsg{font-size:12.5px;min-height:18px}
@@ -625,7 +765,7 @@
 .cfgSub{margin-top:7px;font-size:11.5px;line-height:1.5;color:var(--tx3)}
 .cfgRow{display:flex;gap:10px;margin-top:14px}
 .cfgBtn{flex:1;padding:13px 0;border-radius:14px;text-align:center;font-size:13.5px;
-  font-weight:650;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#1A1008}
+  font-weight:700;background:linear-gradient(135deg,var(--ac),var(--ac2));color:var(--acInk)}
 .cfgBtn.ghost{background:var(--card2);color:rgba(var(--ink),.75)}
 .cfgBtn:active{transform:scale(.98)}
 
@@ -648,7 +788,7 @@
 .askBox{position:relative;width:100%;max-width:360px;border-radius:20px;padding:20px 18px 16px;
   background:var(--panel);border:1px solid var(--line);
   box-shadow:0 26px 64px rgba(0,0,0,.62)}
-.askT{font-size:15.5px;font-weight:650;letter-spacing:-.1px}
+.askT{font-size:15.5px;font-weight:700;letter-spacing:-.1px}
 .askM{margin-top:9px;font-size:12.5px;line-height:1.66;color:var(--tx2)}
 .askRow{display:flex;gap:10px;margin-top:18px}
 .askBtn{flex:1;padding:12px 0;border-radius:13px;text-align:center;font-size:13.5px;font-weight:600}
@@ -662,16 +802,17 @@
 .htitleWrap:active .hdrArrow{transform:translateY(1px)}
 
 /* 线路 chip 右上角的集数 */
-.chipN{font-style:normal;font-size:10px;margin-left:5px;opacity:.5;font-weight:500}
+.chipN{font-style:normal;font-size:10px;margin-left:5px;opacity:.62;font-weight:500}
 
 /* 区块标题右侧的「换源」 */
-.dMore{font-size:12px;color:var(--ac);font-weight:600;padding:4px 2px}
+.dMore{font-size:12px;color:var(--ac2);font-weight:700;padding:4px 2px}
 
-/* ---------- 换源 / 切站点 全屏弹层 ---------- */#dAlt{position:fixed;inset:0;z-index:95;display:none;flex-direction:column;
+/* ---------- 换源 / 切站点 全屏弹层 ---------- */
+#dAlt{position:fixed;inset:0;z-index:95;display:none;flex-direction:column;
   background:var(--overlay);backdrop-filter:blur(18px)}
 #dAlt.on{display:flex}
 .altHead{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;
-  padding:calc(20px + var(--sat)) 18px 14px;font-size:17px;font-weight:700;
+  padding:calc(20px + var(--sat)) 18px 14px;font-size:17px;font-weight:800;
   letter-spacing:-.2px;gap:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .altClose{font-size:12.5px;font-weight:400;color:var(--tx3);padding:6px 2px 6px 12px;flex:0 0 auto}
 .altList{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
@@ -701,8 +842,6 @@
 
 /* =====================================================================
    直播页（#pLive）
-   ---------------------------------------------------------------------
-   2026-10-22 新增：原来直播只有「我的」里一个横屏入口，现在独立成页。
    全部颜色走上面的 token，深浅色自动适配；不要在这段里写死白/黑色值，
    否则浅色模式下文字会隐形。
    ===================================================================== */
@@ -715,13 +854,13 @@
   stroke-linecap:round;stroke-linejoin:round}
 
 /* 统计行：小圆点 + 「128 个频道 · 8 个分组」 */
-.liveStat{display:flex;align-items:center;gap:6px;padding:10px 16px 0;
+.liveStat{display:flex;align-items:center;gap:6px;padding:10px var(--pad) 0;
   font-size:12px;color:var(--tx3)}
 .dot{width:6px;height:6px;border-radius:3px;background:var(--ac);flex:0 0 auto;
   box-shadow:0 0 0 3px rgba(255,122,69,.16)}
 
 /* 两列频道卡片 */
-.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 16px 0}
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px var(--pad) 0}
 .lch{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;
   background:var(--card);border:1px solid var(--line);min-width:0}
 .lch:active{background:var(--card2)}
@@ -765,7 +904,7 @@ html[data-theme="light"] .logo.g{color:#1F8E63}
 }
 
 /* =====================================================================
-   首页「接口有响应但没内容」的重试入口（2026-10-22）
+   首页「接口有响应但没内容」的重试入口
    ---------------------------------------------------------------------
    起因：接口配着、站点名也显示出来了，但 spider 组件下不下来 → 分类和列表全空。
    原来这种情况下页面写的是「去配一个接口」，等于让用户去改一个本来就对的东西。

@@ -28,6 +28,20 @@
   /* ---------- 顶栏 ---------- */
   .hdr{padding:calc(30px + var(--sat)) var(--pad) 0}
   .htitle{font-size:27px}
+  /* 首页顶栏在手机上是一条悬浮胶囊（hero 全出血铺到状态栏底下）。
+     平板这版 hero 是卡片，胶囊压不到图上，会悬在状态栏和卡片之间 ——
+     所以整组退回「占位标题」，跟分类 / 我的 两页对齐。 */
+  #pH .hdr{position:static;padding:calc(30px + var(--sat)) var(--pad) 0;
+    pointer-events:auto}
+  #pH .htitleWrap{height:auto;padding:0;background:none;border:0;box-shadow:none;
+    backdrop-filter:none;-webkit-backdrop-filter:none}
+  #pH .htitleWrap::before{display:none}
+  #pH .htitle{font-size:27px;color:var(--tx);max-width:none}
+  #pH .hdrArrow{width:19px;height:19px;color:var(--tx3)}
+  .hbtn{width:44px;height:44px;border-radius:22px;background:var(--card);
+    border:1px solid var(--line);box-shadow:none;backdrop-filter:none;
+    -webkit-backdrop-filter:none}
+  .hbtn .ic{width:20px;height:20px;color:var(--tx2)}
 
   /* ---------- 搜索条 ---------- */
   .search{margin:18px var(--pad) 0;height:52px;border-radius:26px;padding:0 6px 0 16px}
@@ -40,13 +54,17 @@
      原来是固定 208px 高，屏幕一宽就成一条扁带子。
      改成按宽度走 16:9，再用 max-height 兜住竖屏别吃满整屏。 */
   .hero{margin:18px var(--pad) 0;height:auto;aspect-ratio:16 / 9;
-    max-height:430px;border-radius:24px}
-  .heroTag{font-size:11.5px;padding:5px 11px;border-radius:9px;left:18px;top:16px}
-  .heroNum{font-size:11.5px;right:18px;top:17px}
-  .heroBot{left:20px;right:20px;bottom:18px}
-  .heroT{font-size:26px}
-  .heroM{font-size:12.5px;margin-top:7px}
-  .heroD{font-size:12.5px;padding-right:92px}
+    min-height:0;max-height:430px;border-radius:24px;box-shadow:var(--shadowHero)}
+  .heroTag{font-size:12px;margin-bottom:10px}
+  .heroNum{font-size:11.5px;right:20px;top:18px}
+  .heroBot{left:24px;right:24px;bottom:22px}
+  .heroT{font-size:30px;letter-spacing:-.5px}
+  .heroM{font-size:13px;margin-top:9px}
+  .heroD{font-size:13px;padding-right:0;-webkit-line-clamp:2}
+  .heroTags span{height:26px;font-size:11.5px}
+  .heroActs{margin-top:16px;max-width:420px}
+  .heroBtn{height:48px;font-size:15px}
+  .heroBtn.ghost{width:110px}
   .playBtn{width:52px;height:52px;border-radius:26px;right:18px;bottom:18px}
   .playBtn .ic{width:21px;height:21px}
 
@@ -65,32 +83,36 @@
 
   /* ---------- 继续观看 ---------- */
   .crow{margin-top:16px;padding:0 var(--pad) 4px;gap:14px}
-  .cw{width:190px}
-  .cwT{height:107px;border-radius:14px}
-  .cwN{font-size:13px;margin-top:7px}
-  .cwS{font-size:10.5px}
+  .cw{width:238px}
+  .cwT{height:134px;border-radius:14px}
+  .cwN{font-size:13.5px;margin-top:8px}
+  .cwS{font-size:11.5px}
+  .cwEp{font-size:11.5px}
+  .cwPlay{width:42px;height:42px}
 
   /* ---------- 海报网格 ----------
-     2 列 → 3 列。手机上一张卡 174dp，820dp 的板上要是还 2 列就是 379dp，
-     一张海报占半屏，是这个 UI 在平板上最难看的根源。 */
-  .grid2{margin:16px var(--pad) 0;grid-template-columns:repeat(3,1fr);gap:16px}
-  .grid3{margin:16px var(--pad) 0;grid-template-columns:repeat(4,1fr);gap:12px}
-  .grid2 .pc{border-radius:16px}
-  .pcT{font-size:13.5px;left:12px;right:12px;bottom:24px}
-  .pcB{font-size:10.5px;left:12px;bottom:9px}
+     v11 手机上是 3 列（卡下一行片名）。平板空间多一倍，列数跟着往上加：
+     3 列会让一张海报宽到 250dp，卡下那行片名离图太远，读起来是断的。 */
+  .grid2{margin:16px var(--pad) 0;grid-template-columns:repeat(4,1fr);gap:18px 14px}
+  .grid3{margin:16px var(--pad) 0;grid-template-columns:repeat(5,1fr);gap:18px 14px}
+  .pcPoster{border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.34)}
+  .pcT{font-size:13.5px;margin-top:9px}
+  .pcB{font-size:10.5px;left:10px;right:10px;bottom:9px}
   .pcBadge{font-size:10px;left:10px;top:10px;padding:4px 8px}
   .pcCh{font-size:76px}
-  .grid3 .pcT{font-size:12px}
-  .grid3 .pcB{font-size:9.5px}
+  .grid3 .pcT{font-size:12.5px}
+  .grid3 .pcB{font-size:10px}
 
-  /* ---------- 分类 tab / 筛选：从 30dp 抬到 42dp，手指才按得准 ---------- */
+  /* ---------- 分类 tab / 筛选：从 32dp 抬到 44dp，手指才按得准 ----------
+     注意 app.css 里 .chip 是固定 height（不是 padding 撑高），
+     所以这里必须改 height，只改 padding 会被 height 压回去。 */
   .catBar .chips{padding:14px var(--pad) 0;gap:10px}
-  .chip{padding:12px 18px;border-radius:22px;font-size:14px}
-  .chip.more{padding:12px 15px}
+  .chip{height:44px;padding:0 18px;border-radius:22px;font-size:14px}
+  .chip.more{padding:0 15px}
 
   /* 筛选条同理：手机上 30dp 的按钮在板上太小 */
   .catBar .fbar{padding:11px var(--pad) 13px;gap:10px}
-  .fbtn{height:40px;padding:0 15px;border-radius:13px;font-size:13.5px;gap:6px}
+  .fbtn{height:44px;padding:0 15px;border-radius:13px;font-size:13.5px;gap:6px}
   .fbtn .ic{width:15px;height:15px}
   .fnum{min-width:18px;height:18px;font-size:11px;border-radius:9px}
   .fchip{height:40px;font-size:13.5px;border-radius:13px}
@@ -147,13 +169,14 @@
     transform:translate(-50%,-50%) scale(.94);opacity:0;
     transition:transform .30s var(--ease),opacity .22s var(--ease)}
   #detail.on .dSheet{transform:translate(-50%,-50%);opacity:1}
-  .dHero{height:240px;border-radius:24px 24px 0 0}
+  .dHero{height:320px;border-radius:24px 24px 0 0}
   .dHero .pcCh{font-size:96px}
   .dClose{width:40px;height:40px;border-radius:20px;right:14px;top:14px}
   .dClose .ic{width:19px;height:19px}
-  .dBody{padding:0 24px;margin-top:-32px}
-  .dT{font-size:25px}
-  .dM{font-size:13px;margin-top:7px}
+  .dBody{padding:0 24px;margin-top:-44px}
+  .dT{font-size:28px}
+  .dM{font-size:13px;margin-top:9px}
+  .dTags span{height:26px;font-size:11.5px}
   .dD{font-size:13.5px;line-height:1.66;margin-top:14px}
   .dActs{margin-top:20px;gap:12px}
   .dPlay{height:54px;border-radius:27px;font-size:15px}
@@ -241,9 +264,10 @@
   .cats{grid-template-columns:repeat(8,1fr)}
 
   /* Hero 在横屏别太高，否则一屏只放得下它 */
-  .hero{aspect-ratio:auto;height:min(38vh,340px);max-height:none}
-  .heroT{font-size:29px}
-  .heroD{font-size:13px;padding-right:110px;-webkit-line-clamp:2}
+  .hero{aspect-ratio:auto;height:min(40vh,380px);max-height:none}
+  .heroT{font-size:32px}
+  .heroD{font-size:13px;-webkit-line-clamp:2}
+  .heroActs{max-width:440px}
 
   /* 收集类页面统一限宽，避免超宽屏上一行拉到 1600dp */
   .melist,.meSec{max-width:820px;margin-left:auto;margin-right:auto}
@@ -263,8 +287,8 @@
     display:grid;grid-template-columns:380px 1fr;
     overflow:hidden;padding-bottom:0;
   }
-  .dHero{height:100%;min-height:100%;border-radius:24px 0 0 24px}
-  .dHero .dScrim{background:linear-gradient(90deg,rgba(11,11,17,0) 40%,rgba(11,11,17,.55) 100%)}
+  .dHero{height:100%;min-height:100%;border-radius:24px 0 0 24px;padding-top:0}
+  .dHero .dScrim{background:linear-gradient(90deg,rgba(var(--sheet-rgb),0) 40%,rgba(var(--sheet-rgb),.55) 100%)}
   .dHero .pcCh{font-size:110px;top:34%}
   /* 两栏时关闭按钮挪到左栏左上角，别卡在两栏接缝上 */
   .dHero .dClose{left:16px;right:auto;top:16px}
@@ -291,9 +315,9 @@
    四、超宽横屏  >=1280dp（12.9 寸横屏 / 折叠屏展开）
    ===================================================================== */
 @media (min-width:1280px) and (orientation:landscape){
-  .grid2{grid-template-columns:repeat(5,1fr)}
+  .grid2{grid-template-columns:repeat(6,1fr)}
   .grid3{grid-template-columns:repeat(7,1fr)}
-  .hero{height:min(44vh,420px)}
+  .hero{height:min(46vh,440px)}
   .dSheet{grid-template-columns:420px 1fr}
 }
 
