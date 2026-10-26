@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">影视</string>
     <string name="app_home">Home</string>
-    <string name="app_source">https://qist.wyfc.qzz.io/jsm.json</string>
+    <string name="app_source">https://raw.liucn.cc/box/m.json</string>
 
     // Home Page //
     <string name="hm_ok">Load Complete</string>

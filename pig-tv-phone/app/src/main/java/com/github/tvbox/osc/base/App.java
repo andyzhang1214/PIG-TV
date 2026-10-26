@@ -11,6 +11,7 @@ import com.github.catvod.crawler.JarLoader;
 import com.github.catvod.crawler.JsLoader;
 import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.callback.EmptyCallback;
+import com.github.tvbox.osc.callback.LiveEmptyCallback;
 import com.github.tvbox.osc.callback.LoadingCallback;
 import com.github.tvbox.osc.data.AppDataManager;
 import com.github.tvbox.osc.server.ControlManager;
@@ -80,6 +81,7 @@ public class App extends MultiDexApplication {
         safe("AppDataManager", () -> AppDataManager.init());
         LoadSir.beginBuilder()
                 .addCallback(new EmptyCallback())
+                .addCallback(new LiveEmptyCallback())
                 .addCallback(new LoadingCallback())
                 .commit();
         AutoSizeConfig.getInstance().setCustomFragment(true).getUnitsManager()

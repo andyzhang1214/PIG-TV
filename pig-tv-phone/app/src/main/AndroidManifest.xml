@@ -60,6 +60,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- 网盘登录：内置 WebView 打开网盘官网，登录完把 Cookie/token 取出来落盘给 4K 站点用 -->
+        <activity
+            android:name=".phone.NetdiskLoginActivity"
+            android:theme="@style/AppTheme.NoActionBar"
+            android:screenOrientation="unspecified"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|uiMode" />
         <activity
             android:name=".ui.activity.HomeActivity"
             android:screenOrientation="sensorLandscape"

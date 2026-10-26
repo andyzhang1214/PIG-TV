@@ -1283,7 +1283,16 @@ public class PhoneBridge {
     public void cfgList(String cbId) {
         pool.execute(() -> {
             try {
-                String cur = Hawk.get(HawkConfig.API_URL, "");
+                String saved = Hawk.get(HawkConfig.API_URL, "");
+                // 「使用中」不能只看 Hawk：全新安装 / 迁移清理过之后 Hawk 是空的，
+                // 实际在跑的是 strings.xml 的内置源。这里用实际生效地址兜底，
+                // 列表里至少有一条「内置 · 使用中」，用户才知道片源没丢。
+                String cur = saved;
+                boolean curBuiltin = TextUtils.isEmpty(cur);
+                if (curBuiltin) {
+                    cur = ApiConfig.currentApiUrl();
+                    if (cur == null) cur = "";
+                }
                 JSONArray arr = apiList();
                 JSONArray list = new JSONArray();
                 boolean hasCur = false;
@@ -1301,10 +1310,15 @@ public class PhoneBridge {
                     String nm = uniqueName(displayName(u, o.optString("name", "")), usedNames);
                     list.put(cfgItem(u, nm).put("cur", isCur ? 1 : 0));
                 }
-                // 老用户：当前接口是在这个功能之前配的，列表里还没有它，补在第一条
+                // 老用户：当前接口是在这个功能之前配的，列表里还没有它，补在第一条。
+                // 没手工存过地址（curBuiltin）时补的是内置源，打上 builtin 标记，
+                // 前端据此不给「改名/删除」——内置源跟着包里走，改了也没处存。
                 if (!hasCur && !TextUtils.isEmpty(cur)) {
                     JSONArray head = new JSONArray();
-                    head.put(cfgItem(cur, uniqueName(displayName(cur, ""), usedNames)).put("cur", 1));
+                    JSONObject first = cfgItem(cur, uniqueName(displayName(cur, ""), usedNames));
+                    first.put("cur", 1);
+                    if (curBuiltin) first.put("builtin", 1);
+                    head.put(first);
                     for (int i = 0; i < list.length(); i++) head.put(list.get(i));
                     list = head;
                 }
@@ -1750,6 +1764,34 @@ public class PhoneBridge {
         });
     }
 
+    /** 网盘登录：打开原生页面（内置 WebView 登录后自动取凭据） */
+    @JavascriptInterface
+    public void openNetdisk() {
+        main.post(() -> {
+            try {
+                act.startActivity(new Intent(act, NetdiskLoginActivity.class));
+            } catch (Throwable th) {
+                toast("打不开网盘登录页");
+            }
+        });
+    }
+
+    /** 网盘登录状态：给「我的」页徽章用 */
+    @JavascriptInterface
+    public void netdiskState(String cbId) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("ok", 1);
+            o.put("count", NetdiskStore.count(act));
+            o.put("quark", TextUtils.isEmpty(NetdiskStore.get(act, NetdiskStore.QUARK)) ? 0 : 1);
+            o.put("uc", TextUtils.isEmpty(NetdiskStore.get(act, NetdiskStore.UC)) ? 0 : 1);
+            o.put("ali", TextUtils.isEmpty(NetdiskStore.get(act, NetdiskStore.ALI)) ? 0 : 1);
+            cb(cbId, o.toString());
+        } catch (Throwable th) {
+            cbErr(cbId, th);
+        }
+    }
+
     /**
      * 直播页：把接口自带的直播分组 + 频道一次性给前端。
      * 数据量很小（几十到几百条），一次全给比翻页简单，前端也能自己算「共 N 个频道」。
@@ -1768,6 +1810,12 @@ public class PhoneBridge {
                 List<LiveChannelGroup> gl = null;
                 try {
                     gl = ApiConfig.get().getChannelGroupList();
+                    // 配置接口还没加载出来（首次启动没网、接口挂了、用户还没填源）时，
+                    // 用打包在 assets 里的直播源兜底：它不依赖任何外网地址，
+                    // 让直播页至少有几组台可以点，而不是一片空白。
+                    if ((gl == null || gl.isEmpty()) && ApiConfig.get().loadBuiltinLives()) {
+                        gl = ApiConfig.get().getChannelGroupList();
+                    }
                 } catch (Throwable ignored) {
                 }
                 if (gl != null) {

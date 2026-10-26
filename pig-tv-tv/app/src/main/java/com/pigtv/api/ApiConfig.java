@@ -28,6 +28,7 @@ import com.pigtv.util.HawkConfig;
 import com.pigtv.util.M3U8;
 import com.pigtv.util.MD5;
 import com.pigtv.util.FileUtils;
+import com.pigtv.util.live.TxtSubscribe;
 import com.pigtv.util.VideoParseRuler;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -42,6 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -75,6 +77,8 @@ public class ApiConfig {
     public String wallpaper = "";
     public JsonArray livePlayHeaders;
     private final SourceBean emptyHome = new SourceBean();
+    /** 本次解析跳过（不建）的 JS 爬虫站点数量，供诊断显示 */
+    public int jsSiteSkipped = 0;
 
     private final JarLoader jarLoader = new JarLoader();
     private final JsLoader jsLoader = new JsLoader();
@@ -142,6 +146,8 @@ public class ApiConfig {
 
     public void loadConfig(boolean useCache, LoadConfigCallback callback, Activity activity) {
         // Embedded Source : Update in Strings.xml if required
+        // qist 已下线：老包把它当内置源，用户可能在设置里手填过，Hawk 里就留着一条死链
+        migrateLegacyApiUrl();
         String apiUrl = Hawk.get(HawkConfig.API_URL, HomeActivity.getRes().getString(R.string.app_source));
         if (apiUrl.isEmpty()) {
             callback.error("源地址为空");
@@ -358,6 +364,64 @@ public class ApiConfig {
      * 会断线」调过（30 秒读超时 / 强制 HTTP/1.1 / Range 续传 / 拦截页识别），
      * 全局 OkGo 那套 10 秒超时的配置下不完这种文件。
      */
+    /**
+     * jar 结构完整性：能读到 zip 的中央目录才算下完整。
+     *
+     * <p>为什么不能只靠 {@code jarLoader.load()}：它只验证 dex 里有没有
+     * {@code com.github.catvod.spider.Init}，而 dex 排在 zip 最前面，
+     * 下载被截断时 Init 照样能加载、后面的类全丢 —— 表现就是「命中缓存 849KB」
+     * 却报 {@code ClassNotFoundException}。
+     *
+     * <p>也不直接拿 md5 卡：站点写错 md5 的情况很常见，包本身是好的，
+     * 因为一个字符串把它丢掉更冤。这里只判「结构是不是完整的」。
+     */
+    static boolean jarZipOk(File f) {
+        if (f == null || !f.exists() || f.length() == 0) return false;
+        java.util.zip.ZipFile zf = null;
+        try {
+            zf = new java.util.zip.ZipFile(f);
+            return zf.size() > 0;
+        } catch (Throwable th) {
+            return false;                              // 中央目录缺失 = 下载被截断
+        } finally {
+            if (zf != null) {
+                try {
+                    zf.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+    }
+
+    /** 本进程只自愈一次：源站配置本身写错时，重下多少次都一样，不能无限删缓存。 */
+    private static volatile boolean mainJarHealed = false;
+
+    /**
+     * 把主组件缓存判为「与当前接口不匹配」：删缓存 + 丢掉已注册的 classLoader。
+     * <p>下次 {@link #loadJar} 会重新下载，而不是继续命中旧包。
+     */
+    public boolean invalidateMainJar() {
+        if (mainJarHealed) return false;
+        mainJarHealed = true;
+        boolean deleted = false;
+        try {
+            String spider = getSpider();
+            if (spider == null || spider.trim().isEmpty()) return false;
+            String jarUrl = spider.split(";md5;")[0].trim();
+            File cache = new File(App.getInstance().getFilesDir().getAbsolutePath()
+                    + "/csp/" + MD5.string2MD5(jarUrl) + ".jar");
+            File part = new File(cache.getAbsolutePath() + ".part");
+            if (part.exists()) part.delete();          // 残包也一起清，避免拿旧字节续
+            deleted = cache.exists() && cache.delete();
+            jarLoader.removeLoader("main");
+            System.out.println("JarDiag : 组件与接口不匹配，已丢弃缓存(deleted=" + deleted
+                    + ")，下次重新下载 " + cache.getName());
+        } catch (Throwable th) {
+            System.out.println("JarDiag : 清理组件缓存失败 " + th.getMessage());
+        }
+        return deleted;
+    }
+
     public void loadJar(boolean useCache, String spider, LoadConfigCallback callback) {
         String[] urls = spider.split(";md5;");
         String jarUrl = urls[0].trim();
@@ -373,23 +437,33 @@ public class ApiConfig {
         // ---------------------------------------------------------------
         boolean degraded = false;
         if (cache.exists()) {
-            boolean md5Match = md5.isEmpty()
-                    ? !FileUtils.isWeekAgo(cache)     // 接口没给版本号：一周内算新
-                    : md5.equalsIgnoreCase(MD5.getFileMd5(cache));
-            boolean loaded = jarLoader.load(cache.getAbsolutePath());
-            if (loaded && (useCache || md5Match)) {
+            // md5 声明了就必须严格匹配：站点换包后类名会对不上，
+            // 旧包一直命中的结果就是 ClassNotFoundException、整站不可用
+            // （真机踩过：缓存 849KB / 实际 1182KB，配置要 csp_WoGGGuard，
+            //  旧包里根本没有这个类）。md5 没声明时才退回「一周内算新」。
+            boolean md5Ok = md5.isEmpty() || md5.equalsIgnoreCase(MD5.getFileMd5(cache));
+            boolean fresh = md5.isEmpty() ? !FileUtils.isWeekAgo(cache) : md5Ok;
+            // jarLoader.load() 只验证 dex 里有 Init 类，而 dex 在 zip 最前面，
+            // 下载被截断时 Init 照样能加载、后面的类全丢 —— 还要看 zip 结构。
+            boolean loaded = jarLoader.load(cache.getAbsolutePath()) && jarZipOk(cache);
+            if (loaded && fresh) {
                 lastJarDiag = "命中缓存 " + (cache.length() / 1024) + "KB";
                 lastJarError = null;
                 callback.success();
                 return;
             }
-            if (loaded) {
-                degraded = true;                       // 旧包能用，先让页面有内容
+            if (loaded && md5.isEmpty()) {
+                degraded = true;                       // 没版本号的老接口，旧包先顶上
                 lastJarDiag = "版本已过期，先用旧包（" + (cache.length() / 1024) + "KB）顶上";
                 callback.success();
-            } else {
+            }
+            if (!loaded) {
                 cache.delete();                        // 缓存本身坏了，留着只会反复失败
             }
+            // 不论是「坏了」还是「md5 对不上」，都已注册的 classLoader 必须丢掉：
+            // loadClassLoader 开头会因 containsKey 直接 return true，
+            // 不清掉的话后面对的新包也加载不进来。
+            jarLoader.removeLoader("main");
         }
 
         // ---------------------------------------------------------------
@@ -514,6 +588,15 @@ public class ApiConfig {
                 boolean md5Ok = md5.isEmpty() || md5.equalsIgnoreCase(got);
                 try {
                     installed = jarLoader.load(r.file.getAbsolutePath());
+                    // 只判「能 load」还不够：残缺包也能加载出 Init 类，
+                    // 落进缓存后就成了永久坏包，所以再看一眼 zip 结构。
+                    if (installed && !jarZipOk(r.file)) {
+                        installed = false;
+                        lastJarDiag = (lastJarDiag == null ? "" : lastJarDiag)
+                                + " 组件只下到 " + (r.file.length() / 1024) + "KB（结构残缺），已丢弃";
+                        LOG.e("echo---jar 下载不完整，丢弃 " + (r.file.length() / 1024) + "KB");
+                        jarLoader.removeLoader("main");
+                    }
                 } catch (Throwable th) {
                     LOG.e("echo---jar Loader threw: " + th.getMessage());
                 }
@@ -677,9 +760,17 @@ public class ApiConfig {
         sourceBeanList.clear();
         mHomeSource = null;
         SourceBean firstSite = null;
+        jsSiteSkipped = 0;
         JsonArray sites = infoJson.has("video") ? infoJson.getAsJsonObject("video").getAsJsonArray("sites") : infoJson.get("sites").getAsJsonArray();
         for (JsonElement opt : sites) {
             JsonObject obj = (JsonObject) opt;
+            // 本机这版 quickjs 求值 ES module 时会在 native 层 SIGSEGV
+            // （evaluateModule → JS_GetModuleExport），进程直接死，Java 层 catch 拦不住。
+            // JS 爬虫站点一律不建，宁可少几个站，也不能让用户点一下就闪退。
+            if (isJsSite(obj)) {
+                jsSiteSkipped++;
+                continue;
+            }
             SourceBean sb = new SourceBean();
             String siteKey = obj.get("key").getAsString().trim();
             sb.setKey(siteKey);
@@ -704,6 +795,10 @@ public class ApiConfig {
             if (firstSite == null && sb.getHide() == 0)
                 firstSite = sb;
             sourceBeanList.put(siteKey, sb);
+        }
+        if (jsSiteSkipped > 0) {
+            System.out.println("Sites : 跳过 " + jsSiteSkipped + " 个 JS 站点（本机 JS 引擎会崩），保留 "
+                    + sourceBeanList.size() + " 个");
         }
         if (sourceBeanList != null && sourceBeanList.size() > 0) {
             String home = Hawk.get(HawkConfig.HOME_API, "");
@@ -747,6 +842,9 @@ public class ApiConfig {
 
         // takagen99: Check if Live URL is setup in Settings, if no, get from File Config
         liveChannelGroupList.clear();           //修复从后台切换重复加载频道列表
+        // 老包会把接口自带的直播地址写进 Hawk，先把那几个已经失效的历史默认值清掉，
+        // 否则下面那句读到的就是「假用户选择」，内置源永远进不来。
+        migrateLegacyLiveUrl();
         String liveURL = Hawk.get(HawkConfig.LIVE_URL, "");
         String epgURL  = Hawk.get(HawkConfig.EPG_URL, "");
 
@@ -777,10 +875,11 @@ public class ApiConfig {
                         // takagen99: Capture Live URL into Config
                         System.out.println("Live URL :" + extUrlFix);
                         putLiveHistory(extUrlFix);
-                        // Overwrite with Live URL from Settings
-                        if (StringUtils.isBlank(liveURL)) {
-                            Hawk.put(HawkConfig.LIVE_URL, extUrlFix);
-                        } else {
+                        // 只记录历史，**不写 Hawk**：Hawk 里的 LIVE_URL 是「用户自己选的」，
+                        // 一旦把配置自带的地址写进去，就再也分不清是用户选的还是接口给的，
+                        // 换接口不会跟着变，还会挡住打包在 assets 里的内置直播源。
+                        // 用户手填过才用 Hawk 的值。
+                        if (StringUtils.isNotBlank(liveURL)) {
                             extUrlFix = liveURL;
                         }
 
@@ -839,10 +938,9 @@ public class ApiConfig {
                                 // takagen99: Capture Live URL into Settings
                                 System.out.println("Live URL :" + url);
                                 putLiveHistory(url);
-                                // Overwrite with Live URL from Settings
-                                if (StringUtils.isBlank(liveURL)) {
-                                    Hawk.put(HawkConfig.LIVE_URL, url);
-                                } else {
+                                // 同上面 proxy:// 分支：只记历史，不写 Hawk。
+                                // Hawk 只保存用户手填的地址，否则会挡住内置直播源。
+                                if (StringUtils.isNotBlank(liveURL)) {
                                     url = liveURL;
                                 }
 
@@ -869,6 +967,22 @@ public class ApiConfig {
 
         } catch (Throwable th) {
             th.printStackTrace();
+        }
+
+        // ===== 内置直播源 =====
+        // 上面那段只在配置接口写了 lives 时才会往列表里塞东西，而且塞的是一条
+        // 「http://127.0.0.1:9978/proxy?do=live&ext=<base64>」占位地址，真频道要播放器
+        // 去拉才知道。接口那条 lives 一旦失效（源站给个空 M3U 头也算 200），直播页就是
+        // 空白。assets/live_builtin.txt 里是逐条探测过、确认能播的频道表，
+        // 用户没有自己指定直播源时改用它，保证「点直播一定有台」。
+        // 用户手填过 LIVE_URL 就不介入，尊重用户自己的选择。（与手机版同一份实现）
+        if (TextUtils.isEmpty(Hawk.get(HawkConfig.LIVE_URL, ""))) {
+            List<LiveChannelGroup> fallback = new ArrayList<>(liveChannelGroupList);
+            liveChannelGroupList.clear();
+            if (!loadBuiltinLives()) {
+                // 内置表读不出来（升级包异常之类）就退回原来的，不把功能搞没
+                liveChannelGroupList.addAll(fallback);
+            }
         }
 
         // Video parse rule for host
@@ -1050,6 +1164,118 @@ public class ApiConfig {
                 liveChannelGroup.getLiveChannels().add(liveChannelItem);
             }
             liveChannelGroupList.add(liveChannelGroup);
+        }
+    }
+
+    /**
+     * 判断站点是不是走 JS 爬虫。
+     * <p>
+     * type=3 的站点里，api 以 .js 结尾（或含 .js?）的就是 JS 爬虫，会走 JsLoader →
+     * quickjs evaluateModule；本机的 quickjs 求值 ES module 时在 native 层 SIGSEGV，
+     * 整个进程挂掉，Java 层拦不住。type=1（JSON 采集）、type=0（xml）不碰 JS，安全。
+     */
+    private static boolean isJsSite(JsonObject obj) {
+        try {
+            int type = obj.has("type") ? obj.get("type").getAsInt() : 0;
+            if (type != 3) return false;
+            String api = obj.has("api") ? obj.get("api").getAsString().trim() : "";
+            if (api.endsWith(".js")) return true;
+            if (api.contains(".js?")) return true;
+            if (api.contains("drpy")) return true;
+            String ext = obj.has("ext") ? obj.get("ext").getAsString() : "";
+            return ext.contains("drpy");
+        } catch (Throwable th) {
+            return false;
+        }
+    }
+
+    /** qist 站点已下线；高天流云是纯 JS 源（本机 JS 引擎会崩）。两者留在 Hawk 里都是死路，清掉回落内置源 */
+    private void migrateLegacyApiUrl() {
+        try {
+            String cur = Hawk.get(HawkConfig.API_URL, "");
+            if (TextUtils.isEmpty(cur)) return;
+            if (cur.contains("qist.wyfc.qzz.io") || cur.contains("gaotianliuyun/gao")) {
+                Hawk.delete(HawkConfig.API_URL);
+                System.out.println("ApiUrl : 清掉不可用的源 " + cur);
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
+    /** 老版本由配置接口写进 Hawk 的直播地址（都已失效），迁移时清掉 */
+    private static final String[] LEGACY_LIVE_URLS = {
+            "https://develop202.github.io/migu_video/interface.txt",
+            "https://epg.pw/test_channels.m3u",
+    };
+
+    /**
+     * 一次性迁移：老版本会把配置接口自带的直播地址写进 Hawk(LIVE_URL)，那之后
+     * 「用户手填」「接口给的」「内置源」三者的优先级就乱了 —— 拿着一个早就失效的
+     * migu 地址当成用户的选择，打包在 assets 里的内置源永远进不来。
+     * 只清上面这几个历史默认值（以及已下线的 qist 域名），用户自己填的地址一律不动。
+     */
+    private void migrateLegacyLiveUrl() {
+        try {
+            String cur = Hawk.get(HawkConfig.LIVE_URL, "");
+            if (TextUtils.isEmpty(cur)) return;
+            String v = cur.trim();
+            for (String legacy : LEGACY_LIVE_URLS) {
+                if (legacy.equalsIgnoreCase(v)) {
+                    Hawk.delete(HawkConfig.LIVE_URL);
+                    System.out.println("LiveUrl : 清掉历史默认值 " + v);
+                    return;
+                }
+            }
+            if (v.contains("qist.wyfc.qzz.io")) {
+                Hawk.delete(HawkConfig.LIVE_URL);
+                System.out.println("LiveUrl : 清掉已下线源的地址 " + v);
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
+    /**
+     * 读取打包在 assets 里的直播源 live_builtin.txt（TVBox 通用 txt 格式），
+     * 解析成频道分组填进 liveChannelGroupList。与手机版用的是同一份文件、同一套解析。
+     *
+     * @return 是否解析出至少一个含频道的分组
+     */
+    public boolean loadBuiltinLives() {
+        InputStream is = null;
+        try {
+            is = App.getInstance().getAssets().open("live_builtin.txt");
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = is.read(buf)) > 0) {
+                bos.write(buf, 0, len);
+            }
+            String txt = bos.toString("UTF-8");
+            if (TextUtils.isEmpty(txt)) {
+                return false;
+            }
+            LinkedHashMap<String, LinkedHashMap<String, ArrayList<String>>> map = new LinkedHashMap<>();
+            TxtSubscribe.parse(map, txt);
+            JsonArray arr = TxtSubscribe.live2JsonArray(map);
+            if (arr == null || arr.size() == 0) {
+                return false;
+            }
+            // loadLives 内部会先 clear，这里已经 clear 过了，重复一次无副作用
+            loadLives(arr);
+            System.out.println("BuiltinLive : " + liveChannelGroupList.size() + " 组 / "
+                    + arr.size() + " 条原始分组");
+            return liveChannelGroupList.size() > 0;
+        } catch (Throwable th) {
+            System.out.println("BuiltinLive : 读取失败 " + th);
+            th.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (is != null) is.close();
+            } catch (Throwable ignored) {
+            }
         }
     }
 

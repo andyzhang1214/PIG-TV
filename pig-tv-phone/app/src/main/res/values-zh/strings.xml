@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">猪猪影视</string>
     <string name="app_home">首页</string>
-    <string name="app_source" translatable="false">https://qist.wyfc.qzz.io/jsm.json</string>
+    <string name="app_source" translatable="false">https://raw.liucn.cc/box/m.json</string>
 
     // Home Page //
     <string name="hm_ok">加载成功</string>

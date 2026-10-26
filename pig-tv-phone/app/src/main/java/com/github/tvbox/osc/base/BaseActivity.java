@@ -248,6 +248,16 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomAd
         }
     }
 
+    /**
+     * 切到指定状态页。showEmpty() 只会用通用的 EmptyCallback，
+     * 而直播页要说清「为什么没内容」并且能重试，得用自己的状态页。
+     */
+    protected void showCallback(Class<? extends Callback> callback) {
+        if (null != mLoadService) {
+            mLoadService.showCallback(callback);
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();

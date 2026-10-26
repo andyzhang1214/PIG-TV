@@ -35,6 +35,7 @@ import com.github.tvbox.osc.bean.Epginfo;
 import com.github.tvbox.osc.bean.LiveChannelGroup;
 import com.github.tvbox.osc.bean.LiveChannelItem;
 import com.github.tvbox.osc.bean.LiveEpgDate;
+import com.github.tvbox.osc.callback.LiveEmptyCallback;
 import com.github.tvbox.osc.bean.LivePlayerManager;
 import com.github.tvbox.osc.bean.LiveSettingGroup;
 import com.github.tvbox.osc.bean.LiveSettingItem;
@@ -362,6 +363,14 @@ public class LivePlayActivity extends BaseActivity {
 
     @Override
     public void onBackPressed() {
+        // 空态 / 还在转圈：手机上按一次返回就该退出。
+        // 以前这里走 exit()，要求 2 秒内再按一次（电视遥控器防误触的逻辑），
+        // 手机用户按一下只看到一句 Toast，就以为返回键坏了、页面卡死了。
+        if (liveEmptyShown || isLoading()) {
+            mHandler.removeCallbacks(mLiveTimeoutRun);
+            super.onBackPressed();
+            return;
+        }
         if (tvLeftChannelListLayout.getVisibility() == View.VISIBLE) {
             mHandler.removeCallbacks(mHideChannelListRun);
             mHandler.post(mHideChannelListRun);
@@ -373,23 +382,91 @@ public class LivePlayActivity extends BaseActivity {
             mHandler.post(mHideChannelInfoRun);
         } else {
             mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
+            mHandler.removeCallbacks(mLiveTimeoutRun);
             mHandler.removeCallbacks(mUpdateNetSpeedRun);
             mHandler.removeCallbacks(mUpdateTimeRun);
             mHandler.removeCallbacks(tv_sys_timeRunnable);
-            exit();
-        }
-    }
-
-    private long mExitTime = 0;
-
-    private void exit() {
-        if (System.currentTimeMillis() - mExitTime < 2000) {
             super.onBackPressed();
-        } else {
-            mExitTime = System.currentTimeMillis();
-            Toast.makeText(mContext, getString(R.string.hm_exit_live), Toast.LENGTH_SHORT).show();
         }
     }
+
+    /* ==================================================================
+       直播频道表的兜底
+       手机版以前只有 showLoading()，没有任何超时：loadProxyLives 的请求
+       一旦挂住（直播源失效、或者服务器给了响应头就不再有数据），
+       LoadSir 就一直停在转圈上，永远不出来。这里补一条看门狗，
+       到点还没就绪就切到空态——能看清原因、能点屏幕重试、能直接返回。
+       ================================================================== */
+    private static final long LIVE_LOAD_TIMEOUT_MS = 15_000L;
+    /** 当前是不是停在「没频道 / 加载超时」的空态上 */
+    private boolean liveEmptyShown = false;
+
+    private final Runnable mLiveTimeoutRun = new Runnable() {
+        @Override
+        public void run() {
+            if (isFinishing() || liveEmptyShown) return;
+            // 已经就绪（showSuccess 之后 isLoading() 为 false），不用管
+            if (!isLoading()) return;
+            showLiveEmpty("直播源加载超时",
+                    "当前直播源一直没有响应，常见原因是地址失效或网络太慢\n点屏幕重试，或按返回键退出");
+        }
+    };
+
+    private void armLiveTimeout() {
+        mHandler.removeCallbacks(mLiveTimeoutRun);
+        mHandler.postDelayed(mLiveTimeoutRun, LIVE_LOAD_TIMEOUT_MS);
+    }
+
+    /**
+     * 频道表就绪：关掉看门狗、退出空态、进正常播放流程。
+     * 以前这里散着写 showSuccess() + initLiveState()，加状态机之后容易漏一条分支。
+     */
+    private void liveReady() {
+        liveEmptyShown = false;
+        mHandler.removeCallbacks(mLiveTimeoutRun);
+        showSuccess();
+        initLiveState();
+    }
+
+    /** 停在直播页显示「为什么没有内容」，而不是 Toast 完就把用户踢回上一页 */
+    private void showLiveEmpty(final String title, final String sub) {
+        liveEmptyShown = true;
+        mHandler.removeCallbacks(mLiveTimeoutRun);
+        showCallback(LiveEmptyCallback.class);
+        // LoadSir 的 Callback 视图是构建期就 inflate 好的，文案只能拿到视图之后自己写；
+        // 放到下一帧是为了避开首次切换时的时序差（和 TV 版同样的处理）
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                applyLiveEmpty(title, sub);
+            }
+        });
+    }
+
+    private void applyLiveEmpty(String title, String sub) {
+        View t = findViewById(R.id.lvEmptyTitle);
+        if (t instanceof TextView && title != null) ((TextView) t).setText(title);
+        View s = findViewById(R.id.lvEmptySub);
+        if (s instanceof TextView && sub != null) ((TextView) s).setText(sub);
+        // 手机上没有 OK 键，整屏点一下就是重试
+        View r = findViewById(R.id.lvEmptyRoot);
+        if (r != null) {
+            r.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    retryLoadChannelList();
+                }
+            });
+        }
+    }
+
+    private void retryLoadChannelList() {
+        liveEmptyShown = false;
+        mHandler.removeCallbacks(mLiveTimeoutRun);
+        showLoading();
+        initLiveChannelList();
+    }
+
 
     private final Runnable mPlaySelectedChannel = new Runnable() {
         @Override
@@ -1721,9 +1798,18 @@ public class LivePlayActivity extends BaseActivity {
 
     private void initLiveChannelList() {
         List<LiveChannelGroup> list = ApiConfig.get().getChannelGroupList();
-        if (list.isEmpty()) {
-            Toast.makeText(App.getInstance(), getString(R.string.act_live_play_empty_channel), Toast.LENGTH_SHORT).show();
-            finish();
+        if (list == null || list.isEmpty()) {
+            // 配置接口没加载成功（没网、接口挂了、还没配源）时，先用打包在 assets 里的
+            // 直播源顶上——它不依赖任何外网地址，保证点进来就有台。
+            if (ApiConfig.get().loadBuiltinLives()) {
+                list = ApiConfig.get().getChannelGroupList();
+            }
+        }
+        if (list == null || list.isEmpty()) {
+            // 以前是 Toast + finish()：用户点了直播，转一圈被弹回上一页，
+            // 还以为按钮坏了。现在停在本页，把原因说清楚，能重试也能返回。
+            showLiveEmpty("直播频道还没准备好",
+                    "当前接口没有提供直播频道\n换一个片源，或稍后再进来看看");
             return;
         }
 
@@ -1732,8 +1818,7 @@ public class LivePlayActivity extends BaseActivity {
         } else {
             liveChannelGroupList.clear();
             liveChannelGroupList.addAll(list);
-            showSuccess();
-            initLiveState();
+            liveReady();
         }
     }
 
@@ -1743,16 +1828,19 @@ public class LivePlayActivity extends BaseActivity {
             Uri parsedUrl = Uri.parse(url);
             url = new String(Base64.decode(parsedUrl.getQueryParameter("ext"), Base64.DEFAULT | Base64.URL_SAFE | Base64.NO_WRAP), "UTF-8");
             if (url.equals("")) {
-                Toast.makeText(App.getInstance(), getString(R.string.act_live_play_empty_live_url), Toast.LENGTH_LONG).show();
-                finish();
+                // 配置里只留了代理壳、里面没地址。这种情况重试多少次都一样，直接说清楚。
+                showLiveEmpty("还没填直播源地址",
+                        "配置里没有可用的直播源\n去「我的 → 直播源」填一个，再回来刷新");
                 return;
             }
         } catch (Throwable th) {
-            Toast.makeText(App.getInstance(), getString(R.string.act_live_play_empty_channel), Toast.LENGTH_SHORT).show();
-            finish();
+            showLiveEmpty("直播源地址读不出来",
+                    "配置里的直播源地址格式不对\n去「我的 → 直播源」重新填一次");
             return;
         }
         showLoading();
+        // 请求一旦挂住就不会有 onError 也不会有 onSuccess，必须自己兜底
+        armLiveTimeout();
         OkGo.<String>get(url).execute(new AbsCallback<String>() {
 
             @Override
@@ -1769,9 +1857,14 @@ public class LivePlayActivity extends BaseActivity {
 
                 ApiConfig.get().loadLives(livesArray);
                 List<LiveChannelGroup> list = ApiConfig.get().getChannelGroupList();
-                if (list.isEmpty()) {
-                    Toast.makeText(App.getInstance(), getString(R.string.act_live_play_empty_channel), Toast.LENGTH_SHORT).show();
-                    finish();
+                if (list == null || list.isEmpty()) {
+                    mHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            showLiveEmpty("这个直播源里没有频道",
+                                    "地址能打开，但里面解析不出任何频道\n可能源已经失效，换一个试试");
+                        }
+                    });
                     return;
                 }
                 liveChannelGroupList.clear();
@@ -1780,8 +1873,7 @@ public class LivePlayActivity extends BaseActivity {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        LivePlayActivity.this.showSuccess();
-                        initLiveState();
+                        liveReady();
                     }
                 });
             }
@@ -1789,8 +1881,15 @@ public class LivePlayActivity extends BaseActivity {
             @Override
             public void onError(Response<String> response) {
                 super.onError(response);
-                Toast.makeText(App.getInstance(), getString(R.string.act_live_play_network_error), Toast.LENGTH_LONG).show();
-                finish();
+                // 以前这里是 Toast + finish()，等于把用户踢出去。
+                // 停在本页，用户可以点屏幕重试（源站偶尔就是一次连不上）。
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        showLiveEmpty("直播源连不上",
+                                "请求直播源失败，可能是地址失效或网络不稳定\n点屏幕重试，或按返回键退出");
+                    }
+                });
             }
         });
     }

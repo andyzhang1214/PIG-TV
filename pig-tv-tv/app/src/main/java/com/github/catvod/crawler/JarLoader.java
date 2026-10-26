@@ -47,6 +47,19 @@ public class JarLoader {
         classLoaders.clear();
     }
 
+    /**
+     * 丢掉某个 key 的 classLoader。
+     * <p>检测到坏包（下载残缺 / md5 与配置对不上）时必须调它：
+     * {@link #loadClassLoader} 开头会因为 {@code containsKey} 直接 return true，
+     * 不清掉的话，后面对的新包永远加载不进来，页面一直停在上一个坏包上。
+     */
+    public void removeLoader(String key) {
+        if (key == null) return;
+        classLoaders.remove(key);
+        spiders.remove(key);
+        proxyMethods.remove(key);
+    }
+
     private boolean loadClassLoader(String jar, String key) {
         if (classLoaders.containsKey(key)){
             Log.i("JarLoader", "echo-loadClassLoader jar缓存: " + key);
@@ -199,6 +212,17 @@ public class JarLoader {
             // 这里最常抓到的是 NoClassDefFoundError: com.github.catvod.net.OkHttp ——
             // 也就是「R8 把宿主给 jar 用的 API 改名了」，报给前端才能看出来。
             com.pigtv.api.SpiderDiag.fail("加载站点 " + clsKey, th);
+            // 主 jar 里没有这个类：多半是站点换了新组件、本地缓存还是旧包
+            // （接口不声明 md5 时，光看文件分辨不出来），旧包能 load 就一直接着用，
+            // 表现就是「接口连上了但没内容」。把旧组件丢掉，下次加载会重下。
+            if (jar.isEmpty()
+                    && (th instanceof ClassNotFoundException || th instanceof NoClassDefFoundError)) {
+                if (com.pigtv.api.ApiConfig.get().invalidateMainJar()) {
+                    com.pigtv.api.SpiderDiag.set("站点 " + clsKey
+                            + " 在本地组件里不存在（当前组件是旧版），已清掉旧组件，"
+                            + "点「重新加载」会自动下载新组件");
+                }
+            }
             th.printStackTrace();
         }
         return new SpiderNull();

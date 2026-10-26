@@ -1832,6 +1832,13 @@ public class LivePlayActivity extends BaseActivity {
     private void initLiveChannelList() {
         List<LiveChannelGroup> list = ApiConfig.get().getChannelGroupList();
         if (list == null || list.isEmpty()) {
+            // 配置接口没给频道表（或给了个空源）时，先看有没有打包在 assets 里的内置源。
+            // 没网、没配源也要能看到台 —— 和手机版是同一套兜底。
+            if (ApiConfig.get().loadBuiltinLives()) {
+                list = ApiConfig.get().getChannelGroupList();
+            }
+        }
+        if (list == null || list.isEmpty()) {
             showLiveEmpty("直播频道还没准备好",
                     "当前接口没有提供直播频道\n换一个片源，或稍后再进来看看");
             return;
