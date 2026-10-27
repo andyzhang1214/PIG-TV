@@ -5,6 +5,27 @@
         <item name="colorPrimary">@color/color_32364E</item>
         <item name="colorPrimaryDark">@color/color_32364E_40</item>
         <item name="colorAccent">?attr/color_theme</item>
+
+        <!--
+            下面两项是「防悬空引用」，少一个就会在 Android 12+ 上白屏闪退：
+
+            AppCompat 的 Platform.AppCompat.Light 把 android:textColorLink 定义成
+            ?attr/colorAccent，而 colorAccent 又被本主题指向 ?attr/color_theme。
+            color_theme 原本只在 NetfxTheme / DoraeTheme 这些「按源换色」的变体里
+            有 —— 走 AppTheme.NoActionBar 这条链（application 默认主题、网盘登录页）
+            时它是个悬空引用，框架解析 ?android:textColorLink 解析不出来，
+            Android 12+ 的 TypedArray.getColorStateList 会直接抛
+            UnsupportedOperationException: Failed to resolve attribute at index 6。
+            表现就是「一进页面创建第一个 TextView 就闪退」，而且只在 Android 12+ 上炸。
+
+            color_theme 给个兜底默认值：变体主题照常覆盖它，按源换肤不受影响
+            （代码里读 color_theme 走的是 obtainStyledAttributes(R.styleable.themeColor)，
+            读的是布局上指定的 style，不走 ?attr/ 这条链，外观零变化）。
+            android:textColorLink 直接写死颜色：这样框架解析它时不用绕 colorAccent，
+            就算以后又有人在 colorAccent 上挂悬空引用，也炸不到这一条。
+        -->
+        <item name="color_theme">#FFF0C070</item>
+        <item name="android:textColorLink">#FFF0C070</item>
     </style>
 
     <style name="AppTheme.NoActionBar">

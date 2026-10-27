@@ -228,7 +228,7 @@
       </div>
       <div class="meitem ar" onclick="openAbout()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".9" fill="currentColor"/></svg>
-        关于<span class="v" id="verHint">v1.0.2</span>
+        关于<span class="v" id="verHint">v1.0.3</span>
       </div>
     </div>
     <div style="height:6px"></div>
@@ -2621,7 +2621,7 @@ function refreshSettings(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) return;
     var el = document.getElementById('verHint');
-    if (el) el.textContent = 'v' + (d.ver || '1.0.2');
+    if (el) el.textContent = 'v' + (d.ver || '1.0.3');
   });
 }
 
@@ -2773,7 +2773,7 @@ function resetAppAsk(){
 function openAbout(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) d = {};
-    var ver = d.ver || '1.0.2';
+    var ver = d.ver || '1.0.3';
     var el = document.getElementById('verHint');
     if (el) el.textContent = 'v' + ver;
     var html = '';

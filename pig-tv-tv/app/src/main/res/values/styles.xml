@@ -5,6 +5,18 @@
         <item name="colorPrimary">@color/color_32364E</item>
         <item name="colorPrimaryDark">@color/color_32364E_40</item>
         <item name="colorAccent">?attr/color_theme</item>
+
+        <!--
+            防悬空引用：colorAccent 指向 ?attr/color_theme，而 color_theme 只在
+            NetfxTheme / DoraeTheme 这些「按源换色」的变体里有。走 AppTheme.NoActionBar
+            这条链（application 默认主题就是它）时它是悬空引用，AppCompat 的
+            android:textColorLink → ?attr/colorAccent → ?attr/color_theme 解析不出来，
+            Android 12+ 解析失败直接抛 UnsupportedOperationException（一进页面就闪退）。
+            这里给兜底默认值，变体主题照常覆盖，按源换肤不受影响。
+            textColorLink 也写死一份，解析时不用绕 colorAccent，更抗造。
+        -->
+        <item name="color_theme">#FFF0C070</item>
+        <item name="android:textColorLink">#FFF0C070</item>
     </style>
 
     <style name="AppTheme.NoActionBar">
