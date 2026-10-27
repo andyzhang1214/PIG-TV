@@ -23,6 +23,15 @@ public class HawkUtils {
     private static final String DANMU_SIZESCALE = "danmu_sizescale";
     private static final String DANMU_COLOR = "danmu_color";
 
+    /** m3u8 广告段过滤：默认开，关掉后播放列表原样交给解析器 */
+    public static String getM3u8AdFilterDesc() {
+        return Hawk.get(HawkConfig.M3U8_AD_FILTER, true) ? "开启" : "关闭";
+    }
+
+    public static void toggleM3u8AdFilter() {
+        Hawk.put(HawkConfig.M3U8_AD_FILTER, !Hawk.get(HawkConfig.M3U8_AD_FILTER, true));
+    }
+
     public static boolean getDanmuOpen() {
         return Hawk.get(DANMU_OPEN, true);
     }

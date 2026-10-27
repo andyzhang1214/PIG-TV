@@ -39,6 +39,8 @@ public class HawkConfig {
     public static final String PLAY_TIME_STEP = "play_time_step";
     public static final String PIC_IN_PIC = "pic_in_pic";   // true = on, false = off
     public static final String VIDEO_PURIFY = "video_purify";
+    /** m3u8 播放列表里的广告段过滤，默认开 */
+    public static final String M3U8_AD_FILTER = "m3u8_ad_filter";
     public static final String IJK_CACHE_PLAY = "ijk_cache_play";
 
     public static final String EXO_RENDERER = "exo_renderer";
@@ -75,6 +77,8 @@ public class HawkConfig {
      * 用户可以在「我的 → 片源接口」里手动切回之前存过的任意一个。
      */
     public static final String PHONE_API_LIST = "phone_api_list";
+    /** 片源接口测速结果：{url:{ms,ok,reach,t,msg}} */
+    public static final String PHONE_API_SPEED = "phone_api_speed";
     /**
      * 手机版：深浅色主题选择。取值 {@code system} / {@code dark} / {@code light}。
      * <p>

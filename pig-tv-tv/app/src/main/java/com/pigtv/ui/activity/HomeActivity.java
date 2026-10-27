@@ -4,7 +4,9 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.TextPaint;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -1562,6 +1564,90 @@ public class HomeActivity extends BaseActivity {
     //  hero（背景 + 文案）
     // =====================================================================
 
+    // =====================================================================
+    //  hero 片名字号：自适应
+    //
+    //  先记一条实测结论（1080p TV 模拟器上量到的）：本项目 mm 不是物理毫米，
+    //  AutoSize 在 Subunits.MM 模式会把 DisplayMetrics.xdpi 覆盖成"设计稿口径"，
+    //  使得 1mm ≈ 屏幕宽/1217.6 px（1080p 上约 1.58px）。所以 38mm 渲染出来是 60px，
+    //  而不是物理的 479px。好处是分辨率一变（4K）整套 UI 自动等比放大；
+    //  坏处是"屏幕物理尺寸"这个信息在 App 里已经拿不到了 —— 别再去读 xdpi 算物理宽
+    //  （盒子和模拟器上报的 xdpi 大量是假的，1080p TV 模拟器报 320dpi = 6 寸）。
+    //
+    //  所以这里只做两件真能生效的事：
+    //    1) 短标题（≤5 字）放大一档：42mm → 46mm，视觉上更大气
+    //    2) 长标题按实际可用宽度逐 0.5mm 收回，直到这一行放得下（下限 26mm）
+    //  「随屏幕分辨率自适应」由 1mm 的归一关系天然给出，不需要额外乘系数。
+    // =====================================================================
+
+    /** 常规片名字号（1080p 上约 66px） */
+    private static final float HERO_TITLE_BASE_MM = 42f;
+    /** 短片名（≤5 字）再大一档，避免"四两拨千斤"式的空荡 */
+    private static final float HERO_TITLE_SHORT_MM = 46f;
+    /** 超过这个字数就不再额外加成 */
+    private static final int HERO_TITLE_SHORT_LEN = 5;
+    /** 缩放下限：再小就看不清了，宁可让它 ellipsize */
+    private static final float HERO_TITLE_MIN_MM = 26f;
+    /** hero 文案列宽（dimens_v8 的 v8_hero_w），布局还没量好时兜底用 */
+    private static final float HERO_INFO_W_MM = 560f;
+
+    private void setHeroTitle(CharSequence text) {
+        if (tvHeroTitle == null) return;
+        String txt = text == null ? "" : text.toString().trim();
+        tvHeroTitle.setText(txt);
+        fitHeroTitle(txt);
+    }
+
+    private void fitHeroTitle(final String txt) {
+        if (tvHeroTitle == null) return;
+        tvHeroTitle.post(new Runnable() {
+            @Override
+            public void run() {
+                // 连切几张卡时会有多个 post 排队，只处理"当前真正显示的那一条"
+                if (tvHeroTitle == null) return;
+                CharSequence now = tvHeroTitle.getText();
+                if (now == null || !txt.equals(now.toString().trim())) return;
+                applyHeroTitleSize(txt);
+            }
+        });
+    }
+
+    private void applyHeroTitleSize(String txt) {
+        final TextView tv = tvHeroTitle;
+        if (tv == null) return;
+        if (TextUtils.isEmpty(txt)) {
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_MM, HERO_TITLE_BASE_MM);
+            return;
+        }
+
+        // 可用宽度：优先取实测列宽（布局可能比 560mm 窄），再受屏幕宽度约束
+        int avail = tv.getWidth() - tv.getPaddingLeft() - tv.getPaddingRight();
+        if (avail <= 0) avail = AutoSizeUtils.mm2px(this, HERO_INFO_W_MM);
+        int screenW = getResources().getDisplayMetrics().widthPixels;
+        int edge = AutoSizeUtils.mm2px(this, 45.6f);   // dimens_home 的 h_edge
+        if (screenW - edge * 2 < avail) avail = screenW - edge * 2;
+        if (avail <= 0) return;
+
+        float maxMm = txt.length() <= HERO_TITLE_SHORT_LEN
+                ? HERO_TITLE_SHORT_MM : HERO_TITLE_BASE_MM;
+        float sizePx = AutoSizeUtils.mm2px(this, maxMm);
+        float minPx = AutoSizeUtils.mm2px(this, HERO_TITLE_MIN_MM);
+        float stepPx = Math.max(1f, AutoSizeUtils.mm2px(this, 0.5f));
+
+        TextPaint probe = new TextPaint(tv.getPaint());
+        probe.setTypeface(tv.getTypeface());
+        while (sizePx > minPx) {
+            probe.setTextSize(sizePx);
+            if (probe.measureText(txt) <= avail) break;
+            sizePx -= stepPx;
+        }
+        if (sizePx < minPx) sizePx = minPx;
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, sizePx);
+        android.util.Log.i("HeroFit", "title=" + txt + " len=" + txt.length()
+                + " maxMm=" + maxMm + " avail=" + avail + " sizePx=" + sizePx
+                + " viewW=" + tv.getWidth() + " screenW=" + screenW);
+    }
+
     private void setHero(Movie.Video v, boolean animate) {
         setHero(v, animate, null);
     }
@@ -1576,7 +1662,7 @@ public class HomeActivity extends BaseActivity {
         heroActions.setVisibility(View.VISIBLE);
         heroActions.setAlpha(1f);
 
-        tvHeroTitle.setText(TextUtils.isEmpty(v.name) ? "" : v.name);
+        setHeroTitle(v.name);
         if (tag == null) tvHeroTag.setText(getString(R.string.home_hero_tag_hot));
 
         // note 有两种：豆瓣的「7.8」这种短评分，和站点给的「更新至12集」这种短备注。
@@ -1638,7 +1724,7 @@ public class HomeActivity extends BaseActivity {
 
     private void paintHeroIdle() {
         tvHeroTag.setText(getString(R.string.home_hero_tag_hot));
-        tvHeroTitle.setText(getString(R.string.home_app_home));
+        setHeroTitle(getString(R.string.home_app_home));
         tvHeroMeta.setText("");
         tvHeroDesc.setText(getString(R.string.home_hero_loading));
     }
@@ -1652,7 +1738,7 @@ public class HomeActivity extends BaseActivity {
         currentHero = null;
         heroNone = false;
         tvHeroTag.setText(tag == null ? "" : tag);
-        tvHeroTitle.setText("");
+        setHeroTitle("");
         tvHeroMeta.setText("");
         tvHeroDesc.setText(getString(R.string.v8_cat_connecting));
         heroActions.setVisibility(View.GONE);
@@ -1670,7 +1756,7 @@ public class HomeActivity extends BaseActivity {
     private void paintHeroNone() {
         heroNone = true;
         tvHeroTag.setText(getString(R.string.v8_hero_none_tag));
-        tvHeroTitle.setText(getString(R.string.v8_hero_none_title));
+        setHeroTitle(getString(R.string.v8_hero_none_title));
         tvHeroMeta.setText("");
         tvHeroDesc.setText(getString(R.string.v8_hero_none_desc));
         heroActions.setVisibility(View.GONE);
@@ -2322,7 +2408,7 @@ public class HomeActivity extends BaseActivity {
         showSuccess();
         heroNone = false;
         tvHeroTag.setText(getString(R.string.home_hero_tag_hot));
-        tvHeroTitle.setText(getString(R.string.home_app_home));
+        setHeroTitle(getString(R.string.home_app_home));
         tvHeroMeta.setText("");
         tvHeroDesc.setText(getString(R.string.v8_hero_connecting));
         // 还没有影片时「立即播放 / 收藏」是无对象的按钮，先收起来

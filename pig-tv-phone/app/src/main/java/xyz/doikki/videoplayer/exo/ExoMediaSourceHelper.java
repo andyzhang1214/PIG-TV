@@ -29,8 +29,11 @@ import androidx.media3.extractor.ExtractorsFactory;
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory;
 import androidx.media3.extractor.ts.TsExtractor;
 
+import com.github.tvbox.osc.player.m3u8.M3u8AdFilterDataSource;
 import com.github.tvbox.osc.util.FileUtils;
+import com.github.tvbox.osc.util.HawkConfig;
 import com.google.androidx.media3.exoplayer.ext.okhttp.OkHttpDataSource;
+import com.orhanobut.hawk.Hawk;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -129,7 +132,11 @@ public final class ExoMediaSourceHelper {
             case C.TYPE_DASH:
                 return new DashMediaSource.Factory(factory).createMediaSource(MediaItem.fromUri(contentUri));
             case C.TYPE_HLS:
-                return new HlsMediaSource.Factory(mHttpDataSourceFactory)
+                // 播放列表这一层包了 M3u8AdFilterDataSource：采集站插在片头/中插的广告段
+                // 在文本进解析器之前就被剔掉，分片请求不受影响。设置里可关。
+                return new HlsMediaSource.Factory(new M3u8AdFilterDataSource.Factory(
+                        getHttpDataSourceFactory(),
+                        () -> Hawk.get(HawkConfig.M3U8_AD_FILTER, true)))
                         .setAllowChunklessPreparation(true)
                         .setExtractorFactory(new MyHlsExtractorFactory())
                         .createMediaSource(MediaItem.fromUri(contentUri));

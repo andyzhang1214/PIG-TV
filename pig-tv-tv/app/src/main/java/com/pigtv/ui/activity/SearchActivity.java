@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -116,6 +118,15 @@ public class SearchActivity extends BaseActivity {
 
     private String sKey;
     public String keyword;
+
+    // 搜索进度：全源搜索时 179 个站排队跑，用户看不到进度会以为"只搜了当前源"
+    private int searchTotal = 0;
+    private int searchDone = 0;
+    private String filterBtnBase = "全局搜索";
+    // 兜底收尾：某些站的 spider 会挂住不回包，没有超时就会一直转圈
+    private static final long SEARCH_TIMEOUT_MS = 25000L;
+    private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private Runnable timeoutRunnable;
 
     private TextView tHotSearchText;
     private static ArrayList<String> hots = new ArrayList<>();
@@ -430,6 +441,7 @@ public class SearchActivity extends BaseActivity {
             string = sourceBean != null ? sourceBean.getName() : "全局搜索";
         }
         filterBtn.setSelected(true);//能动起来的关键代码
+        filterBtnBase = string;
         filterBtn.setText(string);
         filterBtn.setOnClickListener(new View.OnClickListener() {
 
@@ -717,6 +729,7 @@ public class SearchActivity extends BaseActivity {
 
     private void search(String title) {
         cancel();
+        cancelSearchTimeout();
         showLoading();
         this.searchTitle = title;
         mGridView.setVisibility(View.GONE);
@@ -739,10 +752,10 @@ public class SearchActivity extends BaseActivity {
 
         List<SourceBean> searchRequestList = new ArrayList<>();
 
-        boolean equals = this.sKey.equals("filter__home");
+        boolean equals = "filter__home".equals(this.sKey);
         if (equals) {
             SourceBean home = ApiConfig.get().getHomeSourceBean();
-            if (home.isSearchable()) {
+            if (home != null && home.isSearchable()) {
                 searchRequestList.add(home);
             } else {
                 Toast.makeText(mContext, "当前源不支持搜索,自动切换到全局搜索", Toast.LENGTH_SHORT).show();
@@ -751,8 +764,10 @@ public class SearchActivity extends BaseActivity {
         } else if (TextUtils.isEmpty(sKey) || ApiConfig.get().getSource(sKey) == null) {
             searchRequestList.addAll(ApiConfig.get().getSourceBeanList());
             SourceBean home = ApiConfig.get().getHomeSourceBean();
-            searchRequestList.remove(home);
-            searchRequestList.add(0, home);
+            if (home != null) {
+                searchRequestList.remove(home);
+                searchRequestList.add(0, home);
+            }
         } else {
             searchRequestList.add(ApiConfig.get().getSource(sKey));
         }
@@ -774,6 +789,14 @@ public class SearchActivity extends BaseActivity {
             return;
         }
 
+        // 全源搜索时站点很多（默认源 179 个），5 线程排队跑，界面没有进度的话
+        // 用户只看得到「当前源」先返回的那一批，就会以为"只搜了当前源"。
+        // 把 总数 / 已完成 打到筛选按钮上，一眼能看出是在搜全部源。
+        searchTotal = siteKey.size();
+        searchDone = 0;
+        filterBtn.setText("搜索中 0/" + searchTotal);
+        startSearchTimeout();
+
         for (String key : siteKey) {
             sourceViewModel.execute(new Runnable() {
                 @Override
@@ -781,6 +804,35 @@ public class SearchActivity extends BaseActivity {
                     sourceViewModel.getSearch(key, searchTitle);
                 }
             });
+        }
+    }
+
+    /** 兜底收尾：某些站的 spider 会挂住不回包，没有超时就会永远转圈 */
+    private void startSearchTimeout() {
+        cancelSearchTimeout();
+        timeoutRunnable = new Runnable() {
+            @Override
+            public void run() {
+                timeoutRunnable = null;
+                if (allRunCount.get() <= 0) return;
+                allRunCount.set(0);
+                cancel();
+                filterBtn.setText(filterBtnBase);
+                // 已经出的结果留着，没出的不再等：宁可少几个源，也不能一直转圈
+                if (searchAdapter.getData().size() > 0) {
+                    showSuccess();
+                } else {
+                    showEmpty();
+                }
+            }
+        };
+        timeoutHandler.postDelayed(timeoutRunnable, SEARCH_TIMEOUT_MS);
+    }
+
+    private void cancelSearchTimeout() {
+        if (timeoutRunnable != null) {
+            timeoutHandler.removeCallbacks(timeoutRunnable);
+            timeoutRunnable = null;
         }
     }
 
@@ -803,7 +855,13 @@ public class SearchActivity extends BaseActivity {
         }
 
         int count = allRunCount.decrementAndGet();
+        searchDone++;
+        if (count > 0 && searchTotal > 0) {
+            filterBtn.setText("搜索中 " + Math.min(searchDone, searchTotal) + "/" + searchTotal);
+        }
         if (count <= 0) {
+            filterBtn.setText(filterBtnBase);
+            cancelSearchTimeout();
             if (searchAdapter.getData().size() <= 0) {
                 showEmpty();
             }
@@ -819,6 +877,7 @@ public class SearchActivity extends BaseActivity {
     protected void onDestroy() {
         super.onDestroy();
         cancel();
+        cancelSearchTimeout();
         try {
             if (sourceViewModel != null) {
                 sourceViewModel.shutdownNow();

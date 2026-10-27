@@ -81,7 +81,9 @@ public class SourceViewModel extends ViewModel {
             searchExecutorService = null;
             JsLoader.stopAll();
         }
-        searchExecutorService = Executors.newFixedThreadPool(5);
+        // 全源搜索要排队跑几十上百个站，5 个线程太慢（用户会以为只有当前源有结果）。
+        // 8 是折中：再高下去，TV 盒子同时下载多个 spider jar 容易卡死甚至 OOM。
+        searchExecutorService = Executors.newFixedThreadPool(8);
     }
 
     public void execute(Runnable runnable) {
@@ -690,6 +692,12 @@ public class SourceViewModel extends ViewModel {
     // searchContent
     public void getSearch(String sourceKey, String wd) {
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
+        // 换源/刷新配置后站点可能已经不在列表里，这里必须判空：
+        // 原来直接 getType() 会抛 NPE，异常抛在搜索线程里，一趟搜索的进度计数就再也减不到 0（永远转圈）
+        if (sourceBean == null) {
+            json(searchResult, "", sourceKey);
+            return;
+        }
         int type = sourceBean.getType();
         if (type == 3) {
             try {

@@ -15,6 +15,7 @@ import com.pigtv.callback.LiveEmptyCallback;
 import com.pigtv.callback.LoadingCallback;
 import com.pigtv.data.AppDataManager;
 import com.pigtv.server.ControlManager;
+import com.pigtv.util.CrashHandler;
 import com.pigtv.util.EpgUtil;
 import com.pigtv.util.FileUtils;
 import com.pigtv.util.HawkConfig;
@@ -83,6 +84,9 @@ public class App extends MultiDexApplication {
                 // 必须在 Builder 里登记，否则 showCallback(LiveEmptyCallback.class) 取不到实例
                 .addCallback(new LiveEmptyCallback())
                 .commit();
+        // 崩溃日志落盘（Download/猪猪影视-崩溃日志.txt）。
+        // Java 层未捕获异常才有记录；native SIGSEGV 抓不到，只能靠 logcat
+        CrashHandler.install(this);
         AutoSizeConfig.getInstance().setCustomFragment(true).getUnitsManager()
                 .setSupportDP(false)
                 .setSupportSP(false)

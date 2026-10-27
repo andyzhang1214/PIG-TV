@@ -41,11 +41,15 @@
     <dimen name="v8_hero_w">560mm</dimen>
     <dimen name="v8_hero_tag">9mm</dimen>
     <dimen name="v8_hero_tag_dot">3.8mm</dimen>
-    <dimen name="v8_hero_title">31mm</dimen>
-    <dimen name="v8_hero_title_mt">7.6mm</dimen>
-    <dimen name="v8_hero_meta">10.8mm</dimen>
-    <dimen name="v8_hero_meta_mt">6.3mm</dimen>
-    <dimen name="v8_hero_desc">9.5mm</dimen>
+    <!-- 片名：这里只是布局时的初始值，运行时由 HomeActivity.applyHeroTitleSize()
+         按「字数档位 + 实际文字宽度」重算，不再依赖这个数。
+         改它只影响首帧那一瞬间的字号，别当成最终大小。
+         实测 1080p 上 1mm ≈ 1.5px（AutoSize 的 mm 是设计稿口径，不是物理毫米）。 -->
+    <dimen name="v8_hero_title">42mm</dimen>
+    <dimen name="v8_hero_title_mt">7mm</dimen>
+    <dimen name="v8_hero_meta">11.4mm</dimen>
+    <dimen name="v8_hero_meta_mt">6mm</dimen>
+    <dimen name="v8_hero_desc">10.2mm</dimen>
     <dimen name="v8_hero_desc_mt">6.3mm</dimen>
     <dimen name="v8_hero_lift">-58mm</dimen>
 
@@ -70,7 +74,7 @@
     <dimen name="v8_card_w">146mm</dimen>
     <dimen name="v8_card_h">219mm</dimen>
     <dimen name="v8_card_gap">13mm</dimen>
-    <dimen name="v8_card_name">11mm</dimen>
+    <dimen name="v8_card_name">13.5mm</dimen>
     <dimen name="v8_card_name_mt">5.1mm</dimen>
     <dimen name="v8_card_radius">6.3mm</dimen>
     <dimen name="v8_card_badge">8.2mm</dimen>
@@ -93,13 +97,13 @@
     <!-- 首页只有「推荐」一块，卡片做大到把首屏填满，横向可滑看全部：
          卡宽 215mm + 间距 12mm，一屏正好 5 张；卡高 322mm 是 2:3，海报不裁。
          改宽度要同步 v8_wall_h（卡高 + 片名行）。 -->
-    <dimen name="v8_wall_h">352mm</dimen>
+    <dimen name="v8_wall_h">358mm</dimen>
     <dimen name="v8_wall_card_w">215mm</dimen>
     <dimen name="v8_wall_card_h">322mm</dimen>
     <dimen name="v8_wall_gap">12mm</dimen>
-    <dimen name="v8_wall_name">13mm</dimen>
-    <dimen name="v8_wall_name_mt">5.5mm</dimen>
-    <dimen name="v8_wall_sub">10.4mm</dimen>
+    <dimen name="v8_wall_name">16mm</dimen>
+    <dimen name="v8_wall_name_mt">4.6mm</dimen>
+    <dimen name="v8_wall_sub">12.5mm</dimen>
 
 
 </resources>

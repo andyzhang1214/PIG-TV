@@ -226,6 +226,7 @@
 
     <string-array name="media_content_tag_ExoPlayer">
         <item>ExoRenderer</item>
+        <item>M3u8AdFilter</item>
 <!--        <item>ExoRendererMode</item>-->
     </string-array>
 
@@ -244,6 +245,8 @@
     <string-array name="media_content_ExoPlayer">
         <!--  渲染器选择  -->
         <item>Renderer</item>
+        <!--  采集站插在 m3u8 片头/中插的广告段，剔除后直接跳到正片  -->
+        <item>广告段过滤</item>
 <!--        &lt;!&ndash;首选 扩展渲染器 核心渲染器 关 &ndash;&gt;-->
 <!--        <item>RendererMode</item>-->
     </string-array>

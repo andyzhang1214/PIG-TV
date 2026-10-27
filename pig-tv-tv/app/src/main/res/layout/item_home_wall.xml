@@ -76,7 +76,7 @@
         android:ellipsize="end"
         android:includeFontPadding="false"
         android:singleLine="true"
-        android:textColor="#A6FFFFFF"
+        android:textColor="#E6FFFFFF"
         android:textSize="@dimen/v8_wall_name" />
 
     <!-- 第二行：历史页写「看到 32:18」，分类页保持隐藏（只占一个 0 高度的位） -->

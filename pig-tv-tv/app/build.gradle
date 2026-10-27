@@ -3,18 +3,15 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'com.yanzhenjie.andserver'
 
-def static buildTime() {
-    return new Date().format("yyyyMMdd_HHmm", TimeZone.getTimeZone("GMT+08:00"))
-}
-
 android {
     compileSdk 34
 
     defaultConfig {
         applicationId 'com.github.tvbox.osc.tk'
         targetSdkVersion 28
-        versionCode 1
-        versionName "1.0.".concat(buildTime())
+        // versionCode 对应 1.0.2 = 102；必须 ≥ 已装包的 versionCode 才能覆盖安装（旧包都是 1）
+        versionCode 102
+        versionName "1.0.2"
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {

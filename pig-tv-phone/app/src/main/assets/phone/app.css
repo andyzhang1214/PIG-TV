@@ -838,6 +838,13 @@ svg{display:block}
 .apiRen{flex:0 0 auto;font-size:11.5px;color:rgba(var(--ink),.62);padding:6px 10px;
   border-radius:9px;background:rgba(var(--ink),.05)}
 .apiRen:active{background:rgba(var(--ink),.12)}
+/* 测速徽章：绿=能用（带毫秒）、黄=能连但不是接口、红=连不上 */
+.apiSpd{flex:0 0 auto;font-size:11.5px;padding:6px 9px;border-radius:9px;
+  color:rgba(var(--ink),.55);background:rgba(var(--ink),.05);letter-spacing:.2px}
+.apiSpd.good{color:#1FA76A;background:rgba(31,167,106,.13)}
+.apiSpd.warn{color:#C08A16;background:rgba(192,138,22,.15)}
+.apiSpd.bad{color:#D9534F;background:rgba(217,83,79,.14)}
+.apiSpd.wait{opacity:.6}
 .altRow.add .altN{color:var(--ac)}
 
 /* =====================================================================

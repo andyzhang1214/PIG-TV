@@ -1278,6 +1278,30 @@ public class PhoneBridge {
         doSetConfig(url, cbId, false, "");
     }
 
+    /**
+     * 测一个接口活不活：打一次接口本身，返回耗时 + 内容是否像 TVBox 配置。
+     * 采集站失效时经常返回导航页/404 页（HTTP 仍 200），所以不只看状态码。
+     */
+    @JavascriptInterface
+    public void speedTestApi(String url, String cbId) {
+        pool.execute(() -> {
+            try {
+                String u = url == null ? "" : url.trim();
+                JSONObject r = SourceSpeedTest.probe(u);
+                rememberSpeed(u, r);
+                JSONObject out = new JSONObject();
+                out.put("ok", 1);
+                out.put("ms", r.optLong("ms", 0));
+                out.put("alive", r.optInt("ok", 0));
+                out.put("reach", r.optInt("reach", 0));
+                out.put("msg", r.optString("msg", ""));
+                cb(cbId, out.toString());
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
     /** 已保存的接口列表 + 当前用的是哪一个 */
     @JavascriptInterface
     public void cfgList(String cbId) {
@@ -1300,6 +1324,7 @@ public class PhoneBridge {
                 // 挂多个接口就全一样了），列表上根本分不出谁是谁。
                 // 这里显示时统一去重：重名的补「（2）」「（3）」。
                 Set<String> usedNames = new LinkedHashSet<>();
+                JSONObject speeds = speedMap();
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject o = arr.optJSONObject(i);
                     if (o == null) continue;
@@ -1308,7 +1333,9 @@ public class PhoneBridge {
                     boolean isCur = u.equals(cur);
                     if (isCur) hasCur = true;
                     String nm = uniqueName(displayName(u, o.optString("name", "")), usedNames);
-                    list.put(cfgItem(u, nm).put("cur", isCur ? 1 : 0));
+                    JSONObject item = cfgItem(u, nm).put("cur", isCur ? 1 : 0);
+                    attachSpeed(item, speeds, u);
+                    list.put(item);
                 }
                 // 老用户：当前接口是在这个功能之前配的，列表里还没有它，补在第一条。
                 // 没手工存过地址（curBuiltin）时补的是内置源，打上 builtin 标记，
@@ -1317,6 +1344,7 @@ public class PhoneBridge {
                     JSONArray head = new JSONArray();
                     JSONObject first = cfgItem(cur, uniqueName(displayName(cur, ""), usedNames));
                     first.put("cur", 1);
+                    attachSpeed(first, speeds, cur);
                     if (curBuiltin) first.put("builtin", 1);
                     head.put(first);
                     for (int i = 0; i < list.length(); i++) head.put(list.get(i));
@@ -1575,6 +1603,48 @@ public class PhoneBridge {
         it.put("url", url);
         it.put("name", clip(displayName(url, name)));
         return it;
+    }
+
+    /** 已测过的速度：{url: {ms, ok, reach, t, msg}}，只留最近一次 */
+    private static JSONObject speedMap() {
+        try {
+            String raw = Hawk.get(HawkConfig.PHONE_API_SPEED, "{}");
+            if (TextUtils.isEmpty(raw)) return new JSONObject();
+            return new JSONObject(raw);
+        } catch (Throwable e) {
+            return new JSONObject();
+        }
+    }
+
+    private static void rememberSpeed(String url, JSONObject r) {
+        if (TextUtils.isEmpty(url) || r == null) return;
+        try {
+            JSONObject map = speedMap();
+            JSONObject o = new JSONObject();
+            o.put("ms", r.optLong("ms", 0));
+            o.put("ok", r.optInt("ok", 0));
+            o.put("reach", r.optInt("reach", 0));
+            o.put("msg", r.optString("msg", ""));
+            o.put("t", System.currentTimeMillis());
+            map.put(url.trim(), o);
+            Hawk.put(HawkConfig.PHONE_API_SPEED, map.toString());
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 把测速结果贴到列表项上，前端据此显示「128ms / 超时 / 非接口」 */
+    private static void attachSpeed(JSONObject item, JSONObject speeds, String url) {
+        if (item == null || speeds == null || TextUtils.isEmpty(url)) return;
+        JSONObject sp = speeds.optJSONObject(url);
+        if (sp == null) return;
+        try {
+            item.put("spd", sp.optLong("ms", 0));
+            item.put("spdOk", sp.optInt("ok", 0));
+            item.put("spdReach", sp.optInt("reach", 0));
+            item.put("spdT", sp.optLong("t", 0));
+            item.put("spdMsg", sp.optString("msg", ""));
+        } catch (Throwable ignored) {
+        }
     }
 
     /**
@@ -2078,6 +2148,34 @@ public class PhoneBridge {
     }
 
     // ---- 播放偏好：默认全屏 / 默认小窗 ----
+
+    /** 读「片头广告过滤」开关（m3u8 广告段，Exo / IJK 两条链路都生效） */
+    @JavascriptInterface
+    public void adFilter(String cbId) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("ok", 1);
+            o.put("on", Hawk.get(HawkConfig.M3U8_AD_FILTER, true) ? 1 : 0);
+            cb(cbId, o.toString());
+        } catch (Throwable th) {
+            cbErr(cbId, th);
+        }
+    }
+
+    /** 写「片头广告过滤」开关：value 传 1/0 */
+    @JavascriptInterface
+    public void setAdFilter(String value, String cbId) {
+        try {
+            boolean on = "1".equals(value) || "true".equalsIgnoreCase(value);
+            Hawk.put(HawkConfig.M3U8_AD_FILTER, on);
+            JSONObject o = new JSONObject();
+            o.put("ok", 1);
+            o.put("on", on ? 1 : 0);
+            cb(cbId, o.toString());
+        } catch (Throwable th) {
+            cbErr(cbId, th);
+        }
+    }
 
     /** 读「播放默认全屏」开关 */
     @JavascriptInterface

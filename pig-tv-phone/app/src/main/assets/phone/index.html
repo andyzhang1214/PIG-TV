@@ -198,6 +198,10 @@
         <svg class="ic" viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5"/></svg>
         播放默认全屏<span class="v" id="fullPref">小窗</span>
       </div>
+      <div class="meitem ar" onclick="toggleAdFilter()">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.6l7 2.6v5.2c0 4-2.9 7.4-7 8.6-4.1-1.2-7-4.6-7-8.6V6.2z"/><path d="M8.6 12.1l2.4 2.4 4.4-4.6"/></svg>
+        片头广告过滤<span class="v" id="adfHint">开</span>
+      </div>
       <div class="meitem ar" onclick="openDoh()">
         <svg class="ic" viewBox="0 0 24 24"><path d="M12 3.6l7 2.6v5.2c0 4-2.9 7.4-7 8.6-4.1-1.2-7-4.6-7-8.6V6.2z"/><path d="M9.2 12.2l2 2 3.6-3.8"/></svg>
         安全 DNS<span class="v" id="dohHint">关闭</span>
@@ -224,7 +228,7 @@
       </div>
       <div class="meitem ar" onclick="openAbout()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".9" fill="currentColor"/></svg>
-        关于<span class="v" id="verHint">v1.0</span>
+        关于<span class="v" id="verHint">v1.0.2</span>
       </div>
     </div>
     <div style="height:6px"></div>
@@ -1777,6 +1781,32 @@ function togglePlayFull(){
 window.togglePlayFull = togglePlayFull;
 
 /* =====================================================================
+   片头广告过滤（m3u8 广告段）
+   原生侧两套播放器都接了：Exo 包一层 DataSource，IJK 走本机代理改写播放列表。
+   只处理播放列表文本，分片照旧直连，不额外耗流量。改完对「下次播放」生效。
+   ===================================================================== */
+var AD_FILTER = true;
+function paintAdFilter(){
+  var el = document.getElementById('adfHint');
+  if (el) el.textContent = AD_FILTER ? '开' : '关';
+}
+function loadAdFilter(){
+  ncall('adFilter', [], function(r){
+    AD_FILTER = !!(r && r.on);
+    paintAdFilter();
+  });
+}
+function toggleAdFilter(){
+  AD_FILTER = !AD_FILTER;
+  paintAdFilter();
+  ncall('setAdFilter', [AD_FILTER ? '1' : '0'], function(){
+    toast(AD_FILTER ? '已开启：自动跳过片头/中插广告段（下次播放生效）'
+                    : '已关闭：广告段原样播放（下次播放生效）');
+  });
+}
+window.toggleAdFilter = toggleAdFilter;
+
+/* =====================================================================
    换源（换站点播同一部片） / 切换首页片源站点
    ===================================================================== */
 function showAlt(title, html){
@@ -2437,9 +2467,20 @@ window.openApiList = function(){
       // 改了没地方存，下次启动又变回去，只会让人以为改名失败。
       var rename = '<span class="apiRen" onclick="event.stopPropagation();renameApi(' + i + ')">改名</span>';
       var curTag = x.builtin ? '内置 · 使用中' : '使用中';
+      // 测速结果：毫秒数是上次实测的，超时/非接口用颜色区分，
+      // 一眼能看出哪条源已经废了，不用切过去试。
+      var spd = '';
+      if (x.spd){
+        var bad = !x.spdOk;
+        var txt = bad ? (x.spdReach ? '非接口' : '超时') : (x.spd + 'ms');
+        spd = '<span class="apiSpd ' + (bad ? (x.spdReach ? 'warn' : 'bad') : 'good') +
+              '" data-i="' + i + '" onclick="event.stopPropagation();speedApi(' + i + ')">' + txt + '</span>';
+      } else {
+        spd = '<span class="apiSpd" data-i="' + i + '" onclick="event.stopPropagation();speedApi(' + i + ')">测速</span>';
+      }
       var act = x.cur
-        ? '<span class="apiAct">' + curTag + '</span>' + (x.builtin ? '' : rename)
-        : rename + '<span class="apiDel" onclick="event.stopPropagation();delApi(' + i + ')">删除</span>';
+        ? spd + '<span class="apiAct">' + curTag + '</span>' + (x.builtin ? '' : rename)
+        : spd + rename + '<span class="apiDel" onclick="event.stopPropagation();delApi(' + i + ')">删除</span>';
       return '<div class="altRow apiRow' + (x.cur ? ' cur' : '') + '" onclick="pickApi(' + i + ')">' +
         '<div class="apiMain">' +
           '<div class="altN">' + esc(x.name || addrOf(x.url)) + '</div>' +
@@ -2448,6 +2489,29 @@ window.openApiList = function(){
       '</div>';
     }).join('');
     setAltList(html + apiAddRow());
+  });
+};
+
+/* 单条测速：打一次接口本身，把耗时贴在徽章上（Java 侧已持久化，退出再进还在） */
+window.speedApi = function(i){
+  var x = (window.__apis || [])[i];
+  if (!x) return;
+  var chip = document.querySelector('#altList .apiSpd[data-i="' + i + '"]');
+  if (chip){ chip.className = 'apiSpd wait'; chip.textContent = '测速中'; }
+  var label = x.name || addrOf(x.url);
+  ncall('speedTestApi', [x.url], function(d){
+    if (chip){ chip.className = 'apiSpd'; chip.textContent = '测速'; }
+    if (!d || !d.ok){ toast('测速失败'); return; }
+    var alive = d.alive ? 1 : 0;
+    if (chip){
+      chip.className = 'apiSpd ' + (alive ? 'good' : (d.reach ? 'warn' : 'bad'));
+      chip.textContent = alive ? (d.ms + 'ms') : (d.reach ? '非接口' : '超时');
+    }
+    // 同步内存里的副本，列表不重新拉也能保持一致
+    x.spd = d.ms; x.spdOk = alive; x.spdReach = d.reach ? 1 : 0;
+    toast(alive
+      ? ('「' + label + '」' + d.ms + 'ms 正常')
+      : ('「' + label + '」' + (d.msg || '连不上')));
   });
 };
 
@@ -2557,7 +2621,7 @@ function refreshSettings(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) return;
     var el = document.getElementById('verHint');
-    if (el) el.textContent = 'v' + (d.ver || '1.0');
+    if (el) el.textContent = 'v' + (d.ver || '1.0.2');
   });
 }
 
@@ -2709,7 +2773,7 @@ function resetAppAsk(){
 function openAbout(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) d = {};
-    var ver = d.ver || '1.0';
+    var ver = d.ver || '1.0.2';
     var el = document.getElementById('verHint');
     if (el) el.textContent = 'v' + ver;
     var html = '';
@@ -2860,6 +2924,7 @@ document.addEventListener('visibilitychange', function(){
   if (restored) showStaleTip(1);
   bindHeroSwipe();
   loadPlayPref();
+  loadAdFilter();
   refreshSettings();   // 「我的」里的缓存大小 / 站点数 / DNS 先填上，进页面不闪
   /* 继续观看来自原生数据库，不依赖 spider 组件，冷启动也能立刻显示 */
   loadHist();

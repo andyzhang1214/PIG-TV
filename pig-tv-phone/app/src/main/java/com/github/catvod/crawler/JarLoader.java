@@ -60,7 +60,14 @@ public class JarLoader {
         proxyMethods.remove(key);
     }
 
-    private boolean loadClassLoader(String jar, String key) {
+    /*
+     * 必须 synchronized：搜索是多线程的（SourceViewModel 的 fixedThreadPool），
+     * 多个线程同时首搜 jar 站会各自 new 一个 DexClassLoader 并各自跑一遍
+     * spider.Init.init()。加固包（Guard 系列）的 Init.init 要做 native 解密，
+     * 并发跑会重复解密上兆数据、内存翻倍，甚至直接 SIGSEGV。
+     * 串行化只影响「首次加载」，之后都命中 classLoaders 缓存。
+     */
+    private synchronized boolean loadClassLoader(String jar, String key) {
         if (classLoaders.containsKey(key)){
             Log.i("JarLoader", "echo-loadClassLoader jar缓存: " + key);
             return true;

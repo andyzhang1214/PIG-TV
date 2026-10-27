@@ -10,6 +10,7 @@ import com.pigtv.util.FileUtils;
 import com.pigtv.util.HawkConfig;
 import com.pigtv.util.MD5;
 import com.pigtv.util.PlayerHelper;
+import com.pigtv.util.m3u8.M3u8AdProxy;
 import com.orhanobut.hawk.Hawk;
 
 import java.io.File;
@@ -65,6 +66,10 @@ public class IjkmPlayer extends IjkPlayer {
     @Override
     public void setDataSource(String path, Map<String, String> headers) {
         try {
+            // IJK 是 native 直接发 HTTP，Java 层插不进解析过程，所以 m3u8 走一圈
+            // 本机代理：播放列表（几 KB 的文本）由我们取回来、剔掉广告段再喂给 IJK，
+            // 分片仍是源站绝对地址由 IJK 自己拉。设置里关掉就原样返回。
+            path = M3u8AdProxy.wrap(path, headers);
             if (path != null && !TextUtils.isEmpty(path)) {
                 if(path.startsWith("rtsp")){
                     mMediaPlayer.setOption(1, "infbuf", 1);
