@@ -45,9 +45,11 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -69,6 +71,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class PhoneBridge {
 
+    /** 全站搜索的总预算：超过这个时间就收工（结果早就流式推给前端了，用户不用干等） */
+    private static final long SEARCH_BUDGET_MS = 30000L;
+    /** 单站搜索超时（秒）：取组件 + 搜索 + 解析都算在里面。
+     *  12 秒是给「组件首次初始化」留的余量 —— 自带组件的站第一次用会先拉一次首页，
+     *  慢站经常要好几秒，7 秒会把它们全判超时。 */
+    private static final int SITE_TIMEOUT_S = 12;
+    /** 换源要搜的站点数：比主搜索少（换源是「找同一部片的其他源」，不能一直转圈） */
+    private static final int ALT_SITE_LIMIT = 24;
+
     private final Activity act;
     private final WebView web;
     private final SourceViewModel vm;
@@ -77,14 +88,39 @@ public class PhoneBridge {
     /**
      * 搜索必须用独立的池：搜索任务自己会阻塞等待 N 个子任务，
      * 如果和子任务共用同一个池，多个搜索并发时会把线程全部占死。
-     * 16 = 默认 12 个站点 + 余量，用户在设置里调到 24 时也不会排到第二批去。
+     * 24 = 全站搜索的并发度（实测配置里 128 个可搜站，16 不够铺开）。
+     * <p>组件下载不会再占这个池：JarLoader 里按组件地址加了锁，
+     * 同一个 jar 只下一次，不会几十个站一起抢。</p>
      */
-    private final ExecutorService searchPool = Executors.newFixedThreadPool(16);
+    private final ExecutorService searchPool = Executors.newFixedThreadPool(24);
     /**
-     * 换源专用池：换源同样要并发打 12 个站点，和搜索共用一个池会互相饿死
-     * （两个主任务各占 1 线程等待，剩下的线程跑不完 24 个子任务，双双超时）。
+     * 换源专用池：换源同样要并发打所有站点，和搜索共用一个池会互相饿死
+     * （两个主任务各占 1 线程等待，剩下的线程跑不完子任务，双双超时）。
      */
     private final ExecutorService altPool = Executors.newFixedThreadPool(18);
+    /**
+     * 搜索协调线程：单独一个，不跟搜索子任务抢线程
+     * （它要等所有子任务、再汇总，顺带发最终回包）。
+     */
+    private final ExecutorService searchCoord = Executors.newSingleThreadExecutor();
+    /**
+     * 组件（jar）预热池：全站搜索最多用到 7~8 个不同组件，
+     * 下一个可能几十秒（海外机房 + 断点续传），不能占着 searchPool 的线程。
+     */
+    private final ExecutorService jarPool = Executors.newFixedThreadPool(8);
+    /**
+     * 旁路池：单站超时后任务会被放弃，但线程还在跑（网络调用不可中断，
+     * 只能等 OkHttp 自己的读超时）。固定 40 个，别用 cached ——
+     * cached 会让卡住的任务无限攒线程，低配机上直接把内存吃光。
+     */
+    private final ExecutorService bgPool = Executors.newFixedThreadPool(40);
+    /**
+     * 兜底代数：正常情况下代次由前端给（前端每次搜索都会自增，原生原样回带）。
+     * 只有前端没传（比如老版本前端）才用这个自增的号顶上。
+     */
+    private final AtomicInteger searchGen = new AtomicInteger();
+    /** 当前正在跑的那一轮搜索的代次：用户又搜了别的词，上一轮立刻作废 */
+    private volatile int curSearchSeq = 0;
     private final Handler main = new Handler(Looper.getMainLooper());
 
     /** 当前正在等待的请求（同一时刻只允许一个，UI 侧是串行操作的） */
@@ -933,63 +969,223 @@ public class PhoneBridge {
     }
 
     /**
-     * 全站聚合搜索。多站点并发，边收边合并；总超时 9 秒。
-     * 结果按片名去重，同名不同源合并成一个条目（用第一个源的 id）。
+     * 全站聚合搜索（对齐影视仓）。
+     * <p>
+     * 和旧版的三个区别：
+     * ① <b>搜全部可搜站点</b> —— 旧版只搜前 12 个，实际配置里有一百多个可搜站；
+     * ② <b>不跨站合并</b> —— 同一个片名在几个站搜到就列几条，每条带自己的站点名。
+     * 旧版按片名去重，12 个站的结果被压成 2 条，用户以为「只有 2 部」；
+     * ③ <b>流式返回</b> —— 搜完一个站就往前端推一次，状态栏实时显示「已搜 n/N」。
      */
     @JavascriptInterface
-    public void search(String keyword, String cbId) {
-        searchPool.execute(() -> {
+    public void search(String keyword, String seqStr, String cbId) {
+        /* 代次由前端给（前端每次搜索都会自增），原生原样回带。
+           前端拿它把上一轮的迟到流式结果丢掉 —— 连着搜两次时特别重要。 */
+        int parsed = 0;
+        try {
+            parsed = Integer.parseInt(nz(seqStr).trim());
+        } catch (Throwable ignored) {
+        }
+        final int seq = parsed > 0 ? parsed : searchGen.incrementAndGet();
+        curSearchSeq = seq;
+        searchCoord.execute(() -> {
             JSONObject out = new JSONObject();
             try {
                 String wd = keyword == null ? "" : keyword.trim();
                 if (wd.isEmpty()) {
                     out.put("ok", 0);
+                    out.put("seq", seq);
                     out.put("list", new JSONArray());
+                    out.put("total", 0);
+                    out.put("done", 0);
                     cb(cbId, out.toString());
                     return;
                 }
 
-                final List<SourceBean> targets = pickSearchSites();
-                final LinkedHashMap<String, Movie.Video> merged = new LinkedHashMap<>();
-                final CountDownLatch latch = new CountDownLatch(targets.size());
+                final List<SourceBean> targets = pickSearchSites(searchSiteLimit());
+                final int total = targets.size();
                 final AtomicInteger done = new AtomicInteger();
+                final AtomicInteger found = new AtomicInteger();
+                final List<JSONObject> all = Collections.synchronizedList(new ArrayList<JSONObject>());
+                final CountDownLatch latch = new CountDownLatch(total);
+                final Set<String> warming = Collections.synchronizedSet(new HashSet<String>());
+                final Set<String> jarBad = Collections.synchronizedSet(new HashSet<String>());
+                /** 已经搜过并计过数的站：防止组件预热完成后重投时重复计数 */
+                final Set<String> published = Collections.synchronizedSet(new HashSet<String>());
+                final Map<String, List<SourceBean>> byJar = groupByJar(targets);
 
                 for (final SourceBean sb : targets) {
                     searchPool.execute(() -> {
-                        try {
-                            List<Movie.Video> got = searchOne(sb, wd);
-                            synchronized (merged) {
-                                for (Movie.Video v : got) {
-                                    if (v == null || TextUtils.isEmpty(v.name)) continue;
-                                    String key = normalizeName(v.name);
-                                    if (!merged.containsKey(key)) merged.put(key, v);
-                                }
-                            }
-                        } catch (Throwable ignored) {
-                        } finally {
-                            done.incrementAndGet();
-                            latch.countDown();
-                        }
+                        boolean finished = runSearchSite(seq, sb, wd, byJar, warming, jarBad, published,
+                                done, found, all, total, latch);
+                        // finished=false 表示这一站被丢去后台预热组件了，
+                        // 等预热完会再投回来搜一次 —— 那时才减计数。
+                        if (finished) latch.countDown();
                     });
                 }
 
-                try {
-                    latch.await(9, TimeUnit.SECONDS);
-                } catch (InterruptedException ignored) {
+                /* 等全部搜完，但每 300ms 看一眼代次：
+                   用户又搜了别的词就立刻收工，别让上一轮占着协调线程。 */
+                long deadline = System.currentTimeMillis() + SEARCH_BUDGET_MS;
+                boolean finishedAll = false;
+                while (System.currentTimeMillis() < deadline) {
+                    if (curSearchSeq != seq) break;
+                    try {
+                        if (latch.await(300, TimeUnit.MILLISECONDS)) {
+                            finishedAll = true;
+                            break;
+                        }
+                    } catch (InterruptedException ignored) {
+                        break;
+                    }
                 }
 
-                List<Movie.Video> result;
-                synchronized (merged) {
-                    result = new ArrayList<>(merged.values());
+                JSONArray arr = new JSONArray();
+                synchronized (all) {
+                    for (JSONObject o : all) arr.put(o);
                 }
-                out.put("ok", result.isEmpty() ? 0 : 1);
-                out.put("list", videoArray(result));
+                out.put("ok", arr.length() > 0 ? 1 : 0);
+                out.put("seq", seq);
+                out.put("q", wd);
+                out.put("list", arr);
+                out.put("total", total);
+                out.put("done", done.get());
                 out.put("sites", done.get());
+                out.put("found", found.get());
+                out.put("finished", finishedAll ? 1 : 0);
                 cb(cbId, out.toString());
             } catch (Throwable th) {
                 cbErr(cbId, th);
             }
         });
+    }
+
+    /**
+     * 搜一个站。
+     *
+     * @return true = 这一站本轮已经算完（调用方减计数）；
+     *         false = 组件还没下好，已经丢去后台预热，预热完会再投回来搜一次。
+     */
+    private boolean runSearchSite(int seq, SourceBean sb, String wd,
+                                  Map<String, List<SourceBean>> byJar, Set<String> warming, Set<String> jarBad,
+                                  Set<String> published, AtomicInteger done, AtomicInteger found,
+                                  List<JSONObject> all, int total, CountDownLatch latch) {
+        final String siteKey = nz(sb.getKey());
+        if (published.contains(siteKey)) {
+            /* 这一站已经搜完并计过数了。
+               组件预热期间它可能自己就搜完了（比如主组件早就下好），
+               预热完再把它重投一次的话就会重复计数 —— 表现为「已搜 141/140」。 */
+            return false;
+        }
+        final String jk = ApiConfig.get().cspKey(sb);
+        JSONArray arr = new JSONArray();
+        try {
+            if (!jk.isEmpty()) {
+                if (jarBad.contains(jk)) {
+                    // 组件下不下来，这一站直接放弃。
+                    // 不这么做的话，每个站都会再白白等一次组件超时。
+                    published.add(siteKey);
+                    publish(seq, wd, sb, arr, done, found, all, total);
+                    return true;
+                }
+                if (!ApiConfig.get().cspReady(sb)) {
+                    // 组件还没下好：丢去后台下载，下好了再回来搜这一站。
+                    // 千万别在这里干等 —— 几十个站会一起堵在同一个组件上。
+                    warmUpJar(seq, jk, sb, wd, byJar, warming, jarBad, published, done, found, all, total, latch);
+                    return false;
+                }
+            }
+            List<Movie.Video> got = searchOne(sb, wd);
+            if (got != null) {
+                Set<String> seen = new HashSet<>();
+                for (Movie.Video v : got) {
+                    if (v == null || TextUtils.isEmpty(v.name)) continue;
+                    // 同一个站内部按片名去重（一个站常把同一部片列好几遍），
+                    // 但**不跨站去重** —— 同一部片在几个站搜到就列几条，各带各的站点名。
+                    if (!seen.add(normalizeName(v.name))) continue;
+                    JSONObject o = videoJson(v);
+                    o.put("site", nz(sb.getName()));
+                    arr.put(o);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        published.add(siteKey);
+        publish(seq, wd, sb, arr, done, found, all, total);
+        return true;
+    }
+
+    /**
+     * 后台把某个组件拉下来，拉好之后把用它的站重新投回搜索池。
+     * <p>同一个组件只预热一次（几个站共用一个 jar 地址，JarLoader 内部也有下载锁）。</p>
+     */
+    private void warmUpJar(int seq, String jk, SourceBean sb, String wd,
+                           Map<String, List<SourceBean>> byJar, Set<String> warming, Set<String> jarBad,
+                           Set<String> published, AtomicInteger done, AtomicInteger found,
+                           List<JSONObject> all, int total, CountDownLatch latch) {
+        if (!warming.add(jk)) return;   // 已经在预热了
+        jarPool.execute(() -> {
+            boolean ok = false;
+            try {
+                ApiConfig.get().getCSP(sb);
+                ok = ApiConfig.get().cspReady(sb);
+            } catch (Throwable ignored) {
+            }
+            if (!ok) {
+                jarBad.add(jk);
+                android.util.Log.i("PhoneBridge", "搜索组件预热失败: " + jk);
+            }
+            List<SourceBean> group = byJar.get(jk);
+            if (group == null) group = Collections.singletonList(sb);
+            for (final SourceBean s2 : group) {
+                searchPool.execute(() -> {
+                    if (runSearchSite(seq, s2, wd, byJar, warming, jarBad, published,
+                            done, found, all, total, latch)) {
+                        // 这一站补搜完了，减掉协调线程那边的等待计数
+                        latch.countDown();
+                    }
+                });
+            }
+        });
+    }
+
+    /** 把一个站的结果推给前端（顺带记账） */
+    private void publish(int seq, String wd, SourceBean sb, JSONArray arr, AtomicInteger done,
+                         AtomicInteger found, List<JSONObject> all, int total) {
+        try {
+            synchronized (all) {
+                for (int i = 0; i < arr.length(); i++) all.add(arr.getJSONObject(i));
+            }
+            int f = found.addAndGet(arr.length());
+            int d = done.incrementAndGet();
+            JSONObject ev = new JSONObject();
+            ev.put("seq", seq);
+            ev.put("q", wd);
+            ev.put("site", nz(sb.getName()));
+            ev.put("items", arr);
+            ev.put("done", d);
+            ev.put("total", total);
+            ev.put("found", f);
+            emit("search", ev.toString());
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 按组件把站点分组（几个站常常共用同一个 jar） */
+    private Map<String, List<SourceBean>> groupByJar(List<SourceBean> targets) {
+        Map<String, List<SourceBean>> m = new LinkedHashMap<>();
+        if (targets == null) return m;
+        for (SourceBean sb : targets) {
+            String jk = ApiConfig.get().cspKey(sb);
+            if (jk == null || jk.isEmpty()) continue;
+            List<SourceBean> l = m.get(jk);
+            if (l == null) {
+                l = new ArrayList<>();
+                m.put(jk, l);
+            }
+            l.add(sb);
+        }
+        return m;
     }
 
     /** 播放：拿详情 → 组装 VodInfo → 交给原生 PlayActivity（横屏全屏） */
@@ -2074,7 +2270,7 @@ public class PhoneBridge {
                     return;
                 }
                 final String want = normalizeName(wd);
-                final List<SourceBean> targets = pickSearchSites();
+                final List<SourceBean> targets = pickSearchSites(ALT_SITE_LIMIT);
                 final List<JSONObject> hits = Collections.synchronizedList(new ArrayList<JSONObject>());
                 final CountDownLatch latch = new CountDownLatch(targets.size());
 
@@ -2357,10 +2553,11 @@ public class PhoneBridge {
             try {
                 n = Integer.parseInt(nz(value).trim());
             } catch (Throwable th) {
-                n = 12;
+                n = 0;
             }
-            if (n < 1) n = 1;
-            if (n > 40) n = 40;
+            // 0 = 全部站点（默认，对齐影视仓的「全站搜索」）
+            if (n < 0) n = 0;
+            if (n > 200) n = 200;
             Hawk.put(HawkConfig.PHONE_SEARCH_LIMIT, n);
             JSONObject o = new JSONObject();
             o.put("ok", 1);
@@ -2618,12 +2815,15 @@ public class PhoneBridge {
         return null;
     }
 
-    /** 挑选参与搜索的站点：首页源优先，其余按配置顺序，最多 12 个 */
-    /** 搜索站点上限：1~40，默认 12（影视仓「搜索线程」在手机版的对应项） */
+    /**
+     * 搜索站点上限：0 = 全部（默认，对齐影视仓的「全站搜索」），1~200 可手动限。
+     * <p>旧版默认 12 —— 配置里实际有一百多个可搜站，12 个搜出来的结果被
+     * 「按片名合并」一压就只剩两三条，用户以为就这麼点片。</p>
+     */
     private static int searchSiteLimit() {
-        int n = 12;
+        int n = 0;
         try {
-            Object v = Hawk.get(HawkConfig.PHONE_SEARCH_LIMIT, 12);
+            Object v = Hawk.get(HawkConfig.PHONE_SEARCH_LIMIT, 0);
             if (v instanceof Number) {
                 n = ((Number) v).intValue();
             } else if (v != null) {
@@ -2631,13 +2831,17 @@ public class PhoneBridge {
             }
         } catch (Throwable ignored) {
         }
-        if (n < 1) n = 1;
-        if (n > 40) n = 40;
+        if (n < 0) n = 0;
+        if (n > 200) n = 200;
         return n;
     }
 
-    private List<SourceBean> pickSearchSites() {
-        int limit = searchSiteLimit();
+    /**
+     * 挑选参与搜索的站点：首页源优先，其余按配置顺序。
+     *
+     * @param limit 上限，0 = 不限（全部）
+     */
+    private List<SourceBean> pickSearchSites(int limit) {
         List<SourceBean> out = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
         try {
@@ -2649,7 +2853,7 @@ public class PhoneBridge {
             List<SourceBean> all = ApiConfig.get().getSourceBeanList();
             if (all != null) {
                 for (SourceBean sb : all) {
-                    if (out.size() >= limit) break;
+                    if (limit > 0 && out.size() >= limit) break;
                     if (sb == null || !sb.isSearchable() || sb.getHide() == 1) continue;
                     if (sb.getApi() == null) continue;
                     if (seen.contains(sb.getKey())) continue;
@@ -2667,8 +2871,12 @@ public class PhoneBridge {
         try {
             int type = sb.getType();
             if (type == 3) {
-                Spider sp = ApiConfig.get().getCSP(sb);
-                String json = callWithTimeout(() -> sp.searchContent(wd, false), 7);
+                /* 取组件 + 首次初始化（有些组件 init 时会拉一次首页，可能几秒）都可能慢，
+                   整段都算进单站超时里 —— 超时就放弃这个站，不能让它拖住整轮搜索。 */
+                String json = callWithTimeout(() -> {
+                    Spider sp = ApiConfig.get().getCSP(sb);
+                    return sp.searchContent(wd, false);
+                }, SITE_TIMEOUT_S);
                 return parseVideoList(json, type, sb.getKey());
             } else if (type == 0 || type == 1 || type == 4) {
                 com.lzy.okgo.request.GetRequest<String> req = OkGo.<String>get(sb.getApi())
@@ -2770,15 +2978,15 @@ public class PhoneBridge {
     }
 
     private String callWithTimeout(Callable<String> task, int seconds) {
-        ExecutorService one = Executors.newSingleThreadExecutor();
-        Future<String> f = one.submit(task);
+        /* 用共享的旁路池，不每次新建线程池：
+           全站搜索一次要调上百次（每个站一次），每次新建一个池太浪费线程。
+           超时后任务被放弃，但线程还在跑（网络调用不可中断），由 cached 池自然回收。 */
+        Future<String> f = bgPool.submit(task);
         try {
             return f.get(seconds, TimeUnit.SECONDS);
         } catch (Throwable th) {
-            f.cancel(true);
+            try { f.cancel(true); } catch (Throwable ignored) { }
             return null;
-        } finally {
-            one.shutdown();
         }
     }
 
@@ -2828,24 +3036,32 @@ public class PhoneBridge {
         for (Movie.Video v : list) {
             if (v == null) continue;
             try {
-                JSONObject o = new JSONObject();
-                o.put("id", nz(v.id));
-                o.put("name", nz(v.name));
-                o.put("pic", nz(v.pic));
-                o.put("note", nz(v.note));
-                o.put("type", nz(v.type));
-                o.put("year", v.year);
-                o.put("area", nz(v.area));
-                o.put("lang", nz(v.lang));
-                o.put("actor", nz(v.actor));
-                o.put("director", nz(v.director));
-                o.put("des", nz(v.des));
-                o.put("key", nz(v.sourceKey));
-                arr.put(o);
+                arr.put(videoJson(v));
             } catch (Throwable ignored) {
             }
         }
         return arr;
+    }
+
+    /** 一条影片 → JSON（搜索结果还要额外带站点名，所以单独抽出来复用） */
+    private JSONObject videoJson(Movie.Video v) {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("id", nz(v.id));
+            o.put("name", nz(v.name));
+            o.put("pic", nz(v.pic));
+            o.put("note", nz(v.note));
+            o.put("type", nz(v.type));
+            o.put("year", v.year);
+            o.put("area", nz(v.area));
+            o.put("lang", nz(v.lang));
+            o.put("actor", nz(v.actor));
+            o.put("director", nz(v.director));
+            o.put("des", nz(v.des));
+            o.put("key", nz(v.sourceKey));
+        } catch (Throwable ignored) {
+        }
+        return o;
     }
 
     private String detailJson(AbsXml abs) throws Exception {
@@ -2965,6 +3181,9 @@ public class PhoneBridge {
             pool.shutdownNow();
             searchPool.shutdownNow();
             altPool.shutdownNow();
+            searchCoord.shutdownNow();
+            jarPool.shutdownNow();
+            bgPool.shutdownNow();
         } catch (Throwable ignored) {
         }
     }

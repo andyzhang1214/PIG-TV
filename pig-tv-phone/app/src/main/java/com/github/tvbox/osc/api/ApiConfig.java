@@ -1352,6 +1352,30 @@ public class ApiConfig {
         }
     }
 
+    /**
+     * 这个站点要用的组件标识（和 JarLoader 内部用的 key 一致）。
+     * <p>自带组件的站返回 jar 地址的 MD5；用主组件（或者压根不是 jar 站）的返回空串。</p>
+     */
+    public String cspKey(SourceBean sb) {
+        if (sb == null || sb.getType() != 3) return "";
+        String jar = sb.getJar();
+        if (jar == null || jar.isEmpty()) return "";
+        String[] parts = jar.split(";md5;");
+        if (parts.length == 0 || parts[0].isEmpty()) return "";
+        return com.github.tvbox.osc.util.MD5.string2MD5(parts[0]);
+    }
+
+    /**
+     * 组件是不是已经就绪（不用等网络就能用）。
+     * <p>全站搜索先拿它筛一遍：组件还没下好的站先丢去后台下载，
+     * 不要几十个站一起堵在同一个还没下完的组件上。</p>
+     */
+    public boolean cspReady(SourceBean sb) {
+        String k = cspKey(sb);
+        if (k.isEmpty()) return true;   // 用主组件：主组件是启动时下的，这里不用管
+        return jarLoader.jarReady(k);
+    }
+
     public Spider getPyCSP(String url) {
         return pyLoader.getSpider(MD5.string2MD5(url), url, "");
     }

@@ -82,8 +82,46 @@ public class SourceViewModel extends ViewModel {
             JsLoader.stopAll();
         }
         // 全源搜索要排队跑几十上百个站，5 个线程太慢（用户会以为只有当前源有结果）。
-        // 8 是折中：再高下去，TV 盒子同时下载多个 spider jar 容易卡死甚至 OOM。
-        searchExecutorService = Executors.newFixedThreadPool(8);
+        // 12 是折中：以前不敢更高，是因为同时下载多个 spider jar 容易把 TV 盒子拖死；
+        // 现在 JarLoader 里按组件地址加了锁 —— 同一个 jar 只下一次，
+        // 真正并行的下载最多 7 个（实测 128 个可搜站只用到 7 个不同组件），不会失控。
+        searchExecutorService = Executors.newFixedThreadPool(12);
+    }
+
+    /**
+     * 单站搜索的旁路池：某些站的 spider 会挂住不回包。
+     * <p>没有超时的话，这个线程会被永久占住 —— 12 个线程占满，
+     * 后面一百多个站一个都跑不了，表现就是「搜了半天只有几个站有结果」。
+     * 超时后任务被放弃，但线程还在跑（网络调用不可中断），由固定上限兜住。</p>
+     */
+    private static final ExecutorService SEARCH_TASK_POOL = Executors.newFixedThreadPool(16);
+    /** 单站搜索超时（秒） */
+    private static final int SITE_SEARCH_TIMEOUT_S = 12;
+
+    /**
+     * 搜一个站，超时就放弃。
+     *
+     * @param quick true = 快速搜索（只取前几条，爬虫自己会限）
+     * @return 搜索结果 JSON；超时/异常返回空串
+     */
+    private String searchWithTimeout(SourceBean sourceBean, String wd) {
+        return searchWithTimeout(sourceBean, wd, false);
+    }
+
+    private String searchWithTimeout(SourceBean sourceBean, String wd, boolean quick) {
+        try {
+            final boolean q = quick;
+            Future<String> f = SEARCH_TASK_POOL.submit(new Callable<String>() {
+                @Override
+                public String call() throws Exception {
+                    Spider sp = ApiConfig.get().getCSP(sourceBean);
+                    return sp.searchContent(wd, q);
+                }
+            });
+            return f.get(SITE_SEARCH_TIMEOUT_S, TimeUnit.SECONDS);
+        } catch (Throwable th) {
+            return "";
+        }
     }
 
     public void execute(Runnable runnable) {
@@ -701,8 +739,10 @@ public class SourceViewModel extends ViewModel {
         int type = sourceBean.getType();
         if (type == 3) {
             try {
-                Spider sp = ApiConfig.get().getCSP(sourceBean);
-                String search = sp.searchContent(wd, false);
+                /* 单站超时：有些站的 spider 会挂住不回包。
+                   没有超时的话这个线程会被永久占住 —— 12 个线程占满，
+                   后面一百多个站一个都跑不了（表现就是「搜了半天只有几个站有结果」）。 */
+                String search = searchWithTimeout(sourceBean, wd);
                 if (!TextUtils.isEmpty(search)) {
                     json(searchResult, search, sourceBean.getKey());
                 } else {
@@ -783,11 +823,15 @@ public class SourceViewModel extends ViewModel {
     // searchContent
     public void getQuickSearch(String sourceKey, String wd) {
         SourceBean sourceBean = ApiConfig.get().getSource(sourceKey);
+        if (sourceBean == null) {
+            return;
+        }
         int type = sourceBean.getType();
         if (type == 3) {
             try {
-                Spider sp = ApiConfig.get().getCSP(sourceBean);
-                json(quickSearchResult, sp.searchContent(wd, true), sourceBean.getKey());
+                /* 同样要超时：快速搜索是边打字边搜，一个挂住的站
+                   会把搜索线程占住，后面的站全都排不上。 */
+                json(quickSearchResult, searchWithTimeout(sourceBean, wd, true), sourceBean.getKey());
             } catch (Throwable th) {
                 th.printStackTrace();
             }

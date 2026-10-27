@@ -123,8 +123,9 @@ public class SearchActivity extends BaseActivity {
     private int searchTotal = 0;
     private int searchDone = 0;
     private String filterBtnBase = "全局搜索";
-    // 兜底收尾：某些站的 spider 会挂住不回包，没有超时就会一直转圈
-    private static final long SEARCH_TIMEOUT_MS = 25000L;
+    // 兜底收尾：某些站的 spider 会挂住不回包，没有超时就会一直转圈。
+    // 35 秒指的是「一声不吭这么久」—— 只要还有站慢慢回结果，这个计时就会重置。
+    private static final long SEARCH_TIMEOUT_MS = 35000L;
     private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
     private Runnable timeoutRunnable;
 
@@ -829,6 +830,17 @@ public class SearchActivity extends BaseActivity {
         timeoutHandler.postDelayed(timeoutRunnable, SEARCH_TIMEOUT_MS);
     }
 
+    /**
+     * 又出了新结果 → 把兜底计时重置一次。
+     * <p>全站搜索有上百个站，慢站一个接一个地回，凭什么 35 秒就判死刑？
+     * 只有「一直一声不吭」才说明搜索真卡死了 —— 有结果就说明还活着，继续等。
+     * 这样 35 秒不再是「搜不完就砍掉」，而是「彻底没动静才收手」。</p>
+     */
+    private void resetSearchTimeout() {
+        if (timeoutRunnable == null) return;   // 已经超时收尾了，别再启动
+        startSearchTimeout();
+    }
+
     private void cancelSearchTimeout() {
         if (timeoutRunnable != null) {
             timeoutHandler.removeCallbacks(timeoutRunnable);
@@ -858,6 +870,8 @@ public class SearchActivity extends BaseActivity {
         searchDone++;
         if (count > 0 && searchTotal > 0) {
             filterBtn.setText("搜索中 " + Math.min(searchDone, searchTotal) + "/" + searchTotal);
+            // 还有结果在回来 → 兜底计时重置，别把还在慢慢回应的站砍掉
+            resetSearchTimeout();
         }
         if (count <= 0) {
             filterBtn.setText(filterBtnBase);

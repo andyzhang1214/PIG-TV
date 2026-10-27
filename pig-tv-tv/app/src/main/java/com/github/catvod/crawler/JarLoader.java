@@ -32,6 +32,24 @@ public class JarLoader {
     private volatile String recentJarKey = "";
 
     /**
+     * 同一个组件的下载锁。
+     * <p>
+     * 全站搜索时几十个站可能共用同一个 jar（实测 128 个可搜站里 68 个自带组件，
+     * 但只有 7 个不同的 jar 地址）。没有锁的话这些站会**同时**往同一个 .part 文件上写，
+     * 续传偏移互相踩 —— 文件直接写坏，表现是「组件下载失败」或者加载出一个残包。
+     * 加锁后：第一个线程去下，其余线程在这儿等，等完直接命中 classLoaders 缓存。
+     */
+    private final ConcurrentHashMap<String, Object> jarLocks = new ConcurrentHashMap<>();
+
+    private Object jarLock(String key) {
+        Object lock = jarLocks.get(key);
+        if (lock != null) return lock;
+        lock = new Object();
+        Object old = jarLocks.putIfAbsent(key, lock);
+        return old != null ? old : lock;
+    }
+
+    /**
      * 不要在主线程调用我
      *
      * @param cache
@@ -130,6 +148,18 @@ public class JarLoader {
             Log.i("JarLoader", "echo-loadJarInternal jar缓存: " + key);
             return classLoaders.get(key);
         }
+        // 同一个组件只允许一个线程下载，其余线程在这里排队等（等完直接命中缓存）
+        synchronized (jarLock(key)) {
+            // 等锁的这段时间里，别的人可能已经把它下好了
+            if (classLoaders.containsKey(key)) {
+                Log.i("JarLoader", "echo-loadJarInternal 等锁后命中缓存: " + key);
+                return classLoaders.get(key);
+            }
+            return loadJarInternalLocked(jar, md5, key);
+        }
+    }
+
+    private DexClassLoader loadJarInternalLocked(String jar, String md5, String key) {
         File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp/" + key + ".jar");
         if (!md5.isEmpty()) {
             if (cache.exists() && MD5.getFileMd5(cache).equalsIgnoreCase(md5)) {

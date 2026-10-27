@@ -192,7 +192,7 @@
       </div>
       <div class="meitem ar" onclick="openSearchLimit()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M12 3.4v2.8M12 17.8v2.8M3.4 12h2.8M17.8 12h2.8M6.1 6.1l2 2M15.9 15.9l2 2M17.9 6.1l-2 2M8.1 15.9l-2 2"/></svg>
-        搜索站点数<span class="v" id="limitHint">12 个</span>
+        搜索站点数<span class="v" id="limitHint">全部</span>
       </div>
       <div class="meitem ar" onclick="togglePlayFull()">
         <svg class="ic" viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M20 9V4h-5M4 15v5h5"/></svg>
@@ -228,7 +228,7 @@
       </div>
       <div class="meitem ar" onclick="openAbout()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".9" fill="currentColor"/></svg>
-        关于<span class="v" id="verHint">v1.0.3</span>
+        关于<span class="v" id="verHint">v1.0.4</span>
       </div>
     </div>
     <div style="height:6px"></div>
@@ -322,6 +322,11 @@
     <div class="words" id="sWords"></div>
   </div>
   <div id="sState" class="loadmore" style="display:none"></div>
+  <!-- 站点筛选条：同一部片在几个站搜到就各占一条（不跨站合并），
+       这里列出每个站点出了几条，点一下只看那个站的 -->
+  <div class="sFilter" id="sFilter" style="display:none">
+    <div class="chips" id="sChips"></div>
+  </div>
   <div class="grid2" id="sGrid" style="display:none"></div>
 </div>
 
@@ -413,6 +418,15 @@ window.__evt = function(name, s){
          否则组件下完了页面还停在「上次的内容」上不动。 */
       if (d.done){ if (!ST.hero.length || homeCacheStale) loadAll(); return; }
       onJarProgress(d);
+    } else if (name === 'search'){
+      /* 全站搜索的流式结果：搜完一个站点就推一条过来。
+         状态栏实时显示「已搜 n/N」，卡片一条条冒出来 —— 跟影视仓一个观感。
+         d.seq 是前端自己给的代次，别人的/上一轮的迟到结果直接丢掉。 */
+      /* d.seq 是前端自己给的代次（原生原样带回），别轮的/上一轮的迟到结果直接丢掉。
+         用 Number 比：原生回的是数字，字符串也能认。 */
+      if (Number(d.seq) !== searchSeq) return;
+      mergeSearch(d.items || [], d.done, d.total);
+      onSearchProgress();
     }
   }catch(e){ console.log('evt error', e); }
 };
@@ -514,7 +528,8 @@ var ACTS = {
   flt:      function(v){ openFlt(v); },              // 筛选条上某一组
   aw:       function(v){ sPick(v); },                // 搜索热词
   lg:       function(v){ livePick(v); },              // 直播页分组 chips（v='' 表示全部）
-  lch:      function(v){                              // 直播页频道卡片（v="分组下标,频道下标"）
+  sf:       function(v){ setSearchFilter(v); },       // 搜索页站点筛选 chips（v='' 表示全部）
+  lch:      function(v){                              // 直播页频道卡片（v="分组下标,频道下标"")
               var a = String(v).split(',');
               openLiveChannel(+a[0], +a[1]);
             }
@@ -542,14 +557,19 @@ function artImg(v){
    ===================================================================== */
 /* v11 的卡：.pc 是外层（可点），.pcPoster 才是 2:3 的海报区，
    .pcT 落到卡下面 —— 源站海报本身就常带片名/宣传语，
-   再压一层中文标题会打架，所以标题一律放卡外。 */
+   再压一层中文标题会打架，所以标题一律放卡外。
+   搜索结果的卡片左上角多一个站点标签（.pcTag）：
+   全站搜索不跨站合并，同一部片在几个站搜到就列几条，
+   不标清楚站点，用户根本分不清这三条是不是同一部片。 */
 function posterHTML(v, idx, cls, hook){
   var stat = badMeta(v.note) ? metaLine(v) : nz(v.note);
+  var tag = v.site ? '<div class="pcTag">' + esc(v.site) + '</div>' : '';
   return '<div class="pc ' + (cls || '') + '" onclick="' + (hook || 'openDetail') + '(' + idx + ')">' +
     '<div class="pcPoster">' +
       '<div class="pcArt" style="' + artBg(v) + '">' + artImg(v) + '</div>' +
       '<div class="pcCh">' + esc(nz(v.name).charAt(0) || '猪') + '</div>' +
       '<div class="pcScrim"></div>' +
+      tag +
       (cls === 'sm' ? '' : (idx === 0 ? '<div class="pcBadge hot">热播</div>' : '')) +
       (stat ? '<div class="pcB">' + esc(stat) + '</div>' : '') +
     '</div>' +
@@ -1901,9 +1921,14 @@ function applySourceName(nm){
 }
 
 /* =====================================================================
-   搜索
+   搜索（对齐影视仓：搜全部站、不跨站合并、流式出结果、可按站点筛）
    ===================================================================== */
+/* SR.items 是全量结果（同一个片名在几个站搜到就列几条，各带各的站点名）；
+   SR.view 是当前显示的那一份（按站点筛选后是子集）。
+   ST.items 指向 SR.view，卡片上下标和 openDetail 才对得上。 */
 var searchSeq = 0;
+var SR = {seq:0, q:'', items:[], view:[], seen:{}, done:0, total:0, filter:'', rendered:0};
+
 function openSearch(){
   document.getElementById('sov').classList.add('on');
   var words = ['沙丘','漫长的季节','周处除三害','繁花','奥本海默','热辣滚烫','流浪地球','三体'];
@@ -1917,6 +1942,7 @@ function closeSearch(){
   document.getElementById('sIn').value = '';
   document.getElementById('sGrid').style.display = 'none';
   document.getElementById('sState').style.display = 'none';
+  document.getElementById('sFilter').style.display = 'none';
   document.getElementById('sHot').style.display = 'block';
 }
 function sPick(w){
@@ -1931,30 +1957,143 @@ function sKey(e){
   }
 }
 
+/* 跟原生 normalizeName 对齐：同一个站在不同接口下可能把同一部片写成
+   「沙丘2」/「沙丘 2」，去空格和常见标点后再比，才不会漏收。 */
+function normName(s){
+  return String(s == null ? '' : s).replace(/[\s·:：\-—_（）()\[\]【】]/g, '').toLowerCase();
+}
+
 function doSearch(query){
   var q = (query != null ? query : document.getElementById('sIn').value).trim();
   if (!q){ toast('先输点东西'); return; }
   var mySeq = ++searchSeq;
+  SR = {seq:mySeq, q:q, items:[], view:[], seen:{}, done:0, total:0, filter:'', rendered:0};
+  ST.items = SR.view;
   document.getElementById('sHot').style.display = 'none';
-  document.getElementById('sGrid').style.display = 'none';
+  var grid = document.getElementById('sGrid');
+  grid.style.display = 'none';
+  grid.innerHTML = '';
+  document.getElementById('sFilter').style.display = 'none';
   var state = document.getElementById('sState');
   state.style.display = 'block';
-  state.textContent = '正在搜「' + q + '」，多源并发…';
+  state.textContent = '正在搜「' + q + '」，全站并发…';
 
-  ncall('search', [q], function(d){
+  /* 代次一起传给原生：原生在流式事件和最终回包里都原样带回，
+     我们靠它把上一轮的迟到结果丢掉（连着搜两次时特别重要）。 */
+  ncall('search', [q, String(mySeq)], function(d){
     if (mySeq !== searchSeq) return;   // 已经搜别的词了，丢掉旧结果
-    var list = d.list || [];
-    state.style.display = 'block';
-    if (!list.length){
-      state.innerHTML = '没有找到「' + esc(q) + '」<br><span style="font-size:11px;color:rgba(var(--ink),.42)">换个词，或者只搜片名里的一两个字</span>';
-      return;
+    /* 最终回包只是兜底（万一流式事件丢了），
+       真正让结果一条条冒出来的是 window.__evt('search')。 */
+    mergeSearch(d.list || [], d.done, d.total);
+    onSearchProgress();
+    if (d.total && d.done < d.total){
+      var st = document.getElementById('sState');
+      st.textContent += '（还有 ' + (d.total - d.done) + ' 个站点在准备组件，可以再搜一次）';
     }
-    state.textContent = '在 ' + (d.sites || 0) + ' 个站点里找到 ' + list.length + ' 部';
-    ST.items = list;
-    var grid = document.getElementById('sGrid');
-    grid.style.display = 'grid';
-    grid.innerHTML = list.map(function(v, i){ return posterHTML(v, i, 'sm'); }).join('');
   });
+}
+
+/* 合入一批结果（同一条只在第一次进来时收） */
+function mergeSearch(list, done, total){
+  if (done) SR.done = Math.max(SR.done, done);
+  if (total) SR.total = Math.max(SR.total, total);
+  if (!list || !list.length) return 0;
+  var add = 0;
+  for (var i = 0; i < list.length; i++){
+    var v = list[i];
+    if (!v || !nz(v.name)) continue;
+    var k = nz(v.key) + '|' + normName(v.name);
+    if (SR.seen[k]) continue;
+    SR.seen[k] = 1;
+    SR.items.push(v);
+    add++;
+  }
+  return add;
+}
+
+/* 有新结果了：补卡片 + 更新站点条 + 更新状态行 */
+function onSearchProgress(){
+  if (SR.filter){
+    /* 筛选状态下视图是子集，得整个重算 */
+    renderSearchGrid();
+  } else {
+    var grid = document.getElementById('sGrid');
+    var html = '';
+    for (var i = SR.rendered; i < SR.items.length; i++){
+      html += posterHTML(SR.items[i], i, 'sm');
+    }
+    if (html) grid.insertAdjacentHTML('beforeend', html);
+    SR.rendered = SR.items.length;
+    if (SR.items.length) grid.style.display = 'grid';
+  }
+  renderSearchChips();
+  updateSearchState();
+}
+
+/* 整个网格重建（切换站点筛选时用） */
+function renderSearchGrid(){
+  SR.view = SR.filter
+    ? SR.items.filter(function(v){ return nz(v.key) === SR.filter; })
+    : SR.items;
+  ST.items = SR.view;
+  var grid = document.getElementById('sGrid');
+  grid.innerHTML = SR.view.map(function(v, i){ return posterHTML(v, i, 'sm'); }).join('');
+  grid.style.display = SR.view.length ? 'grid' : 'none';
+  SR.rendered = SR.items.length;
+}
+
+/* 站点筛选条：列出每个站点出了几条，点一下只看那个站的 */
+function renderSearchChips(){
+  var box = document.getElementById('sChips');
+  var wrap = document.getElementById('sFilter');
+  if (!box || !wrap) return;
+  var cnt = {}, order = [];
+  for (var i = 0; i < SR.items.length; i++){
+    var v = SR.items[i];
+    var k = nz(v.key);
+    if (!cnt[k]){ cnt[k] = {n:0, name:nz(v.site) || k}; order.push(k); }
+    cnt[k].n++;
+  }
+  if (!order.length){ wrap.style.display = 'none'; box.innerHTML = ''; return; }
+  order.sort(function(a, b){ return cnt[b].n - cnt[a].n; });
+  var html = '<span class="chip' + (SR.filter ? '' : ' on') + '" data-act="sf" data-val="">全部 ' +
+             SR.items.length + '</span>';
+  for (var j = 0; j < order.length; j++){
+    var k2 = order[j];
+    html += '<span class="chip' + (SR.filter === k2 ? ' on' : '') + '" data-act="sf" data-val="' +
+            esc(k2) + '">' + esc(cnt[k2].name) + ' ' + cnt[k2].n + '</span>';
+  }
+  box.innerHTML = html;
+  wrap.style.display = 'block';
+}
+
+function setSearchFilter(k){
+  SR.filter = k || '';
+  renderSearchGrid();
+  renderSearchChips();
+  updateSearchState();
+}
+
+function updateSearchState(){
+  var st = document.getElementById('sState');
+  if (!st) return;
+  st.style.display = 'block';
+  if (!SR.items.length){
+    if (SR.total && SR.done >= SR.total){
+      st.innerHTML = '没有找到「' + esc(SR.q) + '」<br><span style="font-size:11px;color:rgba(var(--ink),.42)">换个词，或者只搜片名里的一两个字</span>';
+    } else {
+      st.textContent = '正在搜「' + SR.q + '」，已搜 ' + SR.done + '/' + SR.total + ' 个站点…';
+    }
+    return;
+  }
+  var scope = SR.total
+    ? ('已搜 ' + SR.done + '/' + SR.total + ' 个站点')
+    : ('已搜 ' + SR.done + ' 个站点');
+  /* 筛选状态下要分清「现在看的是这个站的几条」和「一共搜出几条」，
+     否则用户会以为全部结果只有这么点。 */
+  st.textContent = SR.filter
+    ? (scope + ' · 本筛选 ' + SR.view.length + ' 条 / 共 ' + SR.items.length + ' 条')
+    : (scope + ' · ' + SR.items.length + ' 条结果');
 }
 
 /* =====================================================================
@@ -2610,7 +2749,7 @@ function refreshSettings(){
   ncall('searchLimit', [], function(d){
     if (d && d.ok){
       var el = document.getElementById('limitHint');
-      if (el) el.textContent = d.limit + ' 个';
+      if (el) el.textContent = limitText(d.limit);
     }
   });
 
@@ -2621,7 +2760,7 @@ function refreshSettings(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) return;
     var el = document.getElementById('verHint');
-    if (el) el.textContent = 'v' + (d.ver || '1.0.3');
+    if (el) el.textContent = 'v' + (d.ver || '1.0.4');
   });
 }
 
@@ -2667,22 +2806,26 @@ window.pickTheme = function(m){
 };
 
 /* ---- 搜索站点数 ---- */
+/* 0 = 全部（默认）。影视仓就是全站搜：同一部片在几个站搜到就列几条，
+   再按站点筛。限制站点数反而会让人以为「只有这点片」。 */
+function limitText(n){
+  return (!n ? '全部' : (n + ' 个'));
+}
 function openSearchLimit(){
   var opts = [
-    {n: 6,  d: '最快，但冷门片容易搜不到'},
-    {n: 12, d: '默认，速度和覆盖比较均衡'},
-    {n: 24, d: '最全，片源多的接口推荐'},
-    {n: 32, d: '极限，接口慢时会明显更卡'}
+    {n: 0,   d: '所有能搜的站点一起搜，结果最全（默认）'},
+    {n: 32,  d: '只搜前 32 个站，快一点'},
+    {n: 64,  d: '折中：覆盖大部分站，又不至于太慢'}
   ];
   ncall('searchLimit', [], function(r){
-    var cur = (r && r.limit) || 12;
+    var cur = (r && typeof r.limit === 'number') ? r.limit : 0;
     var html = opts.map(function(o){
       return '<div class="altRow' + (o.n === cur ? ' cur' : '') + '" onclick="pickSearchLimit(' + o.n + ')">' +
-        '<div class="altN">' + o.n + ' 个站点</div>' +
+        '<div class="altN">' + limitText(o.n) + '</div>' +
         '<div class="altS">' + o.d + '</div>' +
       '</div>';
     }).join('');
-    html += '<div class="altS" style="padding:12px 16px 6px">同时搜的站点越多结果越全，时间也越长（总共等 9 秒）。</div>';
+    html += '<div class="altS" style="padding:12px 16px 6px">搜的时候结果是一条条冒出来的，不用等全部搜完；最多等 30 秒。</div>';
     showAlt('搜索站点数', html);
   });
 }
@@ -2691,8 +2834,8 @@ window.pickSearchLimit = function(n){
   ncall('setSearchLimit', [String(n)], function(d){
     if (d && d.ok){
       var el = document.getElementById('limitHint');
-      if (el) el.textContent = d.limit + ' 个';
-      toast('已设为 ' + d.limit + ' 个站点');
+      if (el) el.textContent = limitText(d.limit);
+      toast('已设为 ' + limitText(d.limit) + '站点');
     } else {
       toast('设置失败');
     }
@@ -2773,7 +2916,7 @@ function resetAppAsk(){
 function openAbout(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) d = {};
-    var ver = d.ver || '1.0.3';
+    var ver = d.ver || '1.0.4';
     var el = document.getElementById('verHint');
     if (el) el.textContent = 'v' + ver;
     var html = '';

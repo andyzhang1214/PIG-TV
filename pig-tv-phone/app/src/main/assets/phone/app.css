@@ -426,6 +426,12 @@ svg{display:block}
   backdrop-filter:blur(6px)}
 .pcBadge.hot{background:linear-gradient(135deg,var(--ac),var(--ac2));color:var(--acInk);
   border-color:transparent;font-weight:700}
+/* 搜索结果的站点标签（左上角）：全站搜索不跨站合并，同一部片会有好几条，
+   不标清楚站点，用户根本分不清这几条是不是同一部片。 */
+.pcTag{position:absolute;left:6px;top:6px;z-index:4;max-width:78%;
+  padding:2px 6px;border-radius:6px;font-size:9px;line-height:15px;font-weight:600;
+  background:rgba(0,0,0,.52);border:1px solid rgba(255,255,255,.18);color:#fff;
+  backdrop-filter:blur(6px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 图上左下角那行更新备注（恒白，落在 .pcScrim 上） */
 .pcB{position:absolute;left:7px;right:7px;bottom:6px;font-size:9.5px;font-weight:600;
   color:rgba(255,255,255,.94);text-shadow:0 1px 5px rgba(0,0,0,.85);
@@ -663,6 +669,9 @@ svg{display:block}
 
 /* 加载 / 空态 */
 .loadmore{padding:26px var(--pad);text-align:center;font-size:11.5px;color:var(--tx3)}
+/* 搜索页状态行：影视仓那种「搜索(28/32)」是贴在左上角的，
+   左对齐更像进度提示，也比居中好读（居中一长行会折成两行更难扫）。 */
+#sState{padding:13px var(--pad) 2px;text-align:left;font-size:11.5px;line-height:1.65;color:var(--tx3)}
 /* 首页「这是上次的内容」提示条：夹在 hero 和「继续观看」之间。
    只是说明，不是错误 —— 用弱化的灰，别做成红色横幅抢戏；
    接口最终连不上时切到 .warn（用 --err），那才是需要用户动手的状态。 */
