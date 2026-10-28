@@ -129,6 +129,15 @@ public class ModelSettingFragment extends BaseLazyFragment {
         return R.layout.fragment_model;
     }
 
+    /** 设置页「接口」那行：有自定义名字就显示「名字 · 地址」，否则只显示地址 */
+    private String apiLabel(String url) {
+        String name = Hawk.get(HawkConfig.API_NAME, "");
+        boolean hasName = name != null && !name.trim().isEmpty();
+        if (!hasName) return url == null ? "" : url;
+        if (url == null || url.isEmpty()) return name.trim();
+        return name.trim() + " · " + url;
+    }
+
     @Override
     protected void init() {
         tvFastSearchText = findViewById(R.id.showFastSearchText);
@@ -136,7 +145,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
         tvDebugOpen = findViewById(R.id.tvDebugOpen);
         tvDebugOpen.setText(Hawk.get(HawkConfig.DEBUG_OPEN, false) ? "开启" : "关闭");
         tvApi = findViewById(R.id.tvApi);
-        tvApi.setText(Hawk.get(HawkConfig.API_URL, ""));
+        tvApi.setText(apiLabel(Hawk.get(HawkConfig.API_URL, "")));
         // Home Section
         tvHomeApi = findViewById(R.id.tvHomeApi);
         tvHomeApi.setText(ApiConfig.get().getHomeSourceBean().getName());
@@ -193,7 +202,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
                     @Override
                     public void onchange(String api) {
                         Hawk.put(HawkConfig.API_URL, api);
-                        tvApi.setText(api);
+                        tvApi.setText(apiLabel(api));
                     }
                 });
                 dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
@@ -222,7 +231,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
                     @Override
                     public void click(String api) {
                         Hawk.put(HawkConfig.API_URL, api);
-                        tvApi.setText(api);
+                        tvApi.setText(apiLabel(api));
                         dialog.dismiss();
                     }
 

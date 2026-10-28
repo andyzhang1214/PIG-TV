@@ -12,8 +12,12 @@ public class HawkConfig {
     public static final String PUSH_TO_PORT = "push_to_port"; // 推送到地址的端口
     // URL Configurations
     public static final String API_URL = "api_url";
+    /** 点播接口的显示名（手机扫码页或配置弹窗里填的），空则显示地址 */
+    public static final String API_NAME = "api_name";
     public static final String API_HISTORY = "api_history";
     public static final String LIVE_URL = "live_url";
+    /** 直播源的显示名，同上 */
+    public static final String LIVE_NAME = "live_name";
     public static final String LIVE_HISTORY = "live_history";
     public static final String EPG_URL = "epg_url";
     public static final String EPG_HISTORY = "epg_history";

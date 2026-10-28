@@ -1,23 +1,163 @@
-body,
-html {
-  height: 100%;
-  -webkit-tap-highlight-color: transparent;
+/* 手机扫码后的配置页样式：只服务 index.html，不依赖 weui 的 style.css */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+:root{
+  --bg:#0d0f13;
+  --card:#15181f;
+  --field:#1c212b;
+  --line:#262c38;
+  --txt:#eef1f7;
+  --dim:#8a92a6;
+  --accent:#ff7a18;
+  --accent2:#ffa14d;
+  --ok:#3ad07a;
+  --err:#ff5f5f;
 }
-body {
-  font-family: system-ui, -apple-system, Helvetica Neue, sans-serif;
+
+@media (prefers-color-scheme:light){
+  :root{
+    --bg:#f4f5f7;
+    --card:#ffffff;
+    --field:#f6f7f9;
+    --line:#e4e7ee;
+    --txt:#15171c;
+    --dim:#6b7280;
+    --ok:#12a059;
+    --err:#e5484d;
+  }
 }
-.page,
-body {
-  background-color: var(--weui-BG-0);
+
+html,body{margin:0;padding:0}
+
+body{
+  min-height:100vh;
+  background:var(--bg);
+  color:var(--txt);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-text-size-adjust:100%;
+  padding:calc(20px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
 }
-.page {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  box-sizing: border-box;
-  z-index: 1;
+
+.wrap{max-width:560px;margin:0 auto}
+
+/* 标题区 */
+.hd{margin:0 2px 18px}
+.hd h1{
+  margin:0 0 4px;
+  font-size:21px;
+  font-weight:650;
+  letter-spacing:.3px;
 }
+.hd h1 em{
+  font-style:normal;
+  color:var(--accent);
+}
+.hd p{margin:0;font-size:13px;color:var(--dim)}
+
+/* 卡片 */
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:16px;
+  margin-bottom:14px;
+}
+.cardHd{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.cardHd h2{margin:0;font-size:16px;font-weight:600}
+.badge{
+  margin-left:auto;
+  font-size:11px;
+  line-height:1;
+  padding:5px 8px;
+  border-radius:999px;
+  color:var(--dim);
+  background:var(--field);
+  border:1px solid var(--line);
+  white-space:nowrap;
+}
+.badge.on{color:var(--ok);border-color:transparent;background:rgba(58,208,122,.14)}
+
+.hint{margin:6px 0 14px;font-size:12.5px;color:var(--dim)}
+
+/* 表单 */
+.fld{display:block;margin-bottom:12px}
+.fld > span{display:block;font-size:12.5px;color:var(--dim);margin-bottom:6px}
+
+.fld input,
+.fld textarea{
+  display:block;
+  width:100%;
+  padding:11px 12px;
+  font:inherit;
+  font-size:14.5px;
+  color:var(--txt);
+  background:var(--field);
+  border:1px solid var(--line);
+  border-radius:11px;
+  outline:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+.fld textarea{
+  resize:vertical;
+  min-height:76px;
+  font-size:13.5px;
+  line-height:1.5;
+  word-break:break-all;
+}
+.fld input::placeholder,
+.fld textarea::placeholder{color:var(--dim);opacity:.7}
+.fld input:focus,
+.fld textarea:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(255,122,24,.15);
+}
+
+/* 按钮 */
+.btn{
+  display:block;
+  width:100%;
+  margin-top:4px;
+  padding:12px;
+  font:inherit;
+  font-size:15px;
+  font-weight:600;
+  color:#1a0d02;
+  background:linear-gradient(180deg,var(--accent2),var(--accent));
+  border:0;
+  border-radius:11px;
+  cursor:pointer;
+  transition:transform .08s,filter .15s;
+}
+.btn:active{transform:scale(.99);filter:brightness(.95)}
+.btn[disabled]{opacity:.55;filter:grayscale(.25)}
+
+/* 底部提示 */
+.tip{
+  margin:6px 2px 0;
+  font-size:12px;
+  color:var(--dim);
+  line-height:1.6;
+}
+
+/* Toast */
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:calc(30px + env(safe-area-inset-bottom));
+  transform:translate(-50%,14px);
+  max-width:82vw;
+  padding:11px 16px;
+  font-size:14px;
+  color:#fff;
+  background:rgba(28,32,40,.96);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s,transform .2s;
+  z-index:99;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.ok{background:rgba(18,120,66,.96)}
+.toast.err{background:rgba(160,38,42,.96)}

@@ -84,69 +84,62 @@ import java.util.Set;
 import me.jessyan.autosize.utils.AutoSizeUtils;
 
 /**
- * 首页 v8
+ * 首页
  * ============================================================
- * 对应 ui-design/tv-home-v8.html。和 v6.1 的区别不是皮肤，是信息架构：
+ * 三个页面，一套骨架（都是「5 列竖向封面墙」）：
  *
- *   v6.1：一个预览卡 + 一排入口 → 用户看完这一屏就没了，
- *         想专门找「电影」里的某一类，没有任何入口。
- *   v8  ：4 行内容流（每行一个分类，可横滑，行尾「查看全部」）
- *         + 分类页（左分类列 + 筛选 + 海报墙），两条路径互相打通。
+ *   推荐   hero（首屏）+ 站点推荐位铺成的墙，滑到底自动翻分类下一页
+ *   影视   顶栏「影视」展开的二级菜单（电影/电视剧/…）+ 封面墙，没有 hero
+ *   历史   本地播放记录 + 卡底进度条
  *
- * 焦点模型（一根 D-pad 走完全程）：
+ * 封面上的信息只有左下角一行，取值口径和手机端 .pcB 完全一致（VodText.coverStat）：
+ * 有「更新至 12 集 / 评分 7.5」就显示它，没有就「类型 · 年份 · 地区」。
  *
- *   顶栏导航 ──↓──→ hero 两个按钮 ──↓──→ 第 1 行
- *      ↑                                    │
- *      └────────────（行内按 ↑）─────────────┘
+ * 焦点模型（一根 D-pad 走完全程，反向对称）：
  *
- *   行与行之间：按 ↑↓ 由本类的 dispatchKeyEvent 统一接管。没有用嵌套
- *   RecyclerView 的默认 focusSearch——垂直 RV 套 4 个横向 RV 时，
- *   方向键经常跳到隔壁行的中间位置，那是 TV 端最经典的坑。
+ *   顶栏 ──↓──→ 二级菜单 ──↓──→ hero 按钮 ──↓──→ 封面墙
+ *     ↑            ↑                               │
+ *     └────────────┴──────（墙第一行按 ↑）───────────┘
+ *
+ *   影视页没有 hero，台阶少一层：顶栏 → 二级菜单 → 墙。
+ *
+ * 墙里的上下移动由本类的 dispatchKeyEvent 统一接管，没有交给 RecyclerView
+ * 的 focusSearch —— 那个在「下一行只露半截」时经常返回 null，焦点就卡住不动。
  *
  * 首屏 / 浏览态：
- *   焦点在顶栏 → hero 完整、内容流从 240mm 开始，只露 1.8 行（刻意的）
- *   焦点进内容行 → hero 上移淡出、内容流整体上推到 144mm，露出 2.3 行
- *   这就是「页面会推上来」的来源，Apple TV 的真实行为。
+ *   推荐、历史：屏上有 hero，墙从 240mm 起；焦点进墙 → hero 淡出、墙推到 96mm
+ *   影视：没有 hero，墙固定从 114mm（二级菜单下沿）起，焦点进出都不动
  */
 public class HomeActivity extends BaseActivity {
 
     // ------------------------------------------------------------------
     //  常量
     // ------------------------------------------------------------------
-    /** 首屏内容流起点（mm，物理毫米，与 dimens_v8 同一套换算） */
+    /** 首屏墙起点（mm，物理毫米，与 dimens_v8 同一套换算） */
     private static final float MM_LINE_TOP_FIRST = 240f;
-    /** 浏览态内容流起点（整体上推 96mm） */
-    private static final float MM_LINE_TOP_BROWSE = 144f;
-    /** 内容流被顶栏压住的上限 */
-    private static final float MM_LINE_TOP_MIN = 66f;
-    /** 只有一块内容时，内容底边离屏幕底边的距离（底部那行按键提示的高度） */
-    private static final float MM_LINES_BOTTOM_PAD = 26f;
-    /** 首页最多放几行 */
-    private static final int MAX_LINES = 4;
-    /** 首页推荐拉空时，最多再换几个分类试（每个都要走一次网络，别无限试） */
-    private static final int HOME_REC_MAX_TRY = 4;
-    /** 每行最多取几张，避免一次拉几百张图 */
-    private static final int MAX_ITEMS_PER_LINE = 24;
     /**
-     * 顶部观看历史海报墙的列数。
-     * 5 列时列宽 ≈ (1218 - 2×45.6 - 4×12) / 5 ≈ 215.8mm，
-     * 配 322mm 的卡高正好 2:3，海报不会被裁成方块；一行就把首屏填满了。
-     * 墙固定只露 1 行（WALL_MAX = WALL_SPAN），改列数要同步 dimens 的 v8_wall_h。
+     * 浏览态（焦点进墙）的墙起点。
+     * 顶栏放大到 38mm 之后底边到了 64mm，这个值还停在 66 → 浏览态海报墙直接顶到标签底下，
+     * 卡片顶部的角标被压掉一截。留出约 20mm 的呼吸位（实测 78 还是只差 4px）。
      */
+    private static final float MM_LINE_TOP_MIN = 96f;
+    /**
+     * 影视页的墙起点（mm）：那一页没有 hero，二级菜单下面直接就是封面。
+     * 顶栏 26+38=64 到底，二级菜单 72~102mm，再留 12mm 呼吸位 = 114mm。
+     * 改顶栏或二级菜单的高度，这个数要跟着改。
+     */
+    private static final float MM_WALL_TOP_CAT = 114f;
+    /** 推荐/影视/历史三面墙的列数（同一套卡：215×322mm，5 列正好铺满版心） */
     private static final int WALL_SPAN = 5;
     /**
-     * 墙最多放几部历史 —— 正好 1 行。
-     * 曾经放 2 行（21 部），但 219mm 的卡一叠两行就吃掉首屏 500mm，
-     * 下面的推荐内容被压得只剩一条缝，所以只留一行；更多记录走「观看历史」页。
-     */
-    private static final int WALL_MAX = WALL_SPAN;
-    /**
-     * 推荐行少于这么多张时，从第一个真实分类补一批。
+     * 推荐墙少于这么多张时，从第一个真实分类补一批。
      *
      * 不少源的首页推荐位只给一两部（运营位），直接铺出来就是「一部片 + 一整屏黑」，
-     * 看着像没加载完。补到两屏（WALL_SPAN × 2）才有左右滑的必要。
+     * 看着像没加载完。补到两屏（WALL_SPAN × 2）才有往下滑的必要。
      */
     private static final int REC_FILL_MIN = WALL_SPAN * 2;
+    /** 历史墙一屏放几部（只用来算「播放记录有没有变」的指纹窗口） */
+    private static final int WALL_MAX = WALL_SPAN;
     /**
      * 从 App 进首页算起，最多等这么久就给结论。
      *
@@ -154,6 +147,7 @@ public class HomeActivity extends BaseActivity {
      * 也不能把配置、jar、sort、分类列表各算各的，加起来就是一分钟白等。
      */
     private static final long HOME_LOAD_DEADLINE = 25000L;
+
 
     // ------------------------------------------------------------------
     //  顶栏项
@@ -170,8 +164,10 @@ public class HomeActivity extends BaseActivity {
     private static final int NT_LIVE = 4;
     /** 收藏：独立页面 */
     private static final int NT_FAV = 5;
-    /** 更多：站点分类超过 6 个时出现，点开是完整的分类列表 */
+    /** 更多：站点分类超过上限时出现在二级菜单末尾，点开是完整的分类列表 */
     private static final int NT_MORE = 6;
+    /** 影视：电影/电视剧/综艺/… 全部收进这一个标签，选中后下面才展开二级菜单 */
+    private static final int NT_FILM = 7;
 
     /**
      * 顶栏一项。
@@ -214,7 +210,7 @@ public class HomeActivity extends BaseActivity {
             {"纪录片", "记录片", "纪实", "纪录"}
     };
     /** 顶栏最多放几个分类 tab，超出的收进「更多」 */
-    private static final int MAX_CAT_TABS = 6;
+    private static final int MAX_CAT_TABS = 7;
 
     private static Resources res;
 
@@ -222,8 +218,10 @@ public class HomeActivity extends BaseActivity {
     //  视图
     // ------------------------------------------------------------------
     private View launcher;
-    private FrameLayout linesViewport;
-    private LinearLayout linesBox;
+    /** 推荐页：竖向封面墙（v11）。以前那一行横滑大卡已经拆掉 —— 按 ↓ 永远滑不下去 */
+    private View recLayout;
+    private TvRecyclerView recGrid;
+    private HomeLineAdapter recAdapter;
     private ImageView bgArtA;
     private ImageView bgArtB;
     /** 当前正在显示的那张背景（A/B 交替做交叉淡入） */
@@ -232,7 +230,7 @@ public class HomeActivity extends BaseActivity {
     private LinearLayout heroInfo;
     private LinearLayout heroActions;
     private LinearLayout navBox;
-    private LinearLayout chipBox;
+    private LinearLayout subNavBox;
     /** 分类页容器（v10 起是 FrameLayout，里面只有 ViewPager） */
     private View contentLayout;
 
@@ -270,9 +268,10 @@ public class HomeActivity extends BaseActivity {
     private HomePageAdapter pageAdapter;
     private final List<BaseLazyFragment> fragments = new ArrayList<>();
     private final List<MovieSort.SortData> sorts = new ArrayList<>();
-    private final List<Line> lines = new ArrayList<>();
     private final List<View> navViews = new ArrayList<>();
-    /** 顶栏的项（顺序 = 屏幕上的顺序），分类 tab 的数量随站点变 */
+    /** 二级菜单的项（顺序 = 屏幕上的顺序），= catTabs（+ 末尾「更多」） */
+    private final List<View> subNavViews = new ArrayList<>();
+    /** 顶栏的项（顺序 = 屏幕上的顺序），分类全部收进「影视」后只有 6 项 */
     private final List<NavItem> navItems = new ArrayList<>();
     /** 归并出来的分类 tab */
     private final List<NavItem> catTabs = new ArrayList<>();
@@ -287,8 +286,22 @@ public class HomeActivity extends BaseActivity {
     private final List<Movie.Video> histVideos = new ArrayList<>();
     /** 历史卡的观看进度（0~1），key 同 videoKey() */
     private final java.util.Map<String, Float> histProgress = new java.util.HashMap<>();
-    /** 站点首页推荐（配置里的 absXml.videoList），首页第二块「推荐内容」用它铺，不用再请求 */
+    /** 站点首页推荐（配置里的 absXml.videoList），推荐页封面墙的第一批就是它 */
     private final List<Movie.Video> homeRecommend = new ArrayList<>();
+
+    // ---- 推荐页封面墙的分页状态（「一直往下滑」靠这几个字段） ----
+    /** 墙上实际的条目（首页推荐 + 后面按分类翻页补进来的） */
+    private final List<Movie.Video> recItems = new ArrayList<>();
+    /** 补内容/翻页用的分类：站点推荐位通常只有一页，滑到底就接着翻它 */
+    private MovieSort.SortData recSort;
+    /** 下一次要取第几页（首页推荐已经占掉的一页不重复取） */
+    private int recPage = 1;
+    /** 该分类一共几页（0 = 源站没说，按「还能取到」算） */
+    private int recPageCount = 0;
+    /** 正在取页：getList 只有一条 LiveData，重入必串台 */
+    private boolean recPageLoading = false;
+    /** 已经翻到底，别再请求了 */
+    private boolean recNoMore = false;
     /** 上一次构建首页时的播放记录指纹，用来判断从播放页回来要不要重建 */
     private String lastHistorySig = "";
 
@@ -316,6 +329,12 @@ public class HomeActivity extends BaseActivity {
      */
     private Runnable pendingNavSwitch;
     private static final int NAV_SWITCH_DELAY = 110;
+
+    /** 二级菜单「焦点停一下就切」用的延时。同理，但分类切换要发网络请求，留足 220ms */
+    private Runnable pendingCatSwitch;
+    private static final int SUB_SWITCH_DELAY = 220;
+    /** 二级菜单胶囊之间的间距（mm），和 dimens_v8 的 v8_subnav_gap 保持一致 */
+    private static final float SUB_GAP_MM = 5f;
 
     private final Handler mHandler = new Handler();
     private long mExitTime = 0;
@@ -380,8 +399,8 @@ public class HomeActivity extends BaseActivity {
 
     private void initView() {
         launcher = findViewById(R.id.launcher);
-        linesViewport = findViewById(R.id.linesViewport);
-        linesBox = findViewById(R.id.linesBox);
+        recLayout = findViewById(R.id.recLayout);
+        recGrid = findViewById(R.id.recGrid);
 
         bgArtA = findViewById(R.id.bgArtA);
         bgArtB = findViewById(R.id.bgArtB);
@@ -390,7 +409,7 @@ public class HomeActivity extends BaseActivity {
         heroInfo = findViewById(R.id.heroInfo);
         heroActions = findViewById(R.id.heroActions);
         navBox = findViewById(R.id.navBox);
-        chipBox = findViewById(R.id.chipBox);
+        subNavBox = findViewById(R.id.subNavBox);
         contentLayout = findViewById(R.id.contentLayout);
 
         tvHeroTag = findViewById(R.id.tvHeroTag);
@@ -423,21 +442,21 @@ public class HomeActivity extends BaseActivity {
         initPills();
         initHeroActions();
         initHistoryWall();
+        initRecWall();
 
         setLoadSir(this.launcher);
 
-        // 首页只有一行内容，底部那条渐隐永远是噪音（用户专门问过「下面这条黑的是什么」）
-        bottomFade.setVisibility(View.GONE);
-        // XML 里那句「↑↓ 切换行」是给多行时代的，现在只有一行，先换成单行提示
+        // 封面墙比屏幕高，底部那条渐隐把被屏底切断的那一行溶进黑底
+        bottomFade.setVisibility(View.VISIBLE);
         hintBar.setText(R.string.v8_hint_rec);
 
         updateClock();
         mHandler.postDelayed(mClockRunnable, 1000);
-        linesViewport.post(new Runnable() {
+        recLayout.post(new Runnable() {
             @Override
             public void run() {
                 launcherReady = true;
-                layoutLines(false);
+                layoutCat(false);
             }
         });
     }
@@ -469,16 +488,18 @@ public class HomeActivity extends BaseActivity {
         navItems.add(new NavItem(NT_REC));
         navItems.add(new NavItem(NT_SEARCH));
         navItems.add(new NavItem(NT_HIST));
-        navItems.addAll(catTabs);
-        if (hasMoreCats) navItems.add(new NavItem(NT_MORE));
+        // 分类不再各自占一个顶栏标签（以前 6 个分类 + 更多 = 一排 11 项，
+        // 3 米外根本扫不过来）：全部收进「影视」，选中后下面才展开二级菜单
+        if (!catTabs.isEmpty()) navItems.add(new NavItem(NT_FILM));
         navItems.add(new NavItem(NT_LIVE));
         navItems.add(new NavItem(NT_FAV));
         inflateNav();
+        inflateSubNav();
     }
 
-    /** 顶栏分三组：常用入口 ‖ 内容分类 ‖ 工具，组间加一条 1mm 竖线 */
+    /** 顶栏分三组：常用入口 ‖ 影视 ‖ 工具，组间加一条竖线 */
     private int groupOf(NavItem it) {
-        if (it.type == NT_CAT || it.type == NT_MORE) return 1;
+        if (it.type == NT_FILM || it.type == NT_CAT || it.type == NT_MORE) return 1;
         if (it.type == NT_LIVE || it.type == NT_FAV) return 2;
         return 0;
     }
@@ -497,6 +518,8 @@ public class HomeActivity extends BaseActivity {
                 return getString(R.string.home_app_fav);
             case NT_MORE:
                 return getString(R.string.v8_nav_more);
+            case NT_FILM:
+                return getString(R.string.v8_nav_film);
             case NT_CAT:
                 // 归并过的分类直接用大类名：站点叫「玩偶电影」「玩偶剧集」，
                 // 顶栏上就该是「电影」「电视剧」，别让站点的前缀占满一排标签
@@ -527,9 +550,9 @@ public class HomeActivity extends BaseActivity {
             if (lastGroup >= 0 && group != lastGroup) {
                 View sep = new View(this);
                 sep.setBackgroundColor(0x24FFFFFF);
-                LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(mm(0.8f), mm(17f));
-                slp.setMarginStart(mm(5f));
-                slp.setMarginEnd(mm(5f));
+                LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(mm(1.2f), mm(25f));
+                slp.setMarginStart(mm(7.5f));
+                slp.setMarginEnd(mm(7.5f));
                 slp.gravity = android.view.Gravity.CENTER_VERTICAL;
                 sep.setLayoutParams(slp);
                 navBox.addView(sep);
@@ -541,7 +564,7 @@ public class HomeActivity extends BaseActivity {
             ((TextView) item.findViewById(R.id.tvNav)).setText(labelOf(it));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
-            if (i > 0) lp.setMarginStart(mm(1.2f));
+            if (i > 0) lp.setMarginStart(mm(1.8f));
             item.setLayoutParams(lp);
 
             item.setOnClickListener(new View.OnClickListener() {
@@ -579,6 +602,198 @@ public class HomeActivity extends BaseActivity {
         if (hadFocus) navViews.get(navIndex).requestFocus();
     }
 
+    // ---------------- 二级菜单（影视 → 电影 / 电视剧 / …） ----------------
+
+    /**
+     * 把 catTabs 铺成顶栏下面那一行胶囊。
+     *
+     * 顶栏本身只剩一个「影视」，真正的分类在这里。数量由站点决定，
+     * 分类回来之前是空的（那时顶栏连「影视」都不显示）。
+     */
+    private void inflateSubNav() {
+        subNavBox.removeAllViews();
+        subNavViews.clear();
+        if (catTabs.isEmpty()) {
+            subNavBox.setVisibility(View.GONE);
+            return;
+        }
+        LayoutInflater inflater = LayoutInflater.from(this);
+        for (int i = 0; i < catTabs.size(); i++) {
+            final NavItem it = catTabs.get(i);
+            View item = inflater.inflate(R.layout.item_nav_sub, subNavBox, false);
+            item.setId(View.generateViewId());
+            ((TextView) item.findViewById(R.id.tvSubNav)).setText(labelOf(it));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            if (i > 0) lp.setMarginStart(mm(SUB_GAP_MM));
+            item.setLayoutParams(lp);
+            item.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cancelCatSwitch();
+                    // OK 打在标签上 = 开筛选面板（年份 / 地区 / 类型 …）。
+                    // 内容是「焦点停 220ms」时就已经切好的，所以这里通常只差一个弹层；
+                    // 万一手快、切还没发生，先把分类补切过去再开。
+                    if (!catMode || it.sortIndex != catIndex) showCatPage(it.sortIndex, false);
+                    openFilterFor(it.sortIndex);
+                }
+            });
+            // 和顶栏一套规矩：焦点停住就切，划过不算
+            item.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus) scheduleCatSwitch(it.sortIndex);
+                    else cancelCatSwitch();
+                }
+            });
+            subNavBox.addView(item);
+            subNavViews.add(item);
+        }
+        // 分类比能放下的多 → 末尾一个「更多」，点开还是原来那个完整分类弹层
+        if (hasMoreCats) {
+            View more = inflater.inflate(R.layout.item_nav_sub, subNavBox, false);
+            more.setId(View.generateViewId());
+            ((TextView) more.findViewById(R.id.tvSubNav)).setText(getString(R.string.v8_nav_more));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            lp.setMarginStart(mm(SUB_GAP_MM));
+            more.setLayoutParams(lp);
+            more.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showMoreCats();
+                }
+            });
+            subNavBox.addView(more);
+        }
+        syncSubSelected();
+    }
+
+    /** 二级菜单的选中态：当前分类那一格亮描边 */
+    private void syncSubSelected() {
+        for (int i = 0; i < subNavViews.size() && i < catTabs.size(); i++) {
+            subNavViews.get(i).setSelected(catTabs.get(i).sortIndex == catIndex);
+        }
+    }
+
+    /** 二级菜单是否正显示着（只有影视页会显示） */
+    private boolean subNavShowing() {
+        return catMode && subNavBox != null
+                && subNavBox.getVisibility() == View.VISIBLE
+                && !subNavViews.isEmpty();
+    }
+
+    /** 焦点送到二级菜单里当前分类那一格 */
+    private void focusSubNavCurrent() {
+        if (subNavViews.isEmpty()) return;
+        int idx = 0;
+        for (int i = 0; i < catTabs.size(); i++) {
+            if (catTabs.get(i).sortIndex == catIndex) {
+                idx = i;
+                break;
+            }
+        }
+        final View target = subNavViews.get(Math.min(idx, subNavViews.size() - 1));
+        // 刚从推荐页切过来时二级菜单是这一帧才可见的，直接 requestFocus 会失败
+        if (!target.requestFocus()) {
+            target.post(new Runnable() {
+                @Override
+                public void run() {
+                    target.requestFocus();
+                }
+            });
+        }
+    }
+
+    /** 焦点停在某个分类上 220ms 才真去切，手快划过一排不会连着刷 */
+    private void scheduleCatSwitch(final int sortIndex) {
+        cancelCatSwitch();
+        if (sortIndex == catIndex && catMode) return;
+        pendingCatSwitch = new Runnable() {
+            @Override
+            public void run() {
+                pendingCatSwitch = null;
+                if (catMode) showCatPage(sortIndex, false);
+            }
+        };
+        mHandler.postDelayed(pendingCatSwitch, SUB_SWITCH_DELAY);
+    }
+
+    private void cancelCatSwitch() {
+        if (pendingCatSwitch != null) {
+            mHandler.removeCallbacks(pendingCatSwitch);
+            pendingCatSwitch = null;
+        }
+    }
+
+    /**
+     * 打开某个分类的筛选面板。
+     *
+     * 为什么延后一帧：刚从别的分类切过来时，ViewPager 的 Fragment 这一帧才
+     * attach，mContext 还没赋值，直接 new Dialog 会 NPE。
+     * 180ms 在电视上感知不到，但足够它 attach 完。
+     */
+    private void openFilterFor(final int sortIndex) {
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!catMode) return;
+                BaseLazyFragment f = fragmentAt(sortIndex);
+                if (f instanceof GridFragment) ((GridFragment) f).showFilter();
+            }
+        }, 180);
+    }
+
+    /**
+     * 影视页底部那行提示。
+     *
+     * 筛选 chip 撤掉之后，光看海报墙不知道「现在这本片子是被筛过的」——
+     * 用户筛了 2024 年的电影，过一会儿回来只会以为这个站内容少。
+     * 所以有条件时把条件写进提示行：一眼知道为什么只有这些，也知道去哪改。
+     */
+    private void updateCatHint() {
+        if (!catMode) return;
+        String sum = filterSummary(sortAt(catIndex));
+        hintBar.setText(TextUtils.isEmpty(sum)
+                ? getString(R.string.v8_hint_grid)
+                : getString(R.string.v8_hint_filter, sum));
+    }
+
+    /** 当前分类已生效的筛选条件 → 「年份 2024 · 地区 内地」 */
+    private String filterSummary(MovieSort.SortData sort) {
+        if (sort == null || sort.filters == null || sort.filterSelect == null
+                || sort.filterSelect.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (MovieSort.SortFilter f : sort.filters) {
+            if (f == null || f.values == null) continue;
+            String v = sort.filterSelect.get(f.key);
+            if (TextUtils.isEmpty(v)) continue;
+            // 提交值是 value，屏上要显示的是 key（值可能是一串看不出含义的 id）
+            String show = v;
+            for (java.util.Map.Entry<String, String> e : f.values.entrySet()) {
+                if (v.equals(e.getValue())) {
+                    show = e.getKey();
+                    break;
+                }
+            }
+            if (sb.length() > 0) sb.append(" · ");
+            sb.append(TextUtils.isEmpty(f.name) ? "" : f.name).append(" ").append(show);
+            if (sb.length() > 48) break;
+        }
+        return sb.toString();
+    }
+
+    /** 进「影视」时落在哪个分类：上次停的那个，没有就第一个 */
+    private int entryCatIndex() {
+        for (NavItem it : catTabs) {
+            if (it.sortIndex == catIndex) return catIndex;
+        }
+        if (!catTabs.isEmpty()) return catTabs.get(0).sortIndex;
+        return Math.max(0, firstRealSortIndex());
+    }
+
     /** 顶栏高亮：当前在哪一页 */
     private void syncNavSelected() {
         boolean catInBar = false;
@@ -594,11 +809,13 @@ public class HomeActivity extends BaseActivity {
             NavItem it = navItems.get(i);
             boolean sel = false;
             if (it.type == NT_REC) sel = !catMode && !histMode;
+            else if (it.type == NT_FILM) sel = catMode;
             else if (it.type == NT_CAT) sel = catMode && it.sortIndex == catIndex;
             else if (it.type == NT_MORE) sel = catMode && !catInBar;
             else if (it.type == NT_HIST) sel = histMode;
             navViews.get(i).setSelected(sel);
         }
+        syncSubSelected();
     }
 
     private int indexOfNavType(int type) {
@@ -611,21 +828,19 @@ public class HomeActivity extends BaseActivity {
     /** 把焦点送回顶栏对应的那一项 */
     private void focusNavType(int type) {
         int i = indexOfNavType(type);
-        if (i >= 0 && i < navViews.size()) navViews.get(i).requestFocus();
+        if (i >= 0 && i < navViews.size()) {
+            // 焦点离开封面墙就必须把 hero 还原：开 App 那一瞬间系统会把焦点先丢给
+            // 第一个能聚焦的 View（就是海报墙），触发一次 enterBrowse；顶栏马上把焦点
+            // 抢回来，但没人负责把 hero 放回去 —— 结果就是首屏没有 hero、墙顶在屏顶。
+            if (browseMode) exitBrowse();
+            navViews.get(i).requestFocus();
+        }
     }
 
-    /** 回到当前页面对应的顶栏项（分类页要按当前分类找，不能按类型一锅端） */
+    /** 回到当前页面对应的顶栏项（分类页一律回「影视」，分类本身在二级菜单里） */
     private void focusNavOfCurrent() {
         if (catMode) {
-            for (int i = 0; i < navItems.size(); i++) {
-                NavItem it = navItems.get(i);
-                if (it.type == NT_CAT && it.sortIndex == catIndex && i < navViews.size()) {
-                    navViews.get(i).requestFocus();
-                    return;
-                }
-            }
-            // 当前分类是从「更多」里选的，顶栏上没有它那一格
-            focusNavType(NT_MORE);
+            focusNavType(NT_FILM);
             return;
         }
         focusNavType(histMode ? NT_HIST : NT_REC);
@@ -661,6 +876,10 @@ public class HomeActivity extends BaseActivity {
                     case NT_CAT:
                         showCatPage(it.sortIndex, false);
                         break;
+                    case NT_FILM:
+                        // 焦点停在「影视」上：落到上次那个分类，二级菜单跟着这一页出现
+                        showCatPage(entryCatIndex(), false);
+                        break;
                 }
             }
         };
@@ -691,6 +910,11 @@ public class HomeActivity extends BaseActivity {
                 break;
             case NT_CAT:
                 showCatPage(it.sortIndex, true);
+                break;
+            case NT_FILM:
+                // 按 OK：进影视页并把焦点交给二级菜单，让用户先挑分类
+                showCatPage(entryCatIndex(), false);
+                focusSubNavCurrent();
                 break;
             case NT_MORE:
                 showMoreCats();
@@ -802,7 +1026,6 @@ public class HomeActivity extends BaseActivity {
         if (pageAdapter != null) mViewPager.setCurrentItem(position, false);
         MovieSort.SortData sort = sortAt(position);
         curCatSortId = (sort == null || sort.id == null) ? "" : sort.id;
-        rebuildChips(sort, position);
         // hero 换成这个分类最新的一部：缓存里有就直接上，没有就先写「正在读取」，
         // 等 GridFragment 把第一页抛上来（SortPageEvent）再确认一次
         Movie.Video cached = catHeroCache.get(curCatSortId);
@@ -815,281 +1038,38 @@ public class HomeActivity extends BaseActivity {
         if (takeFocus) focusPosterWall();
     }
 
-    private void rebuildChips(final MovieSort.SortData sort, final int position) {
-        chipBox.removeAllViews();
-        if (sort == null || sort.filters == null || sort.filters.isEmpty()) return;
-
-        LayoutInflater inflater = LayoutInflater.from(this);
-        int max = Math.min(3, sort.filters.size());
-        for (int i = 0; i < max; i++) {
-            final MovieSort.SortFilter filter = sort.filters.get(i);
-            String value = sort.filterSelect == null ? null : sort.filterSelect.get(filter.key);
-            // 站点给的条件名本身可能就是「全部」，再拼一次就成「全部 · 全部」了
-            String text = (TextUtils.isEmpty(value) || filter.name.equals(value))
-                    ? filter.name
-                    : filter.name + " · " + value;
-            View chip = inflater.inflate(R.layout.item_home_chip, chipBox, false);
-            ((TextView) chip).setText(text);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, mm(19f));
-            if (i > 0) lp.setMarginStart(mm(5f));
-            chip.setLayoutParams(lp);
-            chip.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    BaseLazyFragment f = fragmentAt(position);
-                    if (f instanceof GridFragment) ((GridFragment) f).showFilter();
-                }
-            });
-            chipBox.addView(chip);
-        }
-        // 多出来的条件收进「更多」，统一走原筛选弹层
-        if (sort.filters.size() > max) {
-            View chip = inflater.inflate(R.layout.item_home_chip, chipBox, false);
-            ((TextView) chip).setText(getString(R.string.v8_filter) + " +" + (sort.filters.size() - max));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, mm(19f));
-            lp.setMarginStart(mm(5f));
-            chip.setLayoutParams(lp);
-            chip.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    BaseLazyFragment f = fragmentAt(position);
-                    if (f instanceof GridFragment) ((GridFragment) f).showFilter();
-                }
-            });
-            chipBox.addView(chip);
-        }
-    }
-
+    /** 焦点交给当前页面的封面墙（推荐 / 影视 / 历史通用） */
     private void focusPosterWall() {
-        if (mViewPager == null) return;
-        View page = mViewPager.getChildAt(mViewPager.getCurrentItem());
-        if (page instanceof ViewGroup) {
-            ViewGroup vg = (ViewGroup) page;
-            for (int i = 0; i < vg.getChildCount(); i++) {
-                View child = vg.getChildAt(i);
-                if (child instanceof RecyclerView) {
-                    final RecyclerView rv = (RecyclerView) child;
-                    rv.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            View first = rv.getLayoutManager() == null ? null
-                                    : rv.getLayoutManager().findViewByPosition(0);
-                            if (first != null) first.requestFocus();
-                            else rv.requestFocus();
-                        }
-                    });
-                    return;
-                }
+        final RecyclerView rv = currentGrid();
+        if (rv == null) return;
+        rv.post(new Runnable() {
+            @Override
+            public void run() {
+                View first = rv.getLayoutManager() == null ? null
+                        : rv.getLayoutManager().findViewByPosition(0);
+                if (first != null) first.requestFocus();
+                else rv.requestFocus();
             }
-        }
+        });
     }
 
     // =====================================================================
-    //  内容行
+    //  推荐页：竖向封面墙（v11）
     // =====================================================================
 
-    /** 一行内容。sort == null 表示「观看历史」（来自本地播放记录） */
-    private static class Line {
-        int index;
-        String title;
-        String sub;
-        MovieSort.SortData sort;
-        List<Movie.Video> videos = new ArrayList<>();
-        View rowView;
-        TvRecyclerView rv;
-        HomeLineAdapter adapter;
-        int lastFocus = 0;
-        boolean loading = false;
-        boolean loaded = false;
-        /** 1 = 横滑行；>1 = 网格（历史海报墙），值就是列数 */
-        int span = 1;
-        /** 是不是首页「推荐」那一块（决定用大卡布局 + 空了要自动换下一个分类） */
-        boolean wall = false;
-        /** 首页推荐行：拉空时自动换 homeRecPool 里的下一个分类 */
-        boolean homeRec = false;
-        /** 推荐行正在从别的分类补数据（防重复请求） */
-        boolean filling = false;
-
-        boolean isGrid() {
-            return span > 1;
-        }
-    }
-
     /**
-     * 首页内容：只有「推荐」一块（导航第一项也叫「推荐」）。
+     * 推荐页 =「hero + 一面竖向封面墙」。
      *
-     * 数据优先级：
-     *   1. 站点首页推荐 absXml.videoList（通常进 App 时已经在内存里，秒出）
-     *   2. 没有就退到「首页推荐」分类（my0），现拉一页
-     *   3. 再没有就用第一个能用的分类
+     * 以前这里是「一行大卡横滑」：按 ↓ 走不出那一行 —— 下面本来就没有第二行，
+     * 用户看到的就是「滑不下去」。现在换成和影视页同一面 5 列墙：
+     * 焦点往下一行走一行，走到倒数第一行就把下一页取回来接着长。
      *
-     * 卡片是横滑的大卡（item_home_wall，215×322mm），一屏 5 张、左右能翻完整个列表。
+     * 数据先铺站点首页推荐（absXml.videoList，进 App 时已在内存里，秒出）；
+     * 不够一屏就按第一个真实分类翻页往后补 —— 站点推荐位通常只有一页，
+     * 「一直往下滑」的增量只能来自分类翻页。
      */
-    private void buildLines() {
-        lines.clear();
-        linesBox.removeAllViews();
-        if (homeLoadStartAt == 0L) homeLoadStartAt = System.currentTimeMillis();
-
-        // ---- 1. 站点首页推荐 ----
-        List<Movie.Video> rec = homeRecommend;
-        if (rec.size() > MAX_ITEMS_PER_LINE) {
-            rec = new ArrayList<>(rec.subList(0, MAX_ITEMS_PER_LINE));
-        }
-        if (!rec.isEmpty()) {
-            Line l = newLine(getString(R.string.v8_rec_title),
-                    getString(R.string.v8_count_unit, rec.size()), null);
-            l.wall = true;
-            l.span = 1;
-            l.videos = rec;
-            l.loaded = true;
-            bindLineView(l);
-            l.adapter.setData(rec, false, null);
-            adjustWallHeight(l);
-            layoutLines(false);
-            // 用户可能已经切到分类/历史页了，别把他们的 hero 抢回推荐那部
-            if (onRecPage()) setHero(rec.get(0), false);
-            finishSingleLine();
-            // 站点只放了一两部：先秒出这一两部，再从分类里补满，别让首屏就一张卡
-            if (rec.size() < REC_FILL_MIN) fillRecLine(l);
-            return;
-        }
-
-        // ---- 2/3. 站点没给推荐：从分类里现拉一页 ----
-        // 排一个候选队列：首页推荐(my0) 优先，后面接各分类。
-        // 前一个分类拉空（不少源首页就是不返内容）就自动试下一个，
-        // 否则首页会停在「这个分类暂时没有内容」，等于什么都不给看。
-        homeRecPool.clear();
-        for (MovieSort.SortData s : sorts) {
-            if (s != null && "my0".equals(s.id)) homeRecPool.add(s);
-        }
-        for (MovieSort.SortData s : sorts) {
-            if (s != null && !"my0".equals(s.id) && !TextUtils.isEmpty(s.id)) homeRecPool.add(s);
-        }
-        homeRecTry = 1;
-
-        if (!homeRecPool.isEmpty()) {
-            MovieSort.SortData sort = homeRecPool.get(0);
-            Line l = newLine(getString(R.string.v8_rec_title),
-                    getString(R.string.v8_rec_from, sort.name), sort);
-            // 和上面的推荐行用同一套大卡，视觉别因为数据来源不同而变
-            l.wall = true;
-            l.span = 1;
-            l.homeRec = true;
-            bindLineView(l);
-            adjustWallHeight(l);
-            layoutLines(false);
-            if (!heroNone) paintHeroIdle();
-            finishSingleLine();
-            loadLine(l);
-            // 降级链要一个一个分类试过去，源站慢的时候能拖上半分钟。
-            // 用「从第一次开始拉」算的绝对截止时间，重建多少次都还是同一个点给结论。
-            final Line fl = l;
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    long left = HOME_LOAD_DEADLINE
-                            - (System.currentTimeMillis() - homeLoadStartAt);
-                    if (left > 0) {
-                        mHandler.postDelayed(this, left);
-                        return;
-                    }
-                    if (!lines.contains(fl)) return;
-                    if (fl.videos != null && !fl.videos.isEmpty()) return;
-                    applyLineSub(fl, "");
-                    paintHeroNone();
-                    hintBar.setText(R.string.v8_hint_home_none);
-                }
-            });
-            return;
-        }
-
-        // 连分类都没有（还没配置片源）
-        if (!heroNone) paintHeroIdle();
-        finishSingleLine();
-    }
-
-    /** 首页只有一块内容时的收尾：底部不需要渐隐，提示语也不写「↑↓ 切换行」 */
-    private void finishSingleLine() {
-        // 只有推荐页才该动这两样：分类/历史页有自己的提示语和渐隐
-        if (catMode || histMode) return;
-        if (bottomFade != null) bottomFade.setVisibility(View.GONE);
-        hintBar.setText(R.string.v8_hint_rec);
-    }
-
-    /** 换下一行的副标题（推荐行自动换源时会变） */
-    private void applyLineSub(Line line, String sub) {
-        line.sub = sub;
-        if (line.rowView == null) return;
-        TextView tv = line.rowView.findViewById(R.id.tvLineSub);
-        if (tv == null) return;
-        if (TextUtils.isEmpty(sub)) {
-            tv.setVisibility(View.GONE);
-        } else {
-            tv.setText(sub);
-            tv.setVisibility(View.VISIBLE);
-        }
-    }
-
-    /** 推荐的兜底候选：首页推荐(my0) 在前，其余分类在后；空了就往下一个试 */
-    private final List<MovieSort.SortData> homeRecPool = new ArrayList<>();
-    /** 下次要试 homeRecPool 里的第几个 */
-    private int homeRecTry = 1;
-
-    /**
-     * 墙高度按 XML 的 v8_wall_h 走（1 行卡高 + 上下留白），不再随条数变。
-     * 之前按行数动态撑高，2 行时首屏被压掉一半，现在固定 1 行就没有这个问题。
-     */
-    private void adjustWallHeight(Line l) {
-        if (l == null || l.rv == null) return;
-        int h = getResources().getDimensionPixelSize(R.dimen.v8_wall_h);
-        ViewGroup.LayoutParams lp = l.rv.getLayoutParams();
-        if (lp != null && lp.height != h) {
-            lp.height = h;
-            l.rv.setLayoutParams(lp);
-        }
-    }
-
-    private Line newLine(String title, String sub, MovieSort.SortData sort) {
-        Line l = new Line();
-        l.index = lines.size();
-        l.title = title;
-        l.sub = sub;
-        l.sort = sort;
-        lines.add(l);
-        return l;
-    }
-
-    private void bindLineView(final Line line) {
-        View row = LayoutInflater.from(this).inflate(
-                line.wall ? R.layout.item_home_line_wall : R.layout.item_home_line,
-                linesBox, false);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = mm(line.wall ? 20f : 15f);
-        row.setLayoutParams(lp);
-
-        ((TextView) row.findViewById(R.id.tvLineTitle)).setText(line.title);
-        TextView sub = row.findViewById(R.id.tvLineSub);
-        if (TextUtils.isEmpty(line.sub)) {
-            sub.setVisibility(View.GONE);
-        } else {
-            sub.setText(line.sub);
-        }
-
-        TvRecyclerView rv = row.findViewById(R.id.rvLine);
-        if (line.wall) {
-            // 大卡行：横向滑动，卡宽写死在 item_home_wall 里（不是网格，不靠均分）
-            rv.setLayoutManager(new V7LinearLayoutManager(this, 1, false));
-            rv.setSpacingWithMargins(mm(12f), 0);
-        } else {
-            rv.setLayoutManager(new V7LinearLayoutManager(this, 0, false));
-            rv.setSpacingWithMargins(mm(11f), 0);
-        }
-        rv.setHasFixedSize(false);
-
-        line.adapter = new HomeLineAdapter(new HomeLineAdapter.Listener() {
+    private void initRecWall() {
+        recAdapter = new HomeLineAdapter(new HomeLineAdapter.Listener() {
             @Override
             public void onPosterClick(Movie.Video video, int position) {
                 openDetail(video);
@@ -1097,21 +1077,20 @@ public class HomeActivity extends BaseActivity {
 
             @Override
             public void onPosterFocus(Movie.Video video, int position) {
-                line.lastFocus = position;
                 if (!onRecPage()) return;
                 if (!browseMode) enterBrowse();
-                setHero(video, true);
+                setHero(video, true, getString(R.string.home_hero_tag_hot));
             }
 
             @Override
             public void onMoreClick() {
-                int idx = sorts.indexOf(line.sort);
-                if (idx >= 0) showCatPage(idx);
             }
         });
-        line.adapter.setGridMode(line.wall);
-        rv.setAdapter(line.adapter);
-        rv.setOnItemListener(new TvRecyclerView.OnItemListener() {
+        recAdapter.setGridMode(true);
+        recGrid.setLayoutManager(new V7GridLayoutManager(this, WALL_SPAN));
+        recGrid.setSpacingWithMargins(mm(6f), mm(6.5f));
+        recGrid.setAdapter(recAdapter);
+        recGrid.setOnItemListener(new TvRecyclerView.OnItemListener() {
             @Override
             public void onItemPreSelected(TvRecyclerView parent, View itemView, int position) {
                 if (itemView != null) itemView.setAlpha(1f);
@@ -1119,137 +1098,126 @@ public class HomeActivity extends BaseActivity {
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
-                // 同行其它卡压到 66%：亮色海报上光加白环是看不清的，降亮度才有效。
-                // 但没拿到焦点的行也会收到一次 selected 回调（TvRecyclerView 默认选中第 0 项），
-                // 不判断就会把整行压暗 —— 用户看到的是「这一行没加载出来」。
-                if (itemView != null && !parent.hasFocus()) {
-                    itemView.setAlpha(1f);
-                    return;
-                }
-                // 海报墙不压暗：墙里有十几张卡，整墙变灰会像「没加载完」，
-                // 焦点靠白环 + 放大 7% 已经足够突出。
-                if (line.wall) return;
-                dimRow(parent, itemView);
+                // 电视是方向键移焦点，不产生滚动事件，只能按焦点位置判断「快到尾巴了」
+                maybeLoadRecMore(position);
             }
 
             @Override
             public void onItemClick(TvRecyclerView parent, View itemView, int position) {
             }
         });
-        rv.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+        // 焦点一旦离开墙面（回顶栏、去片子源胶囊），hero 就得回来，
+        // 否则会停在「hero 已淡出、墙顶在 96mm」的浏览态，看着像首屏缺了一半
+        recGrid.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                // 焦点离开这一行，把压暗的兄弟卡全部还原
-                if (!hasFocus) dimRow(rv, null);
+                if (!hasFocus && browseMode) exitBrowse();
             }
         });
-
-        line.rowView = row;
-        line.rv = rv;
-        linesBox.addView(row);
     }
 
-    private void loadLine(final Line line) {
-        if (line.sort == null || line.loading || line.loaded) return;
-        line.loading = true;
-        sourceViewModel.getList(line.sort, 1, new SourceViewModel.ListCallback() {
+    /** 重建封面墙（换源、刷新首页都会走这里） */
+    private void buildRecWall() {
+        recItems.clear();
+        if (homeLoadStartAt == 0L) homeLoadStartAt = System.currentTimeMillis();
+        recPage = 1;
+        recPageCount = 0;
+        recPageLoading = false;
+        recNoMore = false;
+        if (recSort == null) recSort = firstFillableSort();
+
+        // ---- 1. 站点首页推荐（已经在内存里，先秒出这一批） ----
+        Set<String> seen = new HashSet<>();
+        for (Movie.Video v : homeRecommend) {
+            if (v == null || TextUtils.isEmpty(v.id)) continue;
+            if (seen.add(videoKey(v))) recItems.add(v);
+        }
+        recAdapter.setData(recItems, false, null);
+        if (onRecPage() && !recItems.isEmpty()) setHero(recItems.get(0), false);
+
+        // ---- 2. 不够一屏（或者压根没有推荐位）→ 从第一个真实分类补一页 ----
+        if (recItems.size() >= REC_FILL_MIN) return;
+        if (recSort == null) {
+            if (!heroNone) paintHeroIdle();
+            return;
+        }
+        fetchRecMore(true);
+
+        // 源站慢的时候降级链能拖上半分钟。用「从第一次开始拉」算的绝对截止时间，
+        // 重建多少次都还是同一个点给结论，别让用户对着「正在读取」干等。
+        mHandler.postDelayed(new Runnable() {
             @Override
-            public void done(final AbsXml absXml) {
-                mHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        line.loading = false;
-                        line.loaded = true;
-                        List<Movie.Video> list = (absXml != null && absXml.movie != null)
-                                ? absXml.movie.videoList : null;
-                        if (list == null || list.isEmpty()) {
-                            // 首页推荐行：这个分类空了就换下一个，别让首页停在「没有内容」
-                            if (line.homeRec && homeRecTry < homeRecPool.size()
-                                    && homeRecTry <= HOME_REC_MAX_TRY) {
-                                MovieSort.SortData next = homeRecPool.get(homeRecTry++);
-                                line.sort = next;
-                                line.loaded = false;
-                                line.loading = false;
-                                applyLineSub(line, getString(R.string.v8_rec_from, next.name));
-                                loadLine(line);
-                                return;
-                            }
-                            line.adapter.setData(new ArrayList<Movie.Video>(), false, null);
-                            // 首页那一行：hero 已经把话说完了（这个片源没有内容），
-                            // 行里再挂一句「这个分类暂时没有内容」只是在同一屏重复两遍
-                            if (line.index == 0 && currentHero == null) {
-                                applyLineSub(line, "");
-                                paintHeroNone();
-                            } else {
-                                showLineState(line, getString(R.string.v8_line_empty));
-                            }
-                            return;
-                        }
-                        if (list.size() > MAX_ITEMS_PER_LINE) {
-                            list = new ArrayList<>(list.subList(0, MAX_ITEMS_PER_LINE));
-                        }
-                        line.videos = list;
-                        // 大卡行是横滑的，末尾不塞「查看全部」小卡（尺寸对不上）
-                        line.adapter.setData(list, !line.wall,
-                                getString(R.string.v8_view_all_count, String.valueOf(list.size())));
-                        adjustWallHeight(line);
-                        layoutLines(false);
-                        // 第一行回来时把 hero 换成真实内容（只在推荐页才动 hero）
-                        if (line.index == 0 && currentHero == null && onRecPage()) {
-                            setHero(list.get(0), true);
-                        }
-                    }
-                });
+            public void run() {
+                if (!recItems.isEmpty() || !onRecPage()) return;
+                paintHeroNone();
+                hintBar.setText(R.string.v8_hint_home_none);
             }
-        });
+        }, HOME_LOAD_DEADLINE);
     }
 
     /**
-     * 推荐行内容太少时，从第一个真实分类拉一页补在后面。
+     * 取一页补到墙尾。
      *
-     * 只追加、不替换：站点给的推荐位排在最前面，本来就是运营想推的，
-     * 补进来的只是把空出来的位置填满，不让首屏孤零零一张卡。
+     * @param initial true  = 首屏补足，固定取第 1 页（不推进 recPage）；
+     *                false = 焦点滑到尾巴了，取下一页
      */
-    private void fillRecLine(final Line line) {
-        if (line == null || line.filling) return;
-        final MovieSort.SortData sort = firstFillableSort();
-        if (sort == null) return;
-        line.filling = true;
-        sourceViewModel.getList(sort, 1, new SourceViewModel.ListCallback() {
+    private void fetchRecMore(final boolean initial) {
+        if (recSort == null || recPageLoading || recNoMore) return;
+        final int page = initial ? 1 : recPage;
+        if (!initial && recPageCount > 0 && page > recPageCount) {
+            recNoMore = true;
+            return;
+        }
+        recPageLoading = true;
+        sourceViewModel.getList(recSort, page, new SourceViewModel.ListCallback() {
             @Override
             public void done(final AbsXml absXml) {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        line.filling = false;
-                        // 期间可能换了源 / 重建了首页，这时 line 已经不在列表里
-                        if (!lines.contains(line) || line.adapter == null) return;
-                        List<Movie.Video> extra = (absXml != null && absXml.movie != null)
+                        recPageLoading = false;
+                        List<Movie.Video> list = (absXml != null && absXml.movie != null)
                                 ? absXml.movie.videoList : null;
-                        if (extra == null || extra.isEmpty()) return;
-
-                        List<Movie.Video> merged = new ArrayList<>(line.videos);
-                        Set<String> seen = new HashSet<>();
-                        for (Movie.Video v : merged) seen.add(videoKey(v));
-                        for (Movie.Video v : extra) {
-                            if (v == null) continue;
-                            String k = videoKey(v);
-                            if (TextUtils.isEmpty(v.id) || seen.contains(k)) continue;
-                            seen.add(k);
-                            merged.add(v);
-                            if (merged.size() >= MAX_ITEMS_PER_LINE) break;
+                        if (list == null || list.isEmpty()) {
+                            recNoMore = true;
+                            if (recItems.isEmpty() && onRecPage()) {
+                                paintHeroNone();
+                                hintBar.setText(R.string.v8_hint_home_none);
+                            }
+                            return;
                         }
-                        if (merged.size() <= line.videos.size()) return;
+                        if (absXml.movie.pagecount > 0) recPageCount = absXml.movie.pagecount;
+                        if (!initial) {
+                            recPage = page + 1;
+                            if (recPageCount > 0 && recPage > recPageCount) recNoMore = true;
+                        }
 
-                        line.videos = merged;
-                        line.adapter.setData(merged, false, null);
-                        adjustWallHeight(line);
-                        layoutLines(false);
-                        applyLineSub(line, getString(R.string.v8_count_unit, merged.size()));
+                        Set<String> seen = new HashSet<>();
+                        for (Movie.Video v : recItems) seen.add(videoKey(v));
+                        int before = recItems.size();
+                        for (Movie.Video v : list) {
+                            if (v == null || TextUtils.isEmpty(v.id)) continue;
+                            if (!seen.add(videoKey(v))) continue;
+                            recItems.add(v);
+                        }
+                        // 整页都是墙上已有的（站点推荐位和分类第一页经常重合）：
+                        // 不当成「到底」，但没带来新东西就别刷一遍列表
+                        if (recItems.size() == before) return;
+                        recAdapter.setData(new ArrayList<>(recItems), false, null);
+                        if (onRecPage() && currentHero == null) setHero(recItems.get(0), true);
                     }
                 });
             }
         });
+    }
+
+    /** 焦点走到倒数第一行 → 提前取下一页，视觉上就是「一直有内容往下走」 */
+    private void maybeLoadRecMore(int position) {
+        if (catMode || histMode || recAdapter == null) return;
+        int total = recItems.size();
+        if (total <= 0) return;
+        if (position < total - WALL_SPAN) return;
+        fetchRecMore(false);
     }
 
     private String videoKey(Movie.Video v) {
@@ -1266,25 +1234,6 @@ public class HomeActivity extends BaseActivity {
         for (MovieSort.SortData s : sorts) {
             if (s != null && !TextUtils.isEmpty(s.id)) return s;
         }
-        return null;
-    }
-
-    /** 某行没内容时，用一张占位卡告诉用户「不是坏了，是这个分类空着」 */
-    private void showLineState(Line line, String text) {
-        if (line.rowView == null) return;
-        TextView tv = line.rowView.findViewWithTag("state");
-        if (tv == null) {
-            tv = new TextView(this);
-            tv.setTag("state");
-            tv.setTextColor(0x66FFFFFF);
-            tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_MM, 9.5f);
-            tv.setPadding(mm(45.6f), mm(4f), 0, 0);
-            ((ViewGroup) line.rowView).addView(tv);
-        }
-        tv.setText(text);
-    }
-
-    private String sortSub(MovieSort.SortData sort) {
         return null;
     }
 
@@ -1351,26 +1300,29 @@ public class HomeActivity extends BaseActivity {
     }
 
     // =====================================================================
-    //  内容流滚动 / 首屏 ↔ 浏览态
+    //  首屏 ↔ 浏览态（焦点进墙就让 hero 让位）
     // =====================================================================
 
+    /**
+     * 焦点进墙：hero 和按键提示淡出，墙整体上推到 96mm，一屏多露半行。
+     *
+     * 「影视」页不走这套 —— 那一页压根没有 hero（用户要的是直接看封面），
+     * 二级菜单也留着：它同时是分类选择器，藏起来用户不知道自己在哪一档。
+     */
     private void enterBrowse() {
-        if (browseMode) return;
+        if (browseMode || catMode) return;
         browseMode = true;
-        heroInfo.animate().alpha(0f).translationY(mm(-36f)).setDuration(260).start();
-        heroActions.animate().alpha(0f).translationY(mm(-36f)).setDuration(260).start();
+        heroInfo.animate().alpha(0f).translationY(-mm(36f)).setDuration(260).start();
+        heroActions.animate().alpha(0f).translationY(-mm(36f)).setDuration(260).start();
         heroActions.postDelayed(new Runnable() {
             @Override
             public void run() {
                 if (browseMode) heroActions.setVisibility(View.INVISIBLE);
             }
         }, 260);
-        // 分类页的筛选 chip 和 hero 是一层的，hero 走了它也得走
-        chipBox.animate().alpha(0f).setDuration(200).start();
-        // 进了内容行就不需要按键提示了，留着只会压在卡片片名上
+        // 进了墙就不需要按键提示了，留着只会压在卡片片名上
         hintBar.animate().alpha(0f).setDuration(200).start();
-        if (catMode || histMode) layoutCat(true);
-        else layoutLines(true);
+        layoutCat(true);
     }
 
     private void exitBrowse() {
@@ -1378,136 +1330,10 @@ public class HomeActivity extends BaseActivity {
         browseMode = false;
         // 没有影片时这两个按钮是无对象的，露出来只会让人点了没反应
         heroActions.setVisibility(currentHero == null ? View.GONE : View.VISIBLE);
-        heroInfo.animate().alpha(1f).translationY(0).setDuration(300).start();
-        heroActions.animate().alpha(1f).translationY(0).setDuration(300).start();
-        chipBox.animate().alpha(1f).setDuration(220).start();
+        heroInfo.animate().alpha(1f).translationY(0f).setDuration(300).start();
+        heroActions.animate().alpha(1f).translationY(0f).setDuration(300).start();
         hintBar.animate().alpha(1f).setDuration(220).start();
-        if (catMode || histMode) layoutCat(true);
-        else layoutLines(true);
-    }
-
-    /**
-     * 把内容流摆到该在的位置。
-     *
-     * 首屏：固定 240mm，只露 1.8 行（露半行是刻意的，它在说「下面还有」）。
-     * 浏览：整体上推到 144mm；如果当前焦点行比这个位置更靠下，
-     *       再继续往上顶，保证整行（含片名）完整可见。
-     *
-     * 行高用「相邻两行 top 之差」而不是 rowView.getHeight()：
-     * wrap_content 的容器在动画期间 getHeight 可能是旧值或者 0，
-     * 拿它算滚动位置会算飞（第一版就是这么把第一行顶到顶栏下面的）。
-     */
-    private void layoutLines(boolean animate) {
-        layoutLinesFor(null, animate);
-    }
-
-    private void layoutLinesFor(Line ref, boolean animate) {
-        if (!launcherReady) return;
-        int vpH = linesViewport.getHeight();
-        if (vpH <= 0) return;
-
-        // 全屏只有「观看历史」一块时：贴着屏幕底部放。
-        // 固定 240mm 的定位是给「上面 hero、下面还有好几行」用的，
-        // 只剩一行还按它摆，底下就空出小半个屏幕，看着像没加载完。
-        if (lines.size() == 1 && lines.get(0).rowView != null) {
-            final View row = lines.get(0).rowView;
-            // 还没量过高度（刚 bind 完那一下）→ 等一帧再算，否则会按 0 摆到底部
-            if (row.getHeight() <= 0) {
-                row.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        layoutLinesFor(ref, animate);
-                    }
-                });
-                return;
-            }
-            int contentH = rowHeightOf(lines.get(0));
-            int px = vpH - contentH - mm(MM_LINES_BOTTOM_PAD);
-            // 兜底：内容再高也别把标题顶到顶栏里去
-            if (px < mm(MM_LINE_TOP_MIN)) px = mm(MM_LINE_TOP_MIN);
-            applyLinesOffset(px, animate);
-            return;
-        }
-
-        // 多行时才需要「浏览态上推 96mm」给下面的行让位
-        float target = browseMode ? MM_LINE_TOP_BROWSE : MM_LINE_TOP_FIRST;
-
-        if (browseMode) {
-            Line cur = (ref != null) ? ref : focusedLine();
-            if (cur != null && cur.rowView != null) {
-                int rowTop = cur.rowView.getTop();
-                // 不能统一用 rowStride：顶部历史墙比普通行高得多，用错会把墙顶出屏幕
-                int rowH = rowHeightOf(cur);
-                int bottomLimit = vpH - mm(12f);
-
-                // 行底刚好吃进屏幕需要的位移（负 = 往上顶）
-                float byBottom = (bottomLimit - rowTop - rowH) / (float) mm(1f);
-                // 行顶刚好压在顶栏下沿允许的位移（再往上就钻到顶栏底下了）
-                float byTop = MM_LINE_TOP_MIN - rowTop / (float) mm(1f);
-
-                if (byBottom < target) {
-                    // 行底超出屏幕 → 往上顶，但最多顶到「行顶贴住顶栏」为止。
-                    // 少了这个 max()，历史墙这种「比屏幕还高」的行会算出几百毫米的负值，
-                    // 整块内容被推到屏幕上方，看起来像首页全空。
-                    target = Math.max(byBottom, byTop);
-                }
-                LOG.i("echo-v8-layout vpH=" + vpH + " rowH=" + rowH
-                        + " rowTop=" + rowTop + " target=" + target);
-            }
-        }
-
-        applyLinesOffset(mm(target), animate);
-    }
-
-    private void applyLinesOffset(int px, boolean animate) {
-        if (animate) {
-            linesBox.animate().translationY(px).setDuration(280).start();
-        } else {
-            linesBox.animate().cancel();
-            linesBox.setTranslationY(px);
-        }
-    }
-
-    /** 把一行里除 focused 外的卡片压到 66%（focused 传 null = 全部还原） */
-    private void dimRow(ViewGroup row, View focused) {
-        if (row == null) return;
-        for (int i = 0; i < row.getChildCount(); i++) {
-            View c = row.getChildAt(i);
-            c.setAlpha(c == focused ? 1f : (focused == null ? 1f : 0.66f));
-        }
-    }
-
-    /** 一行的纵向步进（行高 + 行间距），取相邻两行的 top 差 */
-    private int rowStride() {
-        if (lines.size() >= 2) {
-            View a = lines.get(0).rowView;
-            View b = lines.get(1).rowView;
-            if (a != null && b != null && b.getTop() > a.getTop()) {
-                return b.getTop() - a.getTop();
-            }
-        }
-        return mm(256f);
-    }
-
-    /**
-     * 某一行的实际高度（含行间距）。顶部历史墙是 492mm 的网格，普通行只有 240mm，
-     * 统一按 rowStride 算会把墙当成普通行，导致墙底被屏幕切掉。
-     */
-    private int rowHeightOf(Line l) {
-        if (l == null || l.rowView == null) return rowStride();
-        int h = l.rowView.getHeight();
-        if (h <= 0) return rowStride();
-        ViewGroup.LayoutParams lp = l.rowView.getLayoutParams();
-        int bm = (lp instanceof ViewGroup.MarginLayoutParams)
-                ? ((ViewGroup.MarginLayoutParams) lp).bottomMargin : 0;
-        return h + bm;
-    }
-
-    private Line focusedLine() {
-        for (Line l : lines) {
-            if (l.rv != null && isInside(l.rv)) return l;
-        }
-        return null;
+        layoutCat(true);
     }
 
     private boolean isInside(View target) {
@@ -1518,48 +1344,6 @@ public class HomeActivity extends BaseActivity {
             f = (p instanceof View) ? (View) p : null;
         }
         return false;
-    }
-
-    /** 把焦点送到某行的某一列 */
-    private void focusRow(int rowIndex, int col) {
-        if (lines.isEmpty()) return;
-        final Line line = lines.get(Math.max(0, Math.min(rowIndex, lines.size() - 1)));
-        final int pos = Math.max(0, Math.min(col, Math.max(0, line.adapter.cellCount() - 1)));
-        line.lastFocus = pos;
-        if (!browseMode) enterBrowse();
-        layoutLinesFor(line, true);
-        line.rv.post(new Runnable() {
-            @Override
-            public void run() {
-                View v = line.rv.getLayoutManager() == null ? null
-                        : line.rv.getLayoutManager().findViewByPosition(pos);
-                LOG.i("echo-v8-focus row=" + line.index + " pos=" + pos
-                        + " v=" + (v == null ? "null" : "ok"));
-                if (v != null) {
-                    v.requestFocus();
-                } else {
-                    line.rv.setSelection(pos);
-                    line.rv.requestFocus();
-                }
-            }
-        });
-        // 网格墙里 TvRecyclerView 拿到焦点后会按自己的选中逻辑再挑一次卡，
-        // 第一下经常落到第二行第一张。隔一帧纠正回来。
-        line.rv.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                View v = line.rv.getLayoutManager() == null ? null
-                        : line.rv.getLayoutManager().findViewByPosition(pos);
-                if (v != null && !v.hasFocus()) {
-                    v.requestFocus();
-                    line.rv.setSelection(pos);
-                }
-            }
-        }, 120);
-    }
-
-    private void scrollToRow(Line line) {
-        layoutLinesFor(line, true);
     }
 
     // =====================================================================
@@ -1656,12 +1440,18 @@ public class HomeActivity extends BaseActivity {
 
     private void setHero(Movie.Video v, boolean animate, String tag) {
         if (v == null) return;
-        // 同一部片不重复淡入，但标签要跟着页面走（分类页写「最新电影」，历史页写「上次看到」）
+        // 同一部片不重复淡入，但标签要跟着页面走（推荐页写「热门」，历史页写「上次看到」）
         if (tag != null) tvHeroTag.setText(tag);
         if (v == currentHero) return;
         currentHero = v;
         heroNone = false;
-        heroActions.setVisibility(View.VISIBLE);
+        // 影视页把 hero 整块藏了；浏览态（焦点在墙里）hero 按钮已经淡出，
+        // 这两处都别把按钮又露出来 —— 否则会在卡片上盖一颗「立即播放」的幽灵
+        if (catMode) {
+            heroActions.setVisibility(View.GONE);
+        } else if (!browseMode) {
+            heroActions.setVisibility(View.VISIBLE);
+        }
         heroActions.setAlpha(1f);
 
         setHeroTitle(v.name);
@@ -1805,11 +1595,10 @@ public class HomeActivity extends BaseActivity {
         return bean == null ? "" : bean.getKey();
     }
 
+    /** 推荐页第一张卡：hero 两个按钮在没拿到焦点时按它走 */
     private Movie.Video firstVideoOfLines() {
-        for (Line l : lines) {
-            if (l.videos != null && !l.videos.isEmpty()) return l.videos.get(0);
-        }
-        return null;
+        if (!recItems.isEmpty()) return recItems.get(0);
+        return currentHero;
     }
 
     private void openDetail(Movie.Video v) {
@@ -1830,7 +1619,11 @@ public class HomeActivity extends BaseActivity {
     }
 
     /**
-     * 切到某个分类页。
+     * 切到某个分类页（影视）。
+     *
+     * v11 起这一页没有 hero：片名 / 评分 / 简介 / 「立即播放 + 收藏」整块都撤了，
+     * 二级菜单下面直接就是封面墙（用户明确要求「直接展示视频的封面」）。
+     * 背景剧照还留着 —— 换分类时整页背景跟着换，比纯黑底有生气。
      *
      * @param takeFocus true  = 按 OK 进来的，焦点直接落到海报墙；
      *                  false = 只是「焦点停在顶栏」顺手把内容换过来，焦点必须留在顶栏，
@@ -1841,30 +1634,35 @@ public class HomeActivity extends BaseActivity {
             showCatEmpty();
             return;
         }
+        // 从推荐页 / 历史页进来才淡入；在影视页里左右切分类不该整页闪一下
+        boolean fromOtherPage = !catMode;
         histMode = false;
         catMode = true;
         browseMode = false;
         histLayout.setVisibility(View.GONE);
+        recLayout.setVisibility(View.GONE);
         catEmpty.setVisibility(View.GONE);
         contentLayout.setVisibility(View.VISIBLE);
-        linesViewport.setVisibility(View.GONE);
-        heroInfo.setVisibility(View.VISIBLE);
-        heroInfo.setAlpha(1f);
-        heroInfo.setTranslationY(0);
-        heroActions.setAlpha(1f);
-        heroActions.setTranslationY(0);
-        chipBox.setVisibility(View.VISIBLE);
-        chipBox.setAlpha(1f);
+        heroInfo.setVisibility(View.GONE);
+        heroActions.setVisibility(View.GONE);
+        // 影视页才有的二级菜单
+        if (catTabs.isEmpty()) {
+            subNavBox.setVisibility(View.GONE);
+        } else {
+            subNavBox.setAlpha(1f);
+            subNavBox.setVisibility(View.VISIBLE);
+        }
         hintBar.setVisibility(View.VISIBLE);
-        hintBar.setText(R.string.v8_hint_grid);
         hintBar.setAlpha(1f);
         bottomFade.setVisibility(View.VISIBLE);
         setPlayLabel(false);
 
         catIndex = Math.max(0, Math.min(index, sorts.size() - 1));
         switchCat(catIndex, false);
+        // 切完分类才知道这个分类有没有生效中的筛选条件，提示行放在这之后写
+        updateCatHint();
         layoutCat(false);
-        fadeIn(contentLayout);
+        if (fromOtherPage) fadeIn(contentLayout);
         if (takeFocus) focusPosterWall();
     }
 
@@ -1875,10 +1673,10 @@ public class HomeActivity extends BaseActivity {
         browseMode = false;
         contentLayout.setVisibility(View.GONE);
         histLayout.setVisibility(View.GONE);
-        linesViewport.setVisibility(View.GONE);
+        recLayout.setVisibility(View.GONE);
         heroInfo.setVisibility(View.GONE);
         heroActions.setVisibility(View.GONE);
-        chipBox.setVisibility(View.GONE);
+        subNavBox.setVisibility(View.GONE);
         catEmpty.setVisibility(View.VISIBLE);
         hintBar.setVisibility(View.GONE);
         syncNavSelected();
@@ -1886,7 +1684,7 @@ public class HomeActivity extends BaseActivity {
 
     /**
      * 回推荐页。
-     * 内容流一直在 linesBox 里没动过，切回来只是把两层换回去，不重新请求。
+     * 封面墙一直在 recGrid 里没动过，切回来只是把几层换回去，不重新请求。
      */
     private void showRecPage() {
         histMode = false;
@@ -1895,8 +1693,8 @@ public class HomeActivity extends BaseActivity {
         contentLayout.setVisibility(View.GONE);
         histLayout.setVisibility(View.GONE);
         catEmpty.setVisibility(View.GONE);
-        chipBox.setVisibility(View.GONE);
-        linesViewport.setVisibility(View.VISIBLE);
+        subNavBox.setVisibility(View.GONE);
+        recLayout.setVisibility(View.VISIBLE);
         heroInfo.setVisibility(View.VISIBLE);
         heroInfo.setAlpha(1f);
         heroInfo.setTranslationY(0);
@@ -1904,9 +1702,9 @@ public class HomeActivity extends BaseActivity {
         heroActions.setTranslationY(0);
         heroActions.setVisibility(currentHero == null ? View.GONE : View.VISIBLE);
         hintBar.setVisibility(View.VISIBLE);
-        hintBar.setText(lines.size() > 1 ? R.string.v8_hint_home : R.string.v8_hint_rec);
+        hintBar.setText(R.string.v8_hint_rec);
         hintBar.setAlpha(1f);
-        bottomFade.setVisibility(View.GONE);
+        bottomFade.setVisibility(View.VISIBLE);
         setPlayLabel(false);
 
         Movie.Video first = firstVideoOfLines();
@@ -1916,13 +1714,13 @@ public class HomeActivity extends BaseActivity {
             paintHeroIdle();
         }
         syncNavSelected();
-        layoutLines(false);
+        layoutCat(false);
     }
 
     /**
      * 历史页。
      *
-     * 和分类页同一个骨架：上面 hero（上次看到的那部）、下面同一面 5 列大卡墙。
+     * 和推荐页同一个骨架：上面 hero（上次看到的那部）、下面同一面 5 列封面墙。
      * 数据全在本地库，切过来不用等网络，所以它也吃「焦点停一下就切」。
      */
     private void showHistoryPage(boolean takeFocus) {
@@ -1931,9 +1729,12 @@ public class HomeActivity extends BaseActivity {
         browseMode = false;
         contentLayout.setVisibility(View.GONE);
         catEmpty.setVisibility(View.GONE);
-        chipBox.setVisibility(View.GONE);
+        subNavBox.setVisibility(View.GONE);
         histLayout.setVisibility(View.VISIBLE);
-        linesViewport.setVisibility(View.GONE);
+        recLayout.setVisibility(View.GONE);
+        // 从影视页切过来时别把上一页的状态带进来
+        heroInfo.setTranslationY(0);
+        heroActions.setTranslationY(0);
         hintBar.setVisibility(View.VISIBLE);
         hintBar.setText(R.string.v8_hint_hist);
         hintBar.setAlpha(1f);
@@ -1990,19 +1791,31 @@ public class HomeActivity extends BaseActivity {
         return n;
     }
 
-    // ---------------- 分类页 / 历史页的位置（首屏 ↔ 浏览） ----------------
+    // ---------------- 三个页面的墙位置（首屏 ↔ 浏览） ----------------
 
     /**
-     * 首屏：墙从 240mm 起（和推荐页内容流同一个起点），hero 在上面。
-     * 浏览：墙顶到 66mm（顶栏下沿），hero 淡出，一屏能看到将近两行。
+     * 墙上边距，三个页面共用一个函数：
+     * <pre>
+     *   影视（没有 hero） → 固定在二级菜单下沿（114mm），焦点进出都不动
+     *   推荐 / 历史       → 首屏 240mm（hero 在上面），焦点进墙后 96mm
+     * </pre>
      *
      * 用 topMargin 而不是 translationY：translationY 只是把整个控件挪走，
      * 控件高度不变，上移之后底部会空出一块、最后一行永远滚不出来。
      */
     private void layoutCat(boolean animate) {
-        int target = browseMode ? mm(MM_LINE_TOP_MIN) : mm(MM_LINE_TOP_FIRST);
+        if (!launcherReady) return;
+        int target;
+        if (catMode) {
+            target = mm(MM_WALL_TOP_CAT);
+        } else if (browseMode) {
+            target = mm(MM_LINE_TOP_MIN);
+        } else {
+            target = mm(MM_LINE_TOP_FIRST);
+        }
         applyTopMargin(mViewPager, target, animate);
         applyTopMargin(histGrid, target, animate);
+        applyTopMargin(recGrid, target, animate);
     }
 
     private void applyTopMargin(View v, int target, boolean animate) {
@@ -2054,7 +1867,8 @@ public class HomeActivity extends BaseActivity {
                 int idx = sorts.indexOf(value);
                 if (idx >= 0) {
                     showCatPage(idx, false);
-                    focusNavType(NT_MORE);
+                    // 顶栏只剩「影视」，选完回它那一格（分类在二级菜单里，看得见选中态）
+                    focusNavType(NT_FILM);
                 }
             }
 
@@ -2111,10 +1925,10 @@ public class HomeActivity extends BaseActivity {
         }
     }
 
-    /** 当前页面正在显示的那个网格（分类页在 ViewPager 里，历史页是直接一个 RV） */
+    /** 当前页面正在显示的那个网格（推荐 / 历史各一个 RV，影视在 ViewPager 里） */
     private RecyclerView currentGrid() {
         if (histMode) return histGrid;
-        if (!catMode) return null;
+        if (!catMode) return recGrid;
         // ① 焦点已经在网格里：顺着父链找最准（LoadSir 会套一层，层级不固定）
         View f = getCurrentFocus();
         while (f != null) {
@@ -2149,55 +1963,6 @@ public class HomeActivity extends BaseActivity {
             }
         }
         return super.dispatchKeyEvent(event);
-    }
-
-    /**
-     * 分类页 / 历史页的上下键。
-     *
-     * 这两个页面没有内容流，只有 hero（上）+ 一面墙（下），所以逻辑很短：
-     *   顶栏 ↓ → hero 按钮 → 墙；焦点已经在墙里就交给 RecyclerView 自己换行
-     *   墙里第一行 ↑ → 顶栏当前项（回去换标签）
-     */
-    private boolean handleVerticalInPage(boolean up) {
-        RecyclerView rv = currentGrid();
-        boolean inGrid = rv != null && isInside(rv);
-
-        if (up) {
-            if (isInside(btnPlay) || isInside(btnFav)) {
-                exitBrowse();
-                focusNavOfCurrent();
-                return true;
-            }
-            if (inGrid) {
-                // 网格里上移一行；已经在第一行就退回顶栏
-                if (gridMoveRow(rv, true)) return true;
-                exitBrowse();
-                focusNavOfCurrent();
-                return true;
-            }
-            return false;
-        }
-
-        if (inGrid) {
-            // 往下移一行。移不动 = 已经在最后一行，交还给上层（下面会走到 hero/顶栏逻辑）
-            return gridMoveRow(rv, false);
-        }
-        if (currentHero != null && heroActions.getVisibility() == View.VISIBLE) {
-            btnPlay.requestFocus();
-            enterBrowse();
-            return true;
-        }
-        if (histMode) {
-            if (!histVideos.isEmpty()) {
-                histGrid.requestFocus();
-                enterBrowse();
-                return true;
-            }
-            return true;
-        }
-        focusPosterWall();
-        enterBrowse();
-        return true;
     }
 
     /**
@@ -2274,103 +2039,120 @@ public class HomeActivity extends BaseActivity {
     }
 
     /**
+     * 焦点是不是落在墙里的某张卡上（而不是 RecyclerView 自己）。
+     *
+     * 分开判断是必须的：焦点挂在 RV 上时，position 无从得知，硬按 ±列数 去跳
+     * 只会算错；这时候把按键还给 TvRecyclerView，它按自己的选中项走，
+     * 顺带把焦点落回子项上（自愈）。
+     */
+    private boolean focusOnCard(RecyclerView rv) {
+        View f = getCurrentFocus();
+        if (f == null || rv == null || f == rv) return false;
+        ViewParent p = f.getParent();
+        while (p != null) {
+            if (p == rv) return true;
+            p = p.getParent();
+        }
+        return false;
+    }
+
+    /**
      * 上下键统一在这里接管。
      * 返回 true 表示已经处理，事件不再往下传（否则 RecyclerView 的
      * focusSearch 会自己找一个「看起来在下面」的 View，跳到隔壁行中间）。
      */
     private boolean handleVerticalKey(boolean up) {
-        if (catMode || histMode) return handleVerticalInPage(up);
-        if (lines.isEmpty()) return false;
-        Line cur = focusedLine();
-
-        if (cur == null) {
-            // 焦点在 hero 按钮上
-            if (isInside(btnPlay) || isInside(btnFav)) {
-                if (up) {
-                    exitBrowse();
-                    focusNavType(NT_REC);
-                    return true;
-                }
-                // 回到上次停的那一列，别每次都甩到第 1 张
-                focusRow(0, Math.max(0, lines.get(0).lastFocus));
-                return true;
-            }
-            // 焦点已经在顶栏：往上没什么可去的，左右让系统自己走
-            if (up) return false;
-            // 顶栏 ↓ → hero 按钮（有片可播时）→ 第一行
-            if (currentHero != null) {
-                btnPlay.requestFocus();
-                enterBrowse();
-            } else {
-                focusRow(0, Math.max(0, lines.get(0).lastFocus));
-            }
-            return true;
-        }
-
-        // 焦点在顶部历史海报墙里：先墙内换行，换到最后一行再往下切推荐内容
-        if (cur.isGrid() && wallVertical(cur, up)) return true;
-
-        if (up) {
-            if (cur.index == 0) {
-                if (currentHero != null) {
-                    exitBrowse();
-                    btnPlay.requestFocus();
-                } else {
-                    navViews.get(navIndex).requestFocus();
-                }
-                return true;
-            }
-            focusRow(cur.index - 1, crossCol(cur));
-            return true;
-        }
-
-        if (cur.index >= lines.size() - 1) {
-            return true;   // 已经是最后一行，不再吃按键（让系统自己处理或者不动）
-        }
-        focusRow(cur.index + 1, crossCol(cur));
-        return true;
+        return handleVerticalInPage(up);
     }
 
     /**
-     * 海报墙里按上下：先在墙内换一行（±列数），换到头了才交给跨行逻辑。
-     * 提前 return true 是为了别让 RecyclerView 自己去 focusSearch ——
-     * 它会在网格里找一个「几何上在下面」的格子，斜着跳，看着很乱。
+     * 页面内上下：顶栏 → 二级菜单 → hero 按钮 → 墙，反向对称。
      *
-     * 位置用 getChildAdapterPosition 现取，不用 line.lastFocus：
-     * lastFocus 是「上一次手动设过的位置」，TvRecyclerView 自己也会改选中项，
-     * 两者一对不上就会「明明是第 3 张，按 ↓ 却直接跳到下一行」。
+     *   推荐 / 历史：顶栏 ↓ → hero 按钮 → 墙；墙第一行 ↑ → hero 按钮 → 顶栏
+     *   影视（无 hero）：顶栏 ↓ → 二级菜单 → 墙；墙第一行 ↑ → 二级菜单 → 顶栏
+     *
+     * 墙里用 gridMoveRow 按 position ± 列数定位，不靠几何 focusSearch
+     * （下一行只露半截时光学搜索经常返回 null，焦点就卡在原地不动）。
      */
-    private boolean wallVertical(Line cur, boolean up) {
-        if (cur.adapter == null) return false;
-        int pos = focusPosOf(cur);
-        int np = pos + (up ? -cur.span : cur.span);
-        LOG.i("echo-v8-wall pos=" + pos + " np=" + np + " span=" + cur.span
-                + " count=" + cur.adapter.cellCount());
-        if (np < 0 || np >= cur.adapter.cellCount()) return false;
-        focusRow(cur.index, np);
-        return true;
-    }
+    private boolean handleVerticalInPage(boolean up) {
+        RecyclerView rv = currentGrid();
+        boolean inGrid = rv != null && isInside(rv);
+        boolean inSub = subNavShowing() && isInside(subNavBox);
+        boolean onHeroBtn = isInside(btnPlay) || isInside(btnFav);
+        // 影视页把 hero 整块藏了：按钮还在视图树里，但看不见就不能算一层台阶
+        boolean heroStep = !catMode && currentHero != null
+                && heroActions.getVisibility() == View.VISIBLE;
 
-    /** 焦点落在这一行的第几个格子（拿不到就用最后一次记录的） */
-    private int focusPosOf(Line line) {
-        View f = getCurrentFocus();
-        if (f == null || line.rv == null) return line.lastFocus;
-        ViewParent p = f.getParent();
-        while (p != null) {
-            if (p == line.rv) {
-                int pos = line.rv.getChildAdapterPosition(f);
-                if (pos != RecyclerView.NO_POSITION) return pos;
-                break;
+        if (up) {
+            if (inGrid) {
+                if (gridMoveRow(rv, true)) return true;
+                // 已经在墙的第一行，退回上一层
+                exitBrowse();
+                if (heroStep) {
+                    btnPlay.requestFocus();
+                    return true;
+                }
+                if (subNavShowing()) {
+                    focusSubNavCurrent();
+                    return true;
+                }
+                focusNavOfCurrent();
+                return true;
             }
-            p = p.getParent();
+            if (onHeroBtn) {
+                exitBrowse();
+                if (subNavShowing()) {
+                    focusSubNavCurrent();
+                    return true;
+                }
+                focusNavOfCurrent();
+                return true;
+            }
+            if (inSub) {
+                focusNavType(NT_FILM);
+                return true;
+            }
+            // 焦点在顶栏：往上没有更上层了，别吃键（左右交给系统）
+            return false;
         }
-        return line.lastFocus;
-    }
 
-    /** 跨行时带过去的列号：墙里第 17 张（7 列）落在第 2 列 */
-    private int crossCol(Line cur) {
-        int pos = focusPosOf(cur);
-        return cur.isGrid() ? (pos % cur.span) : pos;
+        // ---------------- ↓ ----------------
+        if (inGrid) {
+            if (gridMoveRow(rv, false)) return true;
+            // 焦点挂在 RV 自己身上（滚动时那张卡被回收了）：别吃键，
+            // 交回 TvRecyclerView 自己走一格，它会把焦点落回子项上
+            if (!focusOnCard(rv)) return false;
+            // 已经在最后一行：推荐页顺手把下一页取回来，视觉上就是「还能一直往下滑」
+            if (!catMode && !histMode) fetchRecMore(false);
+            return true;
+        }
+        if (inSub) {
+            if (heroStep) {
+                btnPlay.requestFocus();
+                return true;
+            }
+            focusPosterWall();
+            enterBrowse();
+            return true;
+        }
+        if (onHeroBtn) {
+            focusPosterWall();
+            enterBrowse();
+            return true;
+        }
+        // 焦点在顶栏
+        if (subNavShowing()) {
+            focusSubNavCurrent();
+            return true;
+        }
+        if (heroStep) {
+            btnPlay.requestFocus();
+            return true;
+        }
+        if (histMode && histVideos.isEmpty()) return true;
+        focusPosterWall();
+        enterBrowse();
+        return true;
     }
 
     @Override
@@ -2393,12 +2175,6 @@ public class HomeActivity extends BaseActivity {
         if (browseMode) {
             exitBrowse();
             if (navIndex < navViews.size()) navViews.get(navIndex).requestFocus();
-            return;
-        }
-        Line cur = focusedLine();
-        if (cur != null) {
-            exitBrowse();
-            focusNavType(NT_REC);
             return;
         }
         doExit();
@@ -2666,17 +2442,23 @@ public class HomeActivity extends BaseActivity {
         // 顶栏项数变了（分类回来了）：重建一次，焦点留在原来那一项上
         buildNav();
 
-        buildLines();
+        // 分类变了，推荐墙翻页用的分类也要重新挑一个
+        recSort = null;
+        buildRecWall();
 
         // 从二级页面顶栏点「分类」过来的，分类这就绪了，直接切过去
         openCatIfReady();
 
-        // 首次拿到分类后把焦点交给顶栏「推荐」，用户一按 ↓ 就能进内容行。
-        // 但用户要是在数据回来之前已经移到别的栏目上了，别把焦点抢回来。
+        // 首次拿到分类后把焦点交给顶栏「推荐」，用户一按 ↓ 就能进封面墙。
+        //
+        // 这里不能再判 browseMode：开 App 的头几帧，系统会把焦点丢给第一个能聚焦的
+        // View（就是刚刚铺好的海报墙），enterBrowse 已经把 hero 淡出了 —— 如果因为
+        // browseMode=true 就跳过这一步，首屏会永远停在「没有 hero、墙顶在屏顶」的半残状态。
+        // focusNavType 会把 hero 顺手还原，所以直接调就行。
         navBox.post(new Runnable() {
             @Override
             public void run() {
-                if (!catMode && !histMode && !browseMode) {
+                if (!catMode && !histMode) {
                     focusNavType(NT_REC);
                 }
             }
@@ -2779,6 +2561,10 @@ public class HomeActivity extends BaseActivity {
                 newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                 HomeActivity.this.startActivity(newIntent);
             }
+        } else if (event.type == RefreshEvent.TYPE_FILTER_CHANGE) {
+            // GridFragment 每次重拉第一页都会报一次条件条数（含 0），
+            // 正好拿来刷新底部提示 —— 筛选 chip 撤掉之后，这里是唯一的条件回显
+            updateCatHint();
         }
     }
 

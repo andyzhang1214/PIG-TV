@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 筛选值胶囊：三态和顶栏/二级菜单同一套语言
+       focused  → 整块反白（焦点永远最亮，遥控器走到哪一眼就看得到）
+       selected → 半透明白底 + 1mm 白描边（已选中的条件）
+       默认     → 8% 白底，极淡的描边 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="@dimen/v8_flt_pill_h" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#2EFFFFFF" />
+            <stroke
+                android:width="1mm"
+                android:color="#CCFFFFFF" />
+            <corners android:radius="@dimen/v8_flt_pill_h" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#12FFFFFF" />
+            <corners android:radius="@dimen/v8_flt_pill_h" />
+        </shape>
+    </item>
+</selector>

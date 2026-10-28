@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">影视</string>
     <string name="app_home">首页</string>
-    <string name="app_source">https://raw.liucn.cc/box/m.json</string>
+    <string name="app_source">https://盒子迷.top/饭太硬</string>
 
     // Home Page //
     <string name="hm_ok">加载成功</string>
@@ -147,6 +147,8 @@
     <string name="fs_show_all">全部显示</string>
     <string name="fs_results">搜索结果</string>
     <string name="global_search">全局搜索</string>
+    <string name="search_all_src">全部源 · %1$d 站</string>
+    <string name="search_part_src">已选 %1$d/%2$d 站</string>
     <string name="search">搜索</string>
     <string name="Select_source">选择搜索源</string>
 

@@ -9,9 +9,9 @@ android {
     defaultConfig {
         applicationId 'com.github.tvbox.osc.tk'
         targetSdkVersion 28
-        // versionCode 对应 1.0.5 = 105；必须 ≥ 已装包的 versionCode 才能覆盖安装（旧包都是 1）
-        versionCode 105
-        versionName "1.0.5"
+        // versionCode 对应 1.0.6 = 106；必须 ≥ 已装包的 versionCode 才能覆盖安装（旧包都是 1）
+        versionCode 106
+        versionName "1.0.6"
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {

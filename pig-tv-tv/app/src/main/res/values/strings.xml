@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">影视</string>
     <string name="app_home">Home</string>
-    <string name="app_source">https://raw.liucn.cc/box/m.json</string>
+    <string name="app_source">https://盒子迷.top/饭太硬</string>
 
     // Home Page //
     <string name="hm_ok">Load Complete</string>
@@ -148,6 +148,8 @@
     <string name="fs_show_all">All</string>
     <string name="fs_results">Search Results</string>
     <string name="global_search">global search</string>
+    <string name="search_all_src">All sources · %1$d sites</string>
+    <string name="search_part_src">%1$d / %2$d sites</string>
     <string name="search">search</string>
     <string name="Select_source">Select source</string>
 
@@ -303,7 +305,7 @@
     <string name="home_hero_func_desc">按 OK 进入 %1$s。</string>
 
     <!-- ================= 首页 v8（内容流 / 分类页） ================= -->
-    <string name="v8_nav_cat">分类</string>
+    <string name="v8_nav_cat">影视</string>
     <string name="v8_view_all">查看全部</string>
     <string name="v8_view_all_count">%1$s 部</string>
     <string name="v8_play_now">立即播放</string>
@@ -341,9 +343,21 @@
     <!-- ================= 首页 v10（顶栏标签页 / 历史） ================= -->
     <string name="v8_nav_hist">历史</string>
     <string name="v8_nav_more">更多</string>
-    <string name="v8_hint_rec">← → 选片 · OK 继续观看 · MENU 切换片源</string>
-    <string name="v8_hint_grid">↑ 回顶栏 · ← → 换片 · OK 进入详情</string>
-    <string name="v8_hint_hist">↑ 回顶栏 · ← → 选片 · OK 继续观看 · MENU 切换片源</string>
+    <!-- 顶栏第二个分组：电影/电视剧/综艺/动漫/少儿/纪录片全部收进这一个标签，
+         选中后下面才展开二级菜单，顶栏不用再摆一排分类 -->
+    <string name="v8_nav_film">影视</string>
+    <string name="v8_hint_rec">↑ ↓ 选片 · OK 进入详情 · MENU 切换片源</string>
+    <string name="v8_hint_grid">↑ 回顶栏 · 标签上按 OK 筛选 · 海报上按 OK 进详情</string>
+    <!-- 影视页按 OK 打在二级标签上弹出来的筛选面板 -->
+    <string name="v8_flt_all">全部</string>
+    <string name="v8_flt_clear">清空</string>
+    <string name="v8_flt_done">完成</string>
+    <string name="v8_flt_count">已选 %1$d 项</string>
+    <string name="v8_flt_hint">OK 选中 · 再按一次取消 · BACK 关闭并刷新</string>
+    <string name="v8_flt_none">这个分类没有筛选条件</string>
+    <!-- 筛选生效时的底部提示：把条件写出来，否则用户不知道列表是被筛过的 -->
+    <string name="v8_hint_filter">筛选：%1$s · 标签上按 OK 调整</string>
+    <string name="v8_hint_hist">↑ 回顶栏 · ↑ ↓ 选片 · OK 继续观看 · MENU 切换片源</string>
     <string name="v8_hist_tag">上次看到</string>
     <string name="v8_cat_tag">最新%1$s</string>
     <string name="v8_cat_connecting">正在读取这个分类，稍等一下…</string>

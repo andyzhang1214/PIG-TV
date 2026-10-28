@@ -28,6 +28,12 @@ public class InputRequestProcess implements RequestProcess {
         return false;
     }
 
+    /** 扫码页填的显示名。老页面不带 name 参数 → 返回 null，表示「别动已有的名字」 */
+    private String name(Map<String, String> params) {
+        String n = params.get("name");
+        return params.containsKey("name") && n != null ? n.trim() : null;
+    }
+
     @Override
     public NanoHTTPD.Response doResponse(NanoHTTPD.IHTTPSession session, String fileName, Map<String, String> params, Map<String, String> files) {
         DataReceiver mDataReceiver = remoteServer.getDataReceiver();
@@ -42,11 +48,11 @@ public class InputRequestProcess implements RequestProcess {
                             break;
                         }
                         case "api": {
-                            mDataReceiver.onApiReceived(params.get("url").trim());
+                            mDataReceiver.onApiReceived(params.get("url").trim(), name(params));
                             break;
                         }
                         case "live": {
-                            mDataReceiver.onLiveReceived(params.get("url").trim());
+                            mDataReceiver.onLiveReceived(params.get("url").trim(), name(params));
                             break;
                         }
                         case "epg": {

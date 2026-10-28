@@ -135,8 +135,9 @@ public class HomeLineAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         final Movie.Video v = items.get(position);
         h.tvName.setText(TextUtils.isEmpty(v.name) ? "" : v.name);
 
-        String badge = VodText.showableNote(v.note);
-        if (TextUtils.isEmpty(badge) && v.year > 0) badge = String.valueOf(v.year);
+        // 图上左下角一行（v11）：和手机端 .pcB 同一口径 ——
+        // 有「更新至 12 集 / 评分 7.5」这类备注就用它，没有就「类型 · 年份 · 地区」
+        String badge = VodText.coverStat(v.note, v.type, v.year, v.area);
         if (TextUtils.isEmpty(badge)) {
             h.tvBadge.setVisibility(View.GONE);
         } else {
@@ -173,8 +174,11 @@ public class HomeLineAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         }
         if (h.tvSub != null) {
             String sub = "";
-            if (historyMode && !TextUtils.isEmpty(badge)) {
-                sub = h.itemView.getContext().getString(R.string.v8_hist_sub, badge);
+            // 这里要的是「看到 第12集」，只认真正的备注；
+            // badge 现在可能是「动作片 · 2024」那种元信息，套进去读不通
+            String played = VodText.showableNote(v.note);
+            if (historyMode && !TextUtils.isEmpty(played)) {
+                sub = h.itemView.getContext().getString(R.string.v8_hist_sub, played);
             }
             if (TextUtils.isEmpty(sub)) {
                 h.tvSub.setVisibility(View.GONE);

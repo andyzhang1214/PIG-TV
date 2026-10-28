@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    影视页的筛选弹层（按 OK 打在二级标签上打开）
+
+    以前筛选是「二级菜单右边那几个 chip」，一屏最多露 3 组，第 4 组以后还要再点
+    「筛选 +N」才看得到 —— 用户的原话是「右边的分类删掉，点标签出来筛选内容，
+    年份、地区、类别」。所以整块搬到这里：一屏把所有组一次列全。
+
+    结构：
+      遮罩     —— 压暗底下的海报墙，但不全黑（还能看出是哪一页）
+      标题行   —— 「筛选 · 电影」+ 已选条数 + 清空 / 完成
+      组列表   —— 一组一行，横向滑的胶囊（年份 / 地区 / 类型 / 排序 / 语言…）
+      底部提示 —— 遥控器怎么操作，写清楚比让用户试错强
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/fltRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#C2000000">
+
+    <LinearLayout
+        android:id="@+id/fltPanel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/v8_flt_margin_h"
+        android:layout_marginTop="@dimen/v8_flt_margin_v"
+        android:layout_marginEnd="@dimen/v8_flt_margin_h"
+        android:layout_marginBottom="@dimen/v8_flt_margin_v"
+        android:background="@drawable/v8_flt_panel"
+        android:orientation="vertical"
+        app:layout_constrainedHeight="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_max="480mm"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- ============ 标题行 ============ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="20mm"
+            android:paddingTop="18mm"
+            android:paddingEnd="20mm"
+            android:paddingBottom="14mm">
+
+            <TextView
+                android:id="@+id/tvFltTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:singleLine="true"
+                android:text="@string/v8_filter"
+                android:textColor="#FFFFFFFF"
+                android:textSize="@dimen/v8_flt_title"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvFltCat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10mm"
+                android:includeFontPadding="false"
+                android:singleLine="true"
+                android:textColor="#99FFFFFF"
+                android:textSize="@dimen/v8_flt_group_name" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvFltCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16mm"
+                android:includeFontPadding="false"
+                android:singleLine="true"
+                android:textColor="#73FFFFFF"
+                android:textSize="@dimen/v8_flt_group_name" />
+
+            <TextView
+                android:id="@+id/btnFltClear"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/v8_flt_btn_h"
+                android:background="@drawable/v8_flt_btn_bg"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="14mm"
+                android:paddingEnd="14mm"
+                android:singleLine="true"
+                android:text="@string/v8_flt_clear"
+                android:textColor="@color/v8_flt_btn_tx"
+                android:textSize="@dimen/v8_flt_group_name" />
+
+            <TextView
+                android:id="@+id/btnFltDone"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/v8_flt_btn_h"
+                android:layout_marginStart="8mm"
+                android:background="@drawable/v8_flt_btn_bg"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="16mm"
+                android:paddingEnd="16mm"
+                android:singleLine="true"
+                android:text="@string/v8_flt_done"
+                android:textColor="@color/v8_flt_btn_tx"
+                android:textSize="@dimen/v8_flt_group_name" />
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1mm"
+            android:background="#1AFFFFFF" />
+
+        <!-- ============ 各筛选组 ============ -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="60mm"
+            android:clipToPadding="false"
+            android:fadeScrollbars="false"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/filterRoot"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="20mm"
+                android:paddingTop="16mm"
+                android:paddingEnd="20mm"
+                android:paddingBottom="4mm" />
+
+        </ScrollView>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="20mm"
+            android:paddingEnd="20mm"
+            android:paddingBottom="16mm"
+            android:text="@string/v8_flt_hint"
+            android:textColor="#59FFFFFF"
+            android:textSize="@dimen/v8_flt_group_name" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

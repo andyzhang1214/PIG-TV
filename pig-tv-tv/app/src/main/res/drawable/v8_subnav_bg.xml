@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 二级菜单胶囊（影视 → 电影/电视剧/…）
+     和顶栏一套语言：焦点 = 整块反白，当前分类 = 细白描边。
+     区别是默认态多一层 8% 白底 —— 二级项要能从 hero 剧照背景上浮起来，
+     顶栏那几个是直接坐在顶栏上的，不需要底。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="@dimen/v8_subnav_h" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#1AFFFFFF" />
+            <stroke
+                android:width="1mm"
+                android:color="#8CFFFFFF" />
+            <corners android:radius="@dimen/v8_subnav_h" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#14FFFFFF" />
+            <corners android:radius="@dimen/v8_subnav_h" />
+        </shape>
+    </item>
+</selector>

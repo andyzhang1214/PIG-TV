@@ -431,124 +431,69 @@ public class SearchActivity extends BaseActivity {
             }
         });
         setLoadSir(llLayout);
-        this.sKey = (String) SettingsUtil.hkGet(HawkConfig.SEARCH_FILTER_KEY, "");
-        String string;
-        if (TextUtils.isEmpty(this.sKey)) {
-            string = "全局搜索";
-        } else if (this.sKey.equals("filter__home")) {
-            string = "默认源: " + ApiConfig.get().getHomeSourceBean().getName();
-        } else {
-            SourceBean sourceBean = ApiConfig.get().getSource(this.sKey);
-            string = sourceBean != null ? sourceBean.getName() : "全局搜索";
-        }
-        filterBtn.setSelected(true);//能动起来的关键代码
-        filterBtnBase = string;
-        filterBtn.setText(string);
-        filterBtn.setOnClickListener(new View.OnClickListener() {
 
+        // 搜索范围：和手机端保持一致 —— 永远搜「所有能搜的站」。
+        // 这个键以前是「搜索数据源」单选框存下来的：只要选过一次某个站，
+        // 之后每次搜索都只发那一个站，用户看到的就是「只有当前源的结果」。
+        SettingsUtil.hkPut(HawkConfig.SEARCH_FILTER_KEY, "");
+        sKey = "";
+
+        filterBtn.setSelected(true);//能动起来的关键代码
+        filterBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                int i;
-                List<SourceBean> requestList = new ArrayList<>(ApiConfig.get().getSourceBeanList());
-                if (requestList.size() > 0) {
-                    ArrayList<SourceBean> siteKey = new ArrayList<>();
-                    for (SourceBean bean : requestList) {
-                        if (!bean.isSearchable()) {
-                            continue;
-                        }
-                        if (mCheckSources != null && !mCheckSources.containsKey(bean.getKey())) {
-                            continue;
-                        }
-                        siteKey.add(bean);
-                    }
-                    SourceBean homeSource = ApiConfig.get().getHomeSourceBean();
-                    SourceBean gs0 = new SourceBean();
-                    gs0.setKey("filter__home");
-                    gs0.setName("默认源: " + homeSource.getName());
-                    siteKey.remove(homeSource);
-                    siteKey.add(0, gs0);
-                    SourceBean gs1 = new SourceBean();
-                    gs1.setKey("");
-                    gs1.setName("全局搜索");
-                    siteKey.add(0, gs1);
-
-                    if (TextUtils.isEmpty(sKey)) {
-                        i = 0;
-                    } else if (sKey.equals("filter__home")) {
-                        i = 1;
-                    } else {
-                        SourceBean sourceBean = ApiConfig.get().getSource(sKey);
-                        if (sourceBean != null) {
-                            i = siteKey.indexOf(sourceBean);
-                        } else {
-                            i = -1;
-                        }
-                    }
-
-                    SelectDialog<SourceBean> dialog = new SelectDialog<>(SearchActivity.this);
-                    TvRecyclerView tvRecyclerView = dialog.findViewById(R.id.list);
-                    int spanCount;
-                    spanCount = (int) Math.floor(siteKey.size() / 10.0);
-                    spanCount = Math.min(spanCount, 3);
-                    tvRecyclerView.setLayoutManager(new V7GridLayoutManager(dialog.getContext(), spanCount + 1));
-                    ConstraintLayout cl_root = dialog.findViewById(R.id.cl_root);
-                    ViewGroup.LayoutParams clp = cl_root.getLayoutParams();
-                    clp.width = AutoSizeUtils.mm2px(dialog.getContext(), 340 + 250 * spanCount);
-                    dialog.setTip("搜索数据源");
-                    dialog.setAdapter(tvRecyclerView, new SelectDialogAdapter.SelectDialogInterface<SourceBean>() {
-                        @Override
-                        public void click(SourceBean value, int pos) {
-                            filterBtn.setText(value.getName());
-                            sKey = value.getKey();
-                            SettingsUtil.hkPut(HawkConfig.SEARCH_FILTER_KEY, sKey);
-                            dialog.dismiss();
-                            //search(wd)
-                        }
-
-                        @Override
-                        public String getDisplay(SourceBean val) {
-                            return val.getName();
-                        }
-                    }, new DiffUtil.ItemCallback<SourceBean>() {
-                        @Override
-                        public boolean areItemsTheSame(@NonNull @NotNull SourceBean oldItem, @NonNull @NotNull SourceBean newItem) {
-                            return oldItem == newItem;
-                        }
-
-                        @Override
-                        public boolean areContentsTheSame(@NonNull @NotNull SourceBean oldItem, @NonNull @NotNull SourceBean newItem) {
-                            return oldItem.getKey().equals(newItem.getKey());
-                        }
-                    }, siteKey, i);
-                    dialog.show();
-                } else {
-                    Toast.makeText(mContext, "无搜索源", Toast.LENGTH_SHORT).show();
-                }
+                openSourcePicker();
             }
         });
-
         tvSearchCheckbox.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (mSearchCheckboxDialog == null) {
-                    List<SourceBean> allSourceBean = ApiConfig.get().getSourceBeanList();
-                    List<SourceBean> searchAbleSource = new ArrayList<>();
-                    for (SourceBean sourceBean : allSourceBean) {
-                        if (sourceBean.isSearchable()) {
-                            searchAbleSource.add(sourceBean);
-                        }
-                    }
-                    mSearchCheckboxDialog = new SearchCheckboxDialog(SearchActivity.this, searchAbleSource, mCheckSources);
-                }
-                mSearchCheckboxDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @Override
-                    public void onDismiss(DialogInterface dialog) {
-                        dialog.dismiss();
-                    }
-                });
-                mSearchCheckboxDialog.show();
+                openSourcePicker();
             }
         });
+    }
+
+    /**
+     * 站点多选：决定这一轮搜索打哪些站。
+     * 默认全选（SearchHelper 在没有记录时会把所有可搜站都放进去），
+     * 用户可以只留几个常用的 —— 但那是「减法」，不是默认值。
+     */
+    private void openSourcePicker() {
+        if (mCheckSources == null) initCheckedSourcesForSearch();
+        if (mSearchCheckboxDialog == null) {
+            List<SourceBean> searchable = new ArrayList<>();
+            for (SourceBean b : ApiConfig.get().getSourceBeanList()) {
+                if (b != null && b.isSearchable()) searchable.add(b);
+            }
+            if (searchable.isEmpty()) {
+                Toast.makeText(mContext, R.string.search_site, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            mSearchCheckboxDialog = new SearchCheckboxDialog(SearchActivity.this, searchable, mCheckSources);
+        }
+        mSearchCheckboxDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                // 勾完回来，按钮上的「全部源 · 179 站」得跟着变
+                updateSourceLabel();
+            }
+        });
+        mSearchCheckboxDialog.show();
+    }
+
+    /** 搜索按钮的字：搜全部就写站数，只勾了一部分写「已选 M/N」 */
+    private void updateSourceLabel() {
+        int total = 0, checked = 0;
+        for (SourceBean b : ApiConfig.get().getSourceBeanList()) {
+            if (b == null || !b.isSearchable()) continue;
+            total++;
+            if (mCheckSources == null || mCheckSources.isEmpty()
+                    || mCheckSources.containsKey(b.getKey())) checked++;
+        }
+        filterBtnBase = (checked >= total)
+                ? getString(R.string.search_all_src, total)
+                : getString(R.string.search_part_src, checked, total);
+        filterBtn.setText(filterBtnBase);
     }
 
     private void refreshSearchHistory(String keyword2) {
@@ -636,6 +581,9 @@ public class SearchActivity extends BaseActivity {
         mGridView.setVisibility(View.GONE);
         refreshQRCode();
         initCheckedSourcesForSearch();
+        // 按钮上写清楚这一轮打多少站（全部 179 站 / 已选 12/179），
+        // 否则用户永远不知道「全局搜索」到底搜了几个源
+        updateSourceLabel();
         initSearchHistory();
         Intent intent = getIntent();
         if (intent != null && intent.hasExtra("title")) {
@@ -751,26 +699,16 @@ public class SearchActivity extends BaseActivity {
             allRunCount.set(0);
         }
 
+        // 和手机端一个逻辑：默认打「所有能搜的站」，站点勾选只做减法。
+        // 默认源排最前面 —— 它的结果最先回来，用户不用等半分钟才看到第一屏。
+        // 以前这里会看 sKey（上次单选的那个站），选过一次就只搜那一个，
+        // 于是「全站搜索」变得名不副实。
         List<SourceBean> searchRequestList = new ArrayList<>();
-
-        boolean equals = "filter__home".equals(this.sKey);
-        if (equals) {
-            SourceBean home = ApiConfig.get().getHomeSourceBean();
-            if (home != null && home.isSearchable()) {
-                searchRequestList.add(home);
-            } else {
-                Toast.makeText(mContext, "当前源不支持搜索,自动切换到全局搜索", Toast.LENGTH_SHORT).show();
-                searchRequestList.addAll(ApiConfig.get().getSourceBeanList());
-            }
-        } else if (TextUtils.isEmpty(sKey) || ApiConfig.get().getSource(sKey) == null) {
-            searchRequestList.addAll(ApiConfig.get().getSourceBeanList());
-            SourceBean home = ApiConfig.get().getHomeSourceBean();
-            if (home != null) {
-                searchRequestList.remove(home);
-                searchRequestList.add(0, home);
-            }
-        } else {
-            searchRequestList.add(ApiConfig.get().getSource(sKey));
+        SourceBean home = ApiConfig.get().getHomeSourceBean();
+        if (home != null && home.isSearchable()) searchRequestList.add(home);
+        for (SourceBean b : ApiConfig.get().getSourceBeanList()) {
+            if (b == null || b == home || !b.isSearchable()) continue;
+            searchRequestList.add(b);
         }
 
         ArrayList<String> siteKey = new ArrayList<>();
@@ -778,7 +716,8 @@ public class SearchActivity extends BaseActivity {
             if (!bean.isSearchable()) {
                 continue;
             }
-            if (!equals && mCheckSources != null && !mCheckSources.containsKey(bean.getKey())) {
+            if (mCheckSources != null && !mCheckSources.isEmpty()
+                    && !mCheckSources.containsKey(bean.getKey())) {
                 continue;
             }
             siteKey.add(bean.getKey());

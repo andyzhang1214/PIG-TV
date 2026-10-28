@@ -29,7 +29,7 @@ import com.pigtv.ui.activity.FastSearchActivity;
 import com.pigtv.ui.activity.SearchActivity;
 import com.pigtv.ui.adapter.GridAdapter;
 import com.pigtv.ui.adapter.GridFilterKVAdapter;
-import com.pigtv.ui.dialog.GridFilterDialog;
+import com.pigtv.ui.dialog.TvFilterDialog;
 import com.pigtv.ui.tv.widget.LoadMoreView;
 import com.pigtv.util.ImgUtil;
 import com.pigtv.util.FastClickCheckUtil;
@@ -58,7 +58,7 @@ public class GridFragment extends BaseLazyFragment {
     private MovieSort.SortData sortData = null;
     private TvRecyclerView mGridView;
     private SourceViewModel sourceViewModel;
-    private GridFilterDialog gridFilterDialog;
+    private TvFilterDialog tvFilterDialog;
     private GridAdapter gridAdapter;
     private int page = 1;
     private int maxPage = 1;
@@ -439,81 +439,38 @@ public class GridFragment extends BaseLazyFragment {
         return mGridView;
     }
 
+    /**
+     * 打开这个分类的筛选面板。
+     *
+     * 入口只有一个：影视页二级标签上按 OK（HomeActivity.openFilterFor）。
+     * 以前是分类页右上角那排 chip，一屏最多 3 组、第 4 组还得再点一次「+N」，
+     * 用户直接说「右边的删掉，点标签出来筛选」。
+     *
+     * 条件变了不在这里重拉：面板还盖着屏幕，刷了也看不见，
+     * 交给 TvFilterDialog 关掉时回调一次 forceRefresh()。
+     */
     public void showFilter() {
-    	if (sortData!=null && !sortData.filters.isEmpty() && gridFilterDialog == null) {
-            gridFilterDialog = new GridFilterDialog(mContext);
-//            gridFilterDialog.setData(sortData);
-//            gridFilterDialog.setOnDismiss(new GridFilterDialog.Callback() {
-//                @Override
-//                public void change() {
-//                    page = 1;
-//                    initData();
-//                }
-//            });
-            setFilterDialogData();
+        if (sortData == null) return;
+        if (sortData.filters == null || sortData.filters.isEmpty()) {
+            Toast.makeText(mContext, R.string.v8_flt_none, Toast.LENGTH_SHORT).show();
+            return;
         }
-        if (gridFilterDialog != null)
-            gridFilterDialog.show();
-    }
-
-    public void setFilterDialogData() {
-        Context context = getContext();
-        LayoutInflater inflater = LayoutInflater.from(context);
-        assert context != null;
-
-        // 获取动态主题颜色
-        TypedArray a = getContext().obtainStyledAttributes(R.styleable.themeColor);
-        int selectedColor = a.getColor(R.styleable.themeColor_color_theme, 0); // 选择的颜色
-        int defaultColor = ContextCompat.getColor(context, R.color.color_FFFFFF);
-        // 释放 TypedArray 资源
-        a.recycle();
-        // 遍历过滤条件数据
-        for (MovieSort.SortFilter filter : sortData.filters) {
-            View line = inflater.inflate(R.layout.item_grid_filter, gridFilterDialog.filterRoot, false);
-            TextView filterNameTv = line.findViewById(R.id.filterName);
-            filterNameTv.setText(filter.name);
-            TvRecyclerView gridView = line.findViewById(R.id.mFilterKv);
-            gridView.setHasFixedSize(true);
-            gridView.setLayoutManager(new V7LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false));
-            GridFilterKVAdapter adapter = new GridFilterKVAdapter();
-            gridView.setAdapter(adapter);
-            final String key = filter.key;
-            final ArrayList<String> values = new ArrayList<>(filter.values.keySet());
-            final ArrayList<String> keys = new ArrayList<>(filter.values.values());
-            adapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
-                // 用于记录上一次选中的 view
-                View previousSelectedView = null;
+        if (tvFilterDialog == null) {
+            tvFilterDialog = new TvFilterDialog(mContext);
+            tvFilterDialog.setOnApply(new Runnable() {
                 @Override
-                public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                    String currentSelection = sortData.filterSelect.get(key);
-                    String newSelection = keys.get(position);
-                    if (currentSelection == null || !currentSelection.equals(newSelection)) {
-                        // 更新选中状态
-                        sortData.filterSelect.put(key, newSelection);
-                        updateViewStyle(view, selectedColor, true);
-                        if (previousSelectedView != null) {
-                            updateViewStyle(previousSelectedView, defaultColor, false);
-                        }
-                        previousSelectedView = view;
-                    } else {
-                        // 取消选中
-                        sortData.filterSelect.remove(key);
-                        if (previousSelectedView != null) {
-                            updateViewStyle(previousSelectedView, defaultColor, false);
-                        }
-                        previousSelectedView = null;
-                    }
+                public void run() {
                     forceRefresh();
                 }
-                private void updateViewStyle(View view, int color, boolean isBold) {
-                    TextView valueTv = view.findViewById(R.id.filterValue);
-                    valueTv.getPaint().setFakeBoldText(isBold);
-                    valueTv.setTextColor(color);
-                }
             });
-            adapter.setNewData(values);
-            gridFilterDialog.filterRoot.addView(line);
         }
+        tvFilterDialog.setData(sortData);
+        tvFilterDialog.show();
+    }
+
+    /** 这个分类有没有筛选条件（HomeActivity 用来决定标签上按 OK 要不要弹面板） */
+    public boolean hasFilter() {
+        return sortData != null && sortData.filters != null && !sortData.filters.isEmpty();
     }
 
     public void forceRefresh() {

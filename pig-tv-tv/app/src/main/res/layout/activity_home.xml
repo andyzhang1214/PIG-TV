@@ -6,13 +6,14 @@
     分层（从下到上）：
       1. 背景剧照 A/B 两张，焦点换片时交叉淡入（Ken Burns 只做 A 层）
       2. 遮罩：垂直（顶暗/中透/底暗）+ 水平（左侧再压暗，托住片名）
-      3. linesViewport  —— 全屏裁剪层，里面是纵向排的 4 行内容；
-                           通过 linesBox.translationY 实现「按 ↓ 整体上推」
-      4. heroInfo / heroActions —— 首屏的片名、简介、两个按钮，进内容行后淡出
-      5. contentLayout —— 分类页（左侧分类列 + 右侧筛选条 + 海报墙）
-      6. 顶栏 —— 品牌 / 导航 / 源胶囊 / 齿轮 / 时钟，两层都常驻
+      3. recLayout   —— 推荐页的竖向封面墙（焦点进墙后上推到 96mm）
+      4. heroInfo / heroActions —— 推荐/历史首屏的片名、简介、两个按钮，
+                                   「影视」页整块不出现（用户要的是直接看封面）
+      5. contentLayout —— 影视页（二级菜单分类 + 5 列封面墙）
+      6. histLayout  —— 观看历史（同一面墙 + 进度）
+      7. 顶栏 —— 导航 / 二级菜单 / 源胶囊 / 齿轮 / 时钟，常驻
 
-    顶栏常驻是有意的：换源、设置、切「分类」都在这里，任何一层都够得着。
+    顶栏常驻是有意的：换源、设置、切「影视」都在这里，任何一层都够得着。
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -56,22 +57,33 @@
         android:clipChildren="false"
         android:clipToPadding="false">
 
-        <!-- ============ 内容流裁剪层（全屏，靠 translationY 滚动） ============ -->
+        <!-- ============ 推荐页：竖向封面墙（v11） ============
+             以前这里是「一行大卡横滑」，按 ↓ 只能在那一行里左右走 ——
+             下面根本没有第二行，所以永远滑不下去。
+             现在换成和影视页同一面 5 列封面墙：竖向滚动、焦点走到倒数第一行
+             自动取下一页，想滑多久滑多久。首屏仍从 240mm 起（hero 在上面），
+             焦点进墙后整体推到 96mm。 -->
         <FrameLayout
-            android:id="@+id/linesViewport"
+            android:id="@+id/recLayout"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:clipChildren="true"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
-            <LinearLayout
-                android:id="@+id/linesBox"
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/recGrid"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
+                android:layout_height="match_parent"
+                android:layout_marginTop="@dimen/v8_lines_top"
+                android:layout_marginBottom="30mm"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingLeft="@dimen/h_edge"
+                android:paddingRight="@dimen/h_edge"
+                android:paddingBottom="@dimen/vs_40"
+                app:tv_selectedItemIsCentered="false" />
 
         </FrameLayout>
 
@@ -317,23 +329,6 @@
 
         </FrameLayout>
 
-        <!-- ============ 右上筛选 chip（只有分类页出现） ============
-             左列分类搬走之后，hero 右边这一大块是空的 —— 筛选就摆这儿，
-             不额外占一行高度。点哪个都开原来那个 GridFilterDialog，逻辑没改。 -->
-        <LinearLayout
-            android:id="@+id/chipBox"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/h_edge"
-            android:layout_marginTop="@dimen/v8_hero_top"
-            android:layout_marginEnd="@dimen/h_edge"
-            android:gravity="end"
-            android:orientation="horizontal"
-            android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
         <!-- ============ 顶栏（两层常驻） ============ -->
         <!-- 左上角那个「影视」删掉了：顶上就一排标签，左边空出来给内容，
              品牌字既占位置又和导航第一个标签抢注意力（用户明确要求隐藏）。
@@ -366,6 +361,21 @@
             android:orientation="horizontal"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- ============ 二级菜单（影视 → 电影/电视剧/综艺/…） ============
+             只在「影视」页出现，贴在顶栏正下方。内容由 HomeActivity.inflateSubNav()
+             按站点实际分类铺出来，这里不放任何静态子 View。 -->
+        <LinearLayout
+            android:id="@+id/subNavBox"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/v8_subnav_h"
+            android:layout_marginStart="@dimen/h_edge"
+            android:layout_marginTop="@dimen/v8_subnav_top"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/navBox" />
 
         <!-- 右上角：片源胶囊 / 齿轮 / 时钟。
              注意别拿 tvBrand 当锚点 —— 它是 gone 的，锚点高度变 0，
@@ -406,11 +416,11 @@
                     android:id="@+id/tvPillSource"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="5.7mm"
+                    android:layout_marginStart="8mm"
                     android:ellipsize="end"
                     android:includeFontPadding="false"
                     android:maxLines="1"
-                    android:maxWidth="110mm"
+                    android:maxWidth="190mm"
                     android:text="@string/v8_pill_fallback"
                     android:textColor="@color/home_pill_tx"
                     android:textSize="@dimen/v8_pill_tx" />
@@ -418,7 +428,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="3.2mm"
+                    android:layout_marginStart="5mm"
                     android:includeFontPadding="false"
                     android:duplicateParentState="true"
                     android:text="▾"
@@ -456,7 +466,7 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12mm"
+                android:layout_marginStart="18mm"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -476,10 +486,10 @@
                     android:textStyle="bold" />
 
                 <View
-                    android:layout_width="0.6mm"
-                    android:layout_height="10.5mm"
-                    android:layout_marginStart="6mm"
-                    android:layout_marginEnd="6mm"
+                    android:layout_width="1mm"
+                    android:layout_height="20mm"
+                    android:layout_marginStart="10mm"
+                    android:layout_marginEnd="10mm"
                     android:background="#3DFFFFFF" />
 
                 <TextView
@@ -510,7 +520,7 @@
             android:includeFontPadding="false"
             android:text="@string/v8_hint_home"
             android:textColor="#73FFFFFF"
-            android:textSize="@dimen/ts_14"
+            android:textSize="@dimen/v8_hint_tx"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />

@@ -14,57 +14,76 @@
 <resources>
 
     <!-- ============ 顶栏 ============ -->
+    <!-- 用户 65 寸 3 米看，整条顶栏（左侧导航 + 右侧时间/源）在上一版基础上再放 50% -->
     <dimen name="v8_nav_top">26mm</dimen>
-    <dimen name="v8_nav_h">30mm</dimen>
-    <dimen name="v8_nav_pad">10mm</dimen>
-    <dimen name="v8_nav_gap">4mm</dimen>
-    <dimen name="v8_nav_tx">15.2mm</dimen>
-    <dimen name="v8_brand_tx">15.2mm</dimen>
+    <dimen name="v8_nav_h">38mm</dimen>
+    <dimen name="v8_nav_pad">15mm</dimen>
+    <dimen name="v8_nav_gap">6mm</dimen>
+    <dimen name="v8_nav_tx">22.8mm</dimen>
+    <dimen name="v8_brand_tx">22.8mm</dimen>
     <dimen name="v8_brand_gap">26mm</dimen>
-    <dimen name="v8_clock_tx">12.7mm</dimen>
-    <dimen name="v8_date_tx">9.5mm</dimen>
+    <dimen name="v8_clock_tx">25.5mm</dimen>
+    <dimen name="v8_date_tx">19mm</dimen>
     <!-- 顶栏三组之间那条 1mm 竖线（内容类 | 工具类） -->
-    <dimen name="v8_nav_sep_h">17mm</dimen>
-    <dimen name="v8_nav_sep_gap">5mm</dimen>
+    <dimen name="v8_nav_sep_h">25mm</dimen>
+    <dimen name="v8_nav_sep_gap">7.5mm</dimen>
+
+    <!-- ============ 二级菜单（影视 → 电影/电视剧/…） ============ -->
+    <!-- 只在「影视」页出现，位置在顶栏正下方。字号比顶栏小一档（22.8 → 17），
+         层级上「影视」是父级，二级项不该和它一样大。 -->
+    <dimen name="v8_subnav_top">8mm</dimen>
+    <dimen name="v8_subnav_h">30mm</dimen>
+    <dimen name="v8_subnav_pad">14mm</dimen>
+    <dimen name="v8_subnav_gap">5mm</dimen>
+    <dimen name="v8_subnav_tx">17mm</dimen>
+    <!-- 二级菜单占掉的垂直高度：影视页的 hero、按钮、海报墙都要整体下移这么多，
+         否则会压在二级菜单上（顶栏 26+38 到底 = 64mm，二级菜单 72~102mm，
+         而 hero 原本就从 72mm 起）。 -->
+    <dimen name="v8_subnav_shift">38mm</dimen>
 
     <!-- ============ 右侧胶囊（源 / 齿轮） ============ -->
-    <dimen name="v8_pill_h">28mm</dimen>
-    <dimen name="v8_pill_pad">11mm</dimen>
-    <dimen name="v8_pill_gap">6mm</dimen>
-    <dimen name="v8_pill_tx">10.8mm</dimen>
-    <dimen name="v8_pill_ico">11.4mm</dimen>
-    <dimen name="v8_pill_dot">4.4mm</dimen>
-    <dimen name="v8_pill_radius">14mm</dimen>
+    <dimen name="v8_pill_h">48mm</dimen>
+    <dimen name="v8_pill_pad">14mm</dimen>
+    <dimen name="v8_pill_gap">8mm</dimen>
+    <dimen name="v8_pill_tx">21.5mm</dimen>
+    <dimen name="v8_pill_ico">21.5mm</dimen>
+    <dimen name="v8_pill_dot">8.5mm</dimen>
+    <dimen name="v8_pill_radius">24mm</dimen>
 
     <!-- ============ hero 信息 ============ -->
     <dimen name="v8_hero_top">72mm</dimen>
     <dimen name="v8_hero_w">560mm</dimen>
-    <dimen name="v8_hero_tag">9mm</dimen>
-    <dimen name="v8_hero_tag_dot">3.8mm</dimen>
+    <!-- 65 寸 3 米外：顶栏已经放大到 22.8mm，hero 这几行原来停在 9~11mm，
+         放一起头重脚轻，整体提到 13~15mm -->
+    <dimen name="v8_hero_tag">13mm</dimen>
+    <dimen name="v8_hero_tag_dot">5mm</dimen>
     <!-- 片名：这里只是布局时的初始值，运行时由 HomeActivity.applyHeroTitleSize()
          按「字数档位 + 实际文字宽度」重算，不再依赖这个数。
          改它只影响首帧那一瞬间的字号，别当成最终大小。
          实测 1080p 上 1mm ≈ 1.5px（AutoSize 的 mm 是设计稿口径，不是物理毫米）。 -->
     <dimen name="v8_hero_title">42mm</dimen>
     <dimen name="v8_hero_title_mt">7mm</dimen>
-    <dimen name="v8_hero_meta">11.4mm</dimen>
+    <dimen name="v8_hero_meta">15mm</dimen>
     <dimen name="v8_hero_meta_mt">6mm</dimen>
-    <dimen name="v8_hero_desc">10.2mm</dimen>
+    <dimen name="v8_hero_desc">13.5mm</dimen>
     <dimen name="v8_hero_desc_mt">6.3mm</dimen>
     <dimen name="v8_hero_lift">-58mm</dimen>
 
     <!-- ============ 操作按钮 ============ -->
-    <dimen name="v8_btn_top">190mm</dimen>
-    <dimen name="v8_btn_h">21mm</dimen>
-    <dimen name="v8_btn_pad">15mm</dimen>
-    <dimen name="v8_btn_tx">10.1mm</dimen>
+    <!-- 字号涨上来之后按钮得跟着长，否则文字顶着上下边框；
+         按钮行整体下移 15mm 给 hero 让出空间（简介 13.5mm 两行比原来高 ~14mm） -->
+    <dimen name="v8_btn_top">205mm</dimen>
+    <dimen name="v8_btn_h">28mm</dimen>
+    <dimen name="v8_btn_pad">18mm</dimen>
+    <dimen name="v8_btn_tx">14mm</dimen>
     <dimen name="v8_btn_gap">8mm</dimen>
-    <dimen name="v8_btn_radius">10.5mm</dimen>
+    <dimen name="v8_btn_radius">14mm</dimen>
 
     <!-- ============ 内容流 ============ -->
     <dimen name="v8_lines_top">240mm</dimen>
     <dimen name="v8_lines_lift">96mm</dimen>
-    <dimen name="v8_line_head">16mm</dimen>
+    <dimen name="v8_line_head">19mm</dimen>
+    <dimen name="v8_line_sub">16mm</dimen>
     <dimen name="v8_line_head_mb">7.6mm</dimen>
     <dimen name="v8_line_gap">16mm</dimen>
     <dimen name="v8_line_pad_end">45.6mm</dimen>
@@ -74,8 +93,8 @@
     <dimen name="v8_card_w">146mm</dimen>
     <dimen name="v8_card_h">219mm</dimen>
     <dimen name="v8_card_gap">13mm</dimen>
-    <dimen name="v8_card_name">13.5mm</dimen>
-    <dimen name="v8_card_name_mt">5.1mm</dimen>
+    <dimen name="v8_card_name">17mm</dimen>
+    <dimen name="v8_card_name_mt">6mm</dimen>
     <dimen name="v8_card_radius">6.3mm</dimen>
     <dimen name="v8_card_badge">8.2mm</dimen>
 
@@ -86,9 +105,9 @@
     <dimen name="v8_cat_cnt">8.9mm</dimen>
     <dimen name="v8_cat_pad">9mm</dimen>
     <dimen name="v8_cat_top">86mm</dimen>
-    <dimen name="v8_chip_h">19mm</dimen>
-    <dimen name="v8_chip_pad">11mm</dimen>
-    <dimen name="v8_chip_tx">9.5mm</dimen>
+    <dimen name="v8_chip_h">25mm</dimen>
+    <dimen name="v8_chip_pad">14mm</dimen>
+    <dimen name="v8_chip_tx">13mm</dimen>
     <dimen name="v8_cat_title">16.5mm</dimen>
     <dimen name="v8_grid_w">132mm</dimen>
     <dimen name="v8_grid_h">198mm</dimen>
@@ -101,9 +120,26 @@
     <dimen name="v8_wall_card_w">215mm</dimen>
     <dimen name="v8_wall_card_h">322mm</dimen>
     <dimen name="v8_wall_gap">12mm</dimen>
-    <dimen name="v8_wall_name">16mm</dimen>
+    <dimen name="v8_wall_name">19mm</dimen>
     <dimen name="v8_wall_name_mt">4.6mm</dimen>
-    <dimen name="v8_wall_sub">12.5mm</dimen>
+    <dimen name="v8_wall_sub">15mm</dimen>
+
+    <!-- ============ 筛选弹层（影视页 → 按 OK 打开） ============ -->
+    <!-- 面板左右各留 150mm、上下各留 70mm：1080p 上正好 938 × 545mm，
+         一屏能同时看到 5~6 组筛选（年份/地区/类型/排序/语言），不用滚。 -->
+    <dimen name="v8_flt_margin_h">150mm</dimen>
+    <dimen name="v8_flt_margin_v">70mm</dimen>
+    <dimen name="v8_flt_title">20mm</dimen>
+    <dimen name="v8_flt_group_name">15mm</dimen>
+    <dimen name="v8_flt_group_w">78mm</dimen>
+    <dimen name="v8_flt_pill_h">19mm</dimen>
+    <dimen name="v8_flt_pill_tx">14.5mm</dimen>
+    <dimen name="v8_flt_pill_pad">9mm</dimen>
+    <dimen name="v8_flt_row_gap">9mm</dimen>
+    <dimen name="v8_flt_btn_h">19mm</dimen>
+
+    <!-- 底部按键提示：原来 14mm，跟放大的顶栏放一起像脚注，提到 17mm -->
+    <dimen name="v8_hint_tx">17mm</dimen>
 
 
 </resources>

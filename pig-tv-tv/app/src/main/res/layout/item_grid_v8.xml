@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 分类页海报墙（v8）
-     对齐设计稿 .grid .card：海报在上、片名在下（.cap 在 pic 外面），
+<!-- 分类页 / 推荐页封面墙的一格（v11）
+     对齐设计稿 .grid .card：海报在上、片名在下（.cap 在 pic 外面）。
      焦点加白环 + 轻微放大（1.06，动效由 GridAdapter 统一处理）。
+
+     图上只留一样东西 —— 左下角那行信息（tvFoot），内容和手机端 .pcB 完全一致：
+     有「更新至 12 集 / 评分 7.5」这类备注就显示备注，没有就「类型 · 年份 · 地区」。
+     原来压在图上的年份角标和右上角备注都撤了：同一条信息出现两遍只是噪音。
 
      注意：GridAdapter.applyStyleToImage() 会按 style 比例重设
      ivThumb「父容器」的宽高，所以 ivThumb 的直接父级必须是一个
-     只包海报的容器，不能再把片名塞进这个容器里。
-
-     id 保持与 item_grid 一致（tvYear/tvArea/tvLang/tvNote/tvName/tvActor/ivThumb），
-     GridAdapter 不需要感知布局变化。 -->
+     只包海报的容器，不能再把片名塞进这个容器里。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
@@ -33,85 +34,42 @@
             android:scaleType="centerCrop"
             app:shapeAppearanceOverlay="@style/PosterRound" />
 
-        <!-- 左上角标：年份/地区/语言 -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/vs_6"
-            android:layout_marginTop="@dimen/vs_6"
-            android:layout_marginRight="@dimen/vs_6"
-            android:orientation="horizontal">
+        <!-- 底部渐隐：给左下角那行字垫底，浅色海报上也读得清。
+             高度写死 130mm（卡高的 40%）：百分比布局在部分定制盒子上算成 0，
+             一失效就是白字直接糊在亮海报上，看不清。 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="130mm"
+            android:layout_gravity="bottom"
+            android:background="@drawable/v8_card_scrim" />
 
-            <TextView
-                android:id="@+id/tvYear"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="@dimen/vs_3"
-                android:layout_marginRight="@dimen/vs_3"
-                android:background="@drawable/shape_badge_small"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:paddingLeft="@dimen/vs_4"
-                android:paddingRight="@dimen/vs_4"
-                android:paddingTop="@dimen/vs_1"
-                android:paddingBottom="@dimen/vs_1"
-                android:singleLine="true"
-                android:textColor="#E6FFFFFF"
-                android:textSize="@dimen/ts_14" />
-
-            <TextView
-                android:id="@+id/tvArea"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="@dimen/vs_3"
-                android:layout_marginRight="@dimen/vs_3"
-                android:background="@drawable/shape_badge_small"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:paddingLeft="@dimen/vs_4"
-                android:paddingRight="@dimen/vs_4"
-                android:paddingTop="@dimen/vs_1"
-                android:paddingBottom="@dimen/vs_1"
-                android:singleLine="true"
-                android:textColor="#E6FFFFFF"
-                android:textSize="@dimen/ts_14" />
-
-            <TextView
-                android:id="@+id/tvLang"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/shape_badge_small"
-                android:ellipsize="end"
-                android:gravity="center"
-                android:paddingLeft="@dimen/vs_4"
-                android:paddingRight="@dimen/vs_4"
-                android:paddingTop="@dimen/vs_1"
-                android:paddingBottom="@dimen/vs_1"
-                android:singleLine="true"
-                android:textColor="#E6FFFFFF"
-                android:textSize="@dimen/ts_14" />
-
-        </LinearLayout>
-
-        <!-- 右上角「已完结 / 更新至 xx」小标 -->
+        <!-- 左下角：更新备注 / 类型 · 年份 · 地区（手机端同款） -->
         <TextView
-            android:id="@+id/tvNote"
-            android:layout_width="wrap_content"
+            android:id="@+id/tvFoot"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="top|end"
-            android:layout_marginTop="@dimen/vs_6"
-            android:layout_marginEnd="@dimen/vs_6"
-            android:background="@drawable/shape_badge_small"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="@dimen/vs_8"
+            android:layout_marginEnd="@dimen/vs_8"
+            android:layout_marginBottom="@dimen/vs_6"
             android:ellipsize="end"
-            android:gravity="center"
-            android:maxWidth="120mm"
-            android:paddingLeft="@dimen/vs_4"
-            android:paddingRight="@dimen/vs_4"
-            android:paddingTop="@dimen/vs_1"
-            android:paddingBottom="@dimen/vs_1"
+            android:includeFontPadding="false"
+            android:shadowColor="#CC000000"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="6"
             android:singleLine="true"
-            android:textColor="#E6FFFFFF"
-            android:textSize="@dimen/ts_12"
+            android:textColor="#F2FFFFFF"
+            android:textSize="@dimen/v8_wall_sub" />
+
+        <!-- 焦点白环：影视页没有 hero 了，焦点在哪一格全靠这一圈白线。
+             必须盖在图上（画在 ivThumb 之后），用 root 的 background 是画在
+             图片底下的，一点都看不见。 -->
+        <View
+            android:id="@+id/vRing"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/v8_poster_ring"
             android:visibility="gone" />
 
         <FrameLayout
@@ -140,10 +98,10 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="2.6mm"
         android:layout_marginTop="@dimen/v8_wall_name_mt"
+        android:duplicateParentState="true"
         android:ellipsize="end"
         android:includeFontPadding="false"
         android:singleLine="true"
-        android:duplicateParentState="true"
         android:text="Title"
         android:textColor="@color/v8_grid_name"
         android:textSize="@dimen/v8_wall_name" />

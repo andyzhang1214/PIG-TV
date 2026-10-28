@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 筛选弹层底板：深色玻璃面板，压在剧照上也不透。
+     圆角 10mm（1080p 上约 15px），比顶栏胶囊的圆角小一档，
+     它是「一整块面板」不是「一颗药丸」。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#F7141316" />
+    <stroke
+        android:width="0.8mm"
+        android:color="#24FFFFFF" />
+    <corners android:radius="10mm" />
+</shape>

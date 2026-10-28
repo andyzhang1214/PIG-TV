@@ -12,9 +12,9 @@ public interface DataReceiver {
      */
     void onTextReceived(String text);
 
-    void onApiReceived(String url);
+    void onApiReceived(String url, String name);
 
-    void onLiveReceived(String url);
+    void onLiveReceived(String url, String name);
 
     void onEpgReceived(String url);
 

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 二级菜单项：比顶栏小一档的胶囊（电影 / 电视剧 / …） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/v8_subnav_h"
+    android:background="@drawable/v8_subnav_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/v8_subnav_pad"
+    android:paddingEnd="@dimen/v8_subnav_pad">
+
+    <TextView
+        android:id="@+id/tvSubNav"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:duplicateParentState="true"
+        android:focusable="false"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:textColor="@color/v8_nav_tx"
+        android:textSize="@dimen/v8_subnav_tx"
+        android:textStyle="bold" />
+
+</LinearLayout>

@@ -56,9 +56,12 @@ public class GridAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
         final View root = helper.itemView;
         root.setScaleX(1f);
         root.setScaleY(1f);
+        final View ring = helper.getView(R.id.vRing);
+        if (ring != null) ring.setVisibility(View.GONE);
         root.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
+                if (ring != null) ring.setVisibility(hasFocus ? View.VISIBLE : View.GONE);
                 v.animate()
                         .scaleX(hasFocus ? 1.06f : 1f)
                         .scaleY(hasFocus ? 1.06f : 1f)
@@ -81,35 +84,17 @@ public class GridAdapter extends BaseQuickAdapter<Movie.Video, BaseViewHolder> {
             return;
         }
 
-        TextView tvYear = helper.getView(R.id.tvYear);
-        if (item.year <= 0) {
-            tvYear.setVisibility(View.GONE);
-        } else {
-            tvYear.setText(String.valueOf(item.year));
-            tvYear.setVisibility(View.VISIBLE);
-        }
-        TextView tvLang = helper.getView(R.id.tvLang);
-        tvLang.setVisibility(View.GONE);
-        /*if (TextUtils.isEmpty(item.lang)) {
-            tvLang.setVisibility(View.GONE);
-        } else {
-            tvLang.setText(item.lang);
-            tvLang.setVisibility(View.VISIBLE);
-        }*/
-        TextView tvArea = helper.getView(R.id.tvArea);
-        tvArea.setVisibility(View.GONE);
-        /*if (TextUtils.isEmpty(item.area)) {
-            tvArea.setVisibility(View.GONE);
-        } else {
-            tvArea.setText(item.area);
-            tvArea.setVisibility(View.VISIBLE);
-        }*/
-        String note = VodText.showableNote(item.note);
-        if (note == null) {
-            helper.setVisible(R.id.tvNote, false);
-        } else {
-            helper.setVisible(R.id.tvNote, true);
-            helper.setText(R.id.tvNote, note);
+        // 图上只留左下角一行（v11）：内容和手机端 .pcB 同一口径，
+        // 有「更新至 12 集 / 评分 7.5」就显示它，没有就「类型 · 年份 · 地区」。
+        TextView tvFoot = helper.getView(R.id.tvFoot);
+        if (tvFoot != null) {
+            String stat = VodText.coverStat(item.note, item.type, item.year, item.area);
+            if (TextUtils.isEmpty(stat)) {
+                tvFoot.setVisibility(View.GONE);
+            } else {
+                tvFoot.setText(stat);
+                tvFoot.setVisibility(View.VISIBLE);
+            }
         }
         helper.setText(R.id.tvName, item.name);
         helper.setText(R.id.tvActor, item.actor);

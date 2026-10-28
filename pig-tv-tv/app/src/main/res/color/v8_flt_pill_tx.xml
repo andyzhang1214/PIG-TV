@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 筛选值胶囊的字色：焦点反黑（白底上）、已选纯白、默认 72% 白 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FF0B0A0C" />
+    <item android:state_selected="true" android:color="#FFFFFFFF" />
+    <item android:color="#B8FFFFFF" />
+</selector>

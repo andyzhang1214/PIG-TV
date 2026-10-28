@@ -34,7 +34,7 @@
             android:includeFontPadding="false"
             android:singleLine="true"
             android:textColor="#66FFFFFF"
-            android:textSize="@dimen/ts_14" />
+            android:textSize="@dimen/v8_line_sub" />
 
     </LinearLayout>
 

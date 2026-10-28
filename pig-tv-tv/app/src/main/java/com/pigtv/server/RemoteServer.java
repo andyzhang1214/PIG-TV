@@ -12,7 +12,9 @@ import com.pigtv.base.App;
 import com.pigtv.api.ApiConfig;
 import com.pigtv.event.ServerEvent;
 import com.pigtv.util.FileUtils;
+import com.pigtv.util.HawkConfig;
 import com.pigtv.util.OkGoHelper;
+import com.orhanobut.hawk.Hawk;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -139,6 +141,19 @@ public class RemoteServer extends NanoHTTPD {
                     if (process.isRequest(session, fileName)) {
                         return process.doResponse(session, fileName, session.getParms(), null);
                     }
+                }
+                if (fileName.equals("/state")) {
+                    // 扫码页打开时回显当前配置，省得用户不知道自己现在用的是哪个源
+                    JSONObject state = new JSONObject();
+                    try {
+                        state.put("vodUrl", Hawk.get(HawkConfig.API_URL, ""));
+                        state.put("vodName", Hawk.get(HawkConfig.API_NAME, ""));
+                        state.put("liveUrl", Hawk.get(HawkConfig.LIVE_URL, ""));
+                        state.put("liveName", Hawk.get(HawkConfig.LIVE_NAME, ""));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                    return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK, "application/json; charset=utf-8", state.toString());
                 }
                 if (fileName.equals("/media")) {
                     JSONObject jsonObject = new JSONObject();

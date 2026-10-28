@@ -1,25 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 
+<!-- 配置弹窗输入框底：焦点态整块描边（原来只有一条细下划线，电视上坐远了看不出焦点在哪） -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item android:state_focused="true">
-        <layer-list>
-            <item android:bottom="@dimen/vs_5" android:left="@dimen/vs_20_" android:right="@dimen/vs_20_" android:top="@dimen/vs_20_">
-                <shape android:shape="rectangle">
-                    <stroke android:width="@dimen/vs_2" android:color="@color/color_theme_40" />
-                    <solid android:color="@android:color/transparent" />
-                </shape>
-            </item>
-        </layer-list>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_5" />
+            <stroke android:width="@dimen/vs_2" android:color="@color/color_theme" />
+            <solid android:color="#33FFFFFF" />
+        </shape>
     </item>
-    <item android:state_focused="false">
-        <layer-list>
-            <item android:bottom="@dimen/vs_5" android:left="@dimen/vs_20_" android:right="@dimen/vs_20_" android:top="@dimen/vs_20_">
-                <shape android:shape="rectangle">
-                    <stroke android:width="@dimen/vs_1" android:color="@color/color_3D3D3D_45" />
-                    <solid android:color="@android:color/transparent" />
-                </shape>
-            </item>
-        </layer-list>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_5" />
+            <stroke android:width="@dimen/vs_1" android:color="#33FFFFFF" />
+            <solid android:color="#0DFFFFFF" />
+        </shape>
     </item>
 </selector>

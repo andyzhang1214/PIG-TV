@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 首页「推荐」行里的一格（大卡）。
-     宽度固定 v8_wall_card_w：这一行是横向滑动的，不能像网格那样交给 LayoutManager 均分。
-     控件 id 与 item_home_poster 保持一致 —— HomeLineAdapter 用同一套绑定代码。 -->
+<!-- 封面墙里的一格（推荐 / 影视 / 历史共用）。
+     宽度固定 v8_wall_card_w：一列 5 张正好铺满版心。
+     控件 id 与 item_home_poster 保持一致 —— HomeLineAdapter 用同一套绑定代码。
+
+     v11：图上信息只剩「左下角一行」（tvBadge），内容和手机端 .pcB 一致 ——
+     有更新备注就显示备注，没有就「类型 · 年份 · 地区」。原来挂在左上角胶囊框里的
+     那个角标撤掉了，胶囊底色压在深色海报上像一块贴纸，手机端也没有这个。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="@dimen/v8_wall_card_w"
@@ -22,31 +26,38 @@
             android:scaleType="centerCrop"
             app:shapeAppearanceOverlay="@style/PosterRound" />
 
+        <!-- 底部渐隐：垫住左下角那行字 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="130mm"
+            android:layout_gravity="bottom"
+            android:background="@drawable/v8_card_scrim" />
+
+        <!-- 左下角：更新备注 / 类型 · 年份 · 地区 -->
+        <TextView
+            android:id="@+id/tvBadge"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="@dimen/vs_8"
+            android:layout_marginEnd="@dimen/vs_8"
+            android:layout_marginBottom="@dimen/vs_6"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:shadowColor="#CC000000"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="6"
+            android:singleLine="true"
+            android:textColor="#F2FFFFFF"
+            android:textSize="@dimen/v8_wall_sub"
+            android:visibility="gone" />
+
         <View
             android:id="@+id/vRing"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@drawable/v8_poster_ring"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tvBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/v8_card_badge"
-            android:layout_marginTop="@dimen/v8_card_badge"
-            android:background="@drawable/shape_badge_small"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:maxWidth="@dimen/v8_wall_card_h"
-            android:paddingLeft="5mm"
-            android:paddingTop="1.6mm"
-            android:paddingRight="5mm"
-            android:paddingBottom="1.6mm"
-            android:singleLine="true"
-            android:textColor="#F2FFFFFF"
-            android:textSize="@dimen/ts_18"
             android:visibility="gone" />
 
         <!-- 已看进度：历史卡底部一条细进度，比文字角标省地方。

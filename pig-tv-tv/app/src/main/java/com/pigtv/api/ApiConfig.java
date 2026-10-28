@@ -177,10 +177,14 @@ public class ApiConfig {
         } else if (apiUrl.startsWith("clan")) {
             configUrl = clanToAddress(apiUrl);
         } else if (!apiUrl.startsWith("http")) {
-            configUrl = "http://" + configUrl;
+            // 原代码这里拼的是 configUrl（此时还是空串），会得到 "http://" 而必然失败
+            configUrl = "http://" + apiUrl;
         } else {
             configUrl = apiUrl;
         }
+        // 中文域名（盒子迷.top 等）必须先转 punycode：直接交给 OkHttp，SNI/TLS 阶段就
+        // 握手失败，用户看到的就是「加载失败」。与手机端 ApiConfig 同一步骤。
+        configUrl = toAsciiUrl(configUrl);
         System.out.println("API URL :" + configUrl);
         String configKey = TempKey;
         // 运营商 DNS 会间歇性劫持配置域名（返回 200 + HTML 拦截页），重试一次

@@ -228,7 +228,7 @@
       </div>
       <div class="meitem ar" onclick="openAbout()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".9" fill="currentColor"/></svg>
-        关于<span class="v" id="verHint">v1.0.5</span>
+        关于<span class="v" id="verHint">v1.0.6</span>
       </div>
     </div>
     <div style="height:6px"></div>
@@ -1465,10 +1465,26 @@ function openFlt(key){
   document.getElementById('fltT').textContent = cnFiltName(f.name, key);
 
   var cur = (ST.filt[s.id] || {})[key] || '';
-  fltVals = f.values.map(function(kv){ return { n: kv[0], v: kv[1] }; });
-  // 很多爬虫自己就带一项「全部」（值为空串），有的话不要重复插一条
-  var hasAll = fltVals.some(function(o){ return nz(o.v) === ''; });
-  if (!hasAll) fltVals.unshift({ n: '全部', v: '' });
+  /* 很多爬虫自己就带一项「全部」，但值有的是空串、有的是 0 / all / 全部 之类的
+     非空值 —— 非空值原样提交过去，接口直接返回空列表（点了「全部」反而没内容）。
+     所以按「名字」归一：识别成全部的，值一律清成空串；并且只保留第一条，
+     否则会出现两个「全部」（第一版就是这个样子）。 */
+  var ALLN = { '全部': 1, '不限': 1, '所有': 1, '全部类型': 1, '全部地区': 1,
+               '全部年份': 1, '全部影片': 1, 'all': 1, 'All': 1, 'ALL': 1 };
+  fltVals = [];
+  var seenAll = false;
+  f.values.forEach(function(kv){
+    var n = String(kv[0] == null ? '' : kv[0]).trim();
+    var v = kv[1];
+    if (ALLN[n]) v = '';
+    if (nz(v) === ''){
+      if (seenAll) return;
+      seenAll = true;
+      if (!n) n = '全部';
+    }
+    fltVals.push({ n: n || '未命名', v: v });
+  });
+  if (!seenAll) fltVals.unshift({ n: '全部', v: '' });
 
   document.getElementById('fltVals').innerHTML = fltVals.map(function(o, i){
     var on = nz(o.v) === nz(cur);
@@ -2411,16 +2427,17 @@ function cfgClose(){
 }
 
 /* 内置推荐源。地址由用户指定，原样写入，不擅自替换。
-   qist 已按用户要求下线。首选 liucn：它的站点全是 jar 型（spider 用 ./fty.jar，686KB，
-   站点类 csp_Xxx 与 jar 里的 com.github.catvod.spider.Xxx 对得上），本机 JS 引擎
-   求值 ES module 会在 native 层闪退，纯 JS 源（如高天流云）跑不起来，只能排除。
-   盒子迷两个入口保留：/禁止贩卖（配置 JSON）和 /饭太硬（用户指定，两个都要）。
+   首选「盒子迷·饭太硬」= 默认内置源（strings.xml 的 app_source），用户实测可用；
+   本机 curl 直连会 404 + 证书 CN=199z.cn 不匹配，属于本机网络环境问题，以用户实测为准。
+   liucn 备选：站点全是 jar 型（spider 用 ./fty.jar），本机 JS 引擎求值 ES module 会在
+   native 层闪退，纯 JS 源（如高天流云）跑不起来，只能排除。
+   盒子迷两个入口都保留：/饭太硬（默认）和 /禁止贩卖（配置 JSON）。
    肥猫（http://肥猫.net/tv）jar 放在自家限流节点上，本机实测只能拿到 61KB / 1048KB
    且无视 Range，故不列入推荐；用户要加会明说。 */
 var QUICK_SRC = [
+  {n:'盒子迷·饭太硬',   d:'默认源',         u:'https://盒子迷.top/饭太硬'},
   {n:'liucn 综合',     d:'234 站 · jar 源', u:'https://raw.liucn.cc/box/m.json'},
-  {n:'盒子迷·禁止贩卖', d:'91 站',         u:'https://盒子迷.top/禁止贩卖'},
-  {n:'盒子迷·饭太硬',   d:'备用入口',       u:'https://盒子迷.top/饭太硬'}
+  {n:'盒子迷·禁止贩卖', d:'91 站',         u:'https://盒子迷.top/禁止贩卖'}
 ];
 
 /* 只在「填接口地址」的场景出现；直播源和改名模式清空 */
@@ -2788,7 +2805,7 @@ function refreshSettings(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) return;
     var el = document.getElementById('verHint');
-    if (el) el.textContent = 'v' + (d.ver || '1.0.5');
+    if (el) el.textContent = 'v' + (d.ver || '1.0.6');
   });
 }
 
@@ -2944,7 +2961,7 @@ function resetAppAsk(){
 function openAbout(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) d = {};
-    var ver = d.ver || '1.0.5';
+    var ver = d.ver || '1.0.6';
     var el = document.getElementById('verHint');
     if (el) el.textContent = 'v' + ver;
     var html = '';
