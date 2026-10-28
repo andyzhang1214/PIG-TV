@@ -259,6 +259,7 @@
             android:layout_gravity="center"
             android:gravity="center_horizontal"
             android:orientation="horizontal"
+            android:visibility="gone"
             tools:visibility="gone">
 
             <ImageView
@@ -303,10 +304,15 @@
             app:tv_horizontalSpacingWithMargins="@dimen/vs_10"
             app:tv_selectedItemIsCentered="true" />    
 
+        <!-- 剧集网格必须用 0dp + weight=1 抢「剩余高度」。
+             以前写的是 match_parent：LinearLayout 竖直排列时它会按父高度测量，
+             前面几个子 View 一高就会被挤出屏幕（实测 1080p 上高度变成 0），
+             用户看到的就是「进了详情页只有海报和简介，选集一个都看不到、也翻不下去」。 -->
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/mGridView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:layout_marginLeft="@dimen/vs_50"
             android:layout_marginTop="@dimen/vs_10"
             android:layout_marginRight="@dimen/vs_50"

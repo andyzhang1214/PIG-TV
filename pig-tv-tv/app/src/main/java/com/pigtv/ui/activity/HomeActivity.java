@@ -23,9 +23,11 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager.widget.ViewPager;
 
+import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.pigtv.R;
 import com.pigtv.api.ApiConfig;
 import com.pigtv.base.App;
@@ -2113,13 +2115,20 @@ public class HomeActivity extends BaseActivity {
     private RecyclerView currentGrid() {
         if (histMode) return histGrid;
         if (!catMode) return null;
-        View page = mViewPager.getChildAt(mViewPager.getCurrentItem());
-        if (page instanceof ViewGroup) {
-            ViewGroup vg = (ViewGroup) page;
-            for (int i = 0; i < vg.getChildCount(); i++) {
-                if (vg.getChildAt(i) instanceof RecyclerView) return (RecyclerView) vg.getChildAt(i);
-            }
+        // ① 焦点已经在网格里：顺着父链找最准（LoadSir 会套一层，层级不固定）
+        View f = getCurrentFocus();
+        while (f != null) {
+            ViewParent p = f.getParent();
+            if (p instanceof RecyclerView) return (RecyclerView) p;
+            f = (p instanceof View) ? (View) p : null;
         }
+        // ② 焦点还在顶栏 / hero：直接问分类页的 Fragment 要。
+        //    以前是用 mViewPager.getChildAt(getCurrentItem()) 扫直接子 View，
+        //    实测拿到的是一个 kids=0 的空 FrameLayout（page 缓存/复用时索引对不上），
+        //    所以一直返回 null → inGrid 判成 false → 分类页按 ↓ 被当成推荐页的下移处理，
+        //    焦点没动、按键又被吃掉，表现就是「永远只有第一页 10 部，按下键毫无反应」。
+        BaseLazyFragment bf = fragmentAt(mViewPager.getCurrentItem());
+        if (bf instanceof GridFragment) return ((GridFragment) bf).gridRecycler();
         return null;
     }
 
@@ -2160,20 +2169,19 @@ public class HomeActivity extends BaseActivity {
                 return true;
             }
             if (inGrid) {
-                View f = getCurrentFocus();
-                int pos = (rv == null || f == null) ? -1 : rv.getChildAdapterPosition(f);
-                // 第一行还往上 → 回顶栏；后面的行交给 RecyclerView 自己翻
-                if (pos >= 0 && pos < WALL_SPAN) {
-                    exitBrowse();
-                    focusNavOfCurrent();
-                    return true;
-                }
-                return false;
+                // 网格里上移一行；已经在第一行就退回顶栏
+                if (gridMoveRow(rv, true)) return true;
+                exitBrowse();
+                focusNavOfCurrent();
+                return true;
             }
             return false;
         }
 
-        if (inGrid) return false;   // 墙内往下翻交给 RecyclerView
+        if (inGrid) {
+            // 往下移一行。移不动 = 已经在最后一行，交还给上层（下面会走到 hero/顶栏逻辑）
+            return gridMoveRow(rv, false);
+        }
         if (currentHero != null && heroActions.getVisibility() == View.VISIBLE) {
             btnPlay.requestFocus();
             enterBrowse();
@@ -2189,6 +2197,79 @@ public class HomeActivity extends BaseActivity {
         }
         focusPosterWall();
         enterBrowse();
+        return true;
+    }
+
+    /**
+     * 网格里上下移一行（分类页 / 历史墙）。
+     *
+     * 不用 RecyclerView 自带的 focusSearch：TvRecyclerView 的几何搜索在
+     * 「下一行只露出半截」的时候经常返回 null，焦点就卡在原地不动，
+     * 而 Activity 那边又把按键消费掉了 —— 表现就是「按下键完全没反应」。
+     * 这里按 position ± 列数直接定位，跟屏幕露出多少无关。
+     *
+     * @return true 表示焦点已经移过去了
+     */
+    private boolean gridMoveRow(RecyclerView rv, boolean up) {
+        if (rv == null) return false;
+        int pos = gridPosOf(rv, getCurrentFocus());
+        if (pos == RecyclerView.NO_POSITION) return false;
+        RecyclerView.Adapter a = rv.getAdapter();
+        if (a == null) return false;
+        int count = a.getItemCount();
+        // BaseQuickAdapter 的 loadMoreView(footer) 也占一个 position，别把焦点送进去
+        if (a instanceof BaseQuickAdapter) {
+            try {
+                count = ((BaseQuickAdapter) a).getData().size();
+            } catch (Throwable ignored) {
+            }
+        }
+        int np = pos + (up ? -spanOf(rv) : spanOf(rv));
+        if (np < 0 || np >= count) return false;
+        return focusGridPos(rv, np);
+    }
+
+    /**
+     * 焦点所在的格子是第几个。
+     *
+     * 坑：getChildAdapterPosition 只认 RecyclerView 的**直接子 View**，
+     * 但焦点常常落在卡片内部的子 View 上（这时强行传进去会抛
+     * ClassCastException: LinearLayout$LayoutParams → RecyclerView$LayoutParams）。
+     * 所以先顺着父链爬到 rv 的直接子 View。
+     */
+    private int gridPosOf(RecyclerView rv, View f) {
+        View v = f;
+        while (v != null) {
+            ViewParent p = v.getParent();
+            if (p == rv) return rv.getChildAdapterPosition(v);
+            v = (p instanceof View) ? (View) p : null;
+        }
+        return RecyclerView.NO_POSITION;
+    }
+
+    private int spanOf(RecyclerView rv) {
+        RecyclerView.LayoutManager lm = rv.getLayoutManager();
+        if (lm instanceof GridLayoutManager) return ((GridLayoutManager) lm).getSpanCount();
+        return 1;
+    }
+
+    /** 把焦点送到网格第 pos 格。目标格还没渲染就先滚过去再取，取不到下一帧再试。 */
+    private boolean focusGridPos(final RecyclerView rv, final int pos) {
+        final RecyclerView.LayoutManager lm = rv.getLayoutManager();
+        if (lm == null) return false;
+        View target = lm.findViewByPosition(pos);
+        if (target == null) {
+            rv.scrollToPosition(pos);
+            target = lm.findViewByPosition(pos);
+        }
+        if (target != null) return target.requestFocus();
+        rv.post(new Runnable() {
+            @Override
+            public void run() {
+                View t = lm.findViewByPosition(pos);
+                if (t != null) t.requestFocus();
+            }
+        });
         return true;
     }
 

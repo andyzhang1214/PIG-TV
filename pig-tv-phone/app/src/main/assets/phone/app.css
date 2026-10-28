@@ -632,7 +632,9 @@ svg{display:block}
 /* ---------- 搜索覆盖层 ---------- */
 #sov{position:fixed;inset:0;z-index:70;display:none;
   background:var(--overlay);backdrop-filter:blur(18px)}
-#sov.on{display:block;animation:pin .2s var(--ease)}
+/* 影视仓式搜索页是「上搜索框 + 下左右分栏」，所以这里必须是 flex 纵向，
+   用 block 的话左栏和右栏没法各自独立滚动 */
+#sov.on{display:flex;flex-direction:column;animation:pin .2s var(--ease)}
 .sbar{padding:calc(22px + var(--sat)) var(--pad) 0;display:flex;align-items:center;gap:10px}
 .sin{flex:1;height:44px;border-radius:22px;background:var(--card);border:1px solid var(--line);
   display:flex;align-items:center;gap:9px;padding:0 14px}
@@ -647,6 +649,48 @@ svg{display:block}
 .words span{font-size:12px;padding:7px 13px;border-radius:14px;background:var(--card);
   border:1px solid var(--line);color:rgba(var(--ink),.75)}
 
+/* ---------- 搜索结果：影视仓式左右分栏 ---------- */
+/* 分栏是「左边站点列固定、右边结果列滚动」——两列各自 overflow，
+   所以外层要 min-height:0（flex 子项默认 min-height:auto，不写这一行
+   右侧结果区会被内容撑高、整页一起滚，左侧站点列就跟着跑了）。 */
+.sBody{flex:1;min-height:0;display:flex;overflow:hidden}
+.sSide{flex:0 0 86px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:2px 4px 26px 10px}
+.sIde{display:flex;flex-direction:column;gap:1px;padding:7px 8px;border-radius:9px;
+  margin-bottom:3px;font-size:11px;line-height:1.28;color:var(--tx2);
+  border:1px solid transparent;cursor:pointer}
+.sIde.on{background:var(--card);border-color:var(--line);color:var(--tx);font-weight:700}
+.sIdeN{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.sIdeC{font-size:9.5px;color:var(--tx3);font-weight:400}
+.sIde.on .sIdeC{color:var(--ac)}
+.sMain{flex:1;min-width:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:2px 10px 26px 6px}
+.sGrid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 8px}
+
+/* 结果卡：站点标签一条压在图上，片名压在图内底部（对齐影视仓） */
+.sc{position:relative;min-width:0;border-radius:11px;overflow:hidden;
+  background:var(--card);border:1px solid var(--line);transition:transform .16s var(--ease)}
+.sc:active{transform:scale(.972)}
+.scTag{display:flex;align-items:center;gap:4px;padding:5px 7px;font-size:9.5px;
+  color:var(--tx2);background:rgba(var(--ink),.045);white-space:nowrap;overflow:hidden}
+.scTag svg{width:11px;height:11px;flex:0 0 auto;stroke:currentColor;fill:none;
+  stroke-width:2.2;stroke-linecap:round;opacity:.55}
+.scTag span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* 老 WebView(Chrome<88) 不认 aspect-ratio，用 padding-bottom 撑比例 */
+.scPic{position:relative;width:100%;height:0;padding-bottom:136%;overflow:hidden}
+.scArt{position:absolute;inset:0;overflow:hidden;filter:saturate(.95) brightness(.97)}
+.scCh{position:absolute;left:0;right:0;top:30%;text-align:center;z-index:1;
+  font-size:38px;font-weight:800;color:rgba(255,255,255,.13);line-height:1}
+.scScrim{position:absolute;inset:0;z-index:2;
+  background:linear-gradient(to top,rgba(0,0,0,.84) 0%,rgba(0,0,0,.3) 36%,transparent 64%)}
+.scNote{position:absolute;left:6px;top:6px;z-index:4;font-size:9px;padding:2px 5px;
+  border-radius:5px;background:rgba(0,0,0,.46);color:rgba(255,255,255,.92);
+  max-width:calc(100% - 12px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 片名恒白：它落在 .scScrim 的黑色渐变上，跟主题无关 */
+.scT{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:15px 7px 7px;
+  font-size:11.5px;font-weight:600;line-height:1.32;color:#fff;
+  max-height:2.7em;overflow:hidden}
+
 /* ---------- Toast ---------- */
 #toast{position:fixed;left:50%;bottom:calc(var(--tabh) + var(--sab) + 34px);transform:translate(-50%,14px);
   z-index:90;max-width:78%;padding:11px 16px;border-radius:13px;background:rgba(30,30,38,.96);
@@ -660,7 +704,7 @@ svg{display:block}
    ===================================================================== */
 
 /* 真实海报：铺满容器，加载失败自动隐藏，露出底下的渐变 */
-.pcArt img,.cwT img,.dHero img,.heroArt img{
+.pcArt img,.scArt img,.cwT img,.dHero img,.heroArt img{
   position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;
 }
 .cwT img{opacity:.92}

@@ -228,7 +228,7 @@
       </div>
       <div class="meitem ar" onclick="openAbout()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".9" fill="currentColor"/></svg>
-        关于<span class="v" id="verHint">v1.0.4</span>
+        关于<span class="v" id="verHint">v1.0.5</span>
       </div>
     </div>
     <div style="height:6px"></div>
@@ -322,12 +322,15 @@
     <div class="words" id="sWords"></div>
   </div>
   <div id="sState" class="loadmore" style="display:none"></div>
-  <!-- 站点筛选条：同一部片在几个站搜到就各占一条（不跨站合并），
-       这里列出每个站点出了几条，点一下只看那个站的 -->
-  <div class="sFilter" id="sFilter" style="display:none">
-    <div class="chips" id="sChips"></div>
+  <!-- 影视仓式分栏：左边一列固定站点（「全部显示」+ 各站点，带条数），
+       右边两列大卡。同一部片在几个站搜到就各占一条（不跨站合并），
+       所以左边点一下就能只看某个站，比横向 chip 条更适合站多的场景。 -->
+  <div class="sBody" id="sBody" style="display:none">
+    <div class="sSide" id="sSide"></div>
+    <div class="sMain">
+      <div class="sGrid2" id="sGrid"></div>
+    </div>
   </div>
-  <div class="grid2" id="sGrid" style="display:none"></div>
 </div>
 
 <!-- ================= 配置（片源接口 / 直播源 共用一个表单） ================= -->
@@ -574,6 +577,27 @@ function posterHTML(v, idx, cls, hook){
       (stat ? '<div class="pcB">' + esc(stat) + '</div>' : '') +
     '</div>' +
     '<div class="pcT">' + esc(v.name) + '</div>' +
+  '</div>';
+}
+
+/* 搜索结果卡（影视仓式）：站点标签单独一条压在图片上方，片名压在图内底部。
+   和首页 .pc 卡的区别就在这两点 —— 站多的时候，用户第一眼要先知道
+   「这条是哪个站的」，所以站点标签必须比片名更显眼。 */
+function searchCardHTML(v, idx){
+  var site = nz(v.site) || '未知站点';
+  var stat = badMeta(v.note) ? metaLine(v) : nz(v.note);
+  return '<div class="sc" onclick="openDetail(' + idx + ')">' +
+    '<div class="scTag">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>' +
+      '<span>' + esc(site) + '</span>' +
+    '</div>' +
+    '<div class="scPic">' +
+      '<div class="scArt" style="' + artBg(v) + '">' + artImg(v) + '</div>' +
+      '<div class="scCh">' + esc(nz(v.name).charAt(0) || '猪') + '</div>' +
+      '<div class="scScrim"></div>' +
+      (stat ? '<div class="scNote">' + esc(stat) + '</div>' : '') +
+      '<div class="scT">' + esc(v.name) + '</div>' +
+    '</div>' +
   '</div>';
 }
 /* 有些源站给缺省值就是字符串 "0"（豆瓣系的 note / lang / area 常见），
@@ -1940,9 +1964,9 @@ function openSearch(){
 function closeSearch(){
   document.getElementById('sov').classList.remove('on');
   document.getElementById('sIn').value = '';
-  document.getElementById('sGrid').style.display = 'none';
+  document.getElementById('sGrid').innerHTML = '';
   document.getElementById('sState').style.display = 'none';
-  document.getElementById('sFilter').style.display = 'none';
+  document.getElementById('sBody').style.display = 'none';
   document.getElementById('sHot').style.display = 'block';
 }
 function sPick(w){
@@ -1971,9 +1995,9 @@ function doSearch(query){
   ST.items = SR.view;
   document.getElementById('sHot').style.display = 'none';
   var grid = document.getElementById('sGrid');
-  grid.style.display = 'none';
   grid.innerHTML = '';
-  document.getElementById('sFilter').style.display = 'none';
+  document.getElementById('sBody').style.display = 'none';
+  document.getElementById('sSide').innerHTML = '';
   var state = document.getElementById('sState');
   state.style.display = 'block';
   state.textContent = '正在搜「' + q + '」，全站并发…';
@@ -2011,7 +2035,7 @@ function mergeSearch(list, done, total){
   return add;
 }
 
-/* 有新结果了：补卡片 + 更新站点条 + 更新状态行 */
+/* 有新结果了：补卡片 + 更新左侧站点列 + 更新状态行 */
 function onSearchProgress(){
   if (SR.filter){
     /* 筛选状态下视图是子集，得整个重算 */
@@ -2020,13 +2044,13 @@ function onSearchProgress(){
     var grid = document.getElementById('sGrid');
     var html = '';
     for (var i = SR.rendered; i < SR.items.length; i++){
-      html += posterHTML(SR.items[i], i, 'sm');
+      html += searchCardHTML(SR.items[i], i);
     }
     if (html) grid.insertAdjacentHTML('beforeend', html);
     SR.rendered = SR.items.length;
-    if (SR.items.length) grid.style.display = 'grid';
+    if (SR.items.length) document.getElementById('sBody').style.display = 'flex';
   }
-  renderSearchChips();
+  renderSearchSide();
   updateSearchState();
 }
 
@@ -2037,16 +2061,16 @@ function renderSearchGrid(){
     : SR.items;
   ST.items = SR.view;
   var grid = document.getElementById('sGrid');
-  grid.innerHTML = SR.view.map(function(v, i){ return posterHTML(v, i, 'sm'); }).join('');
-  grid.style.display = SR.view.length ? 'grid' : 'none';
+  grid.innerHTML = SR.view.map(function(v, i){ return searchCardHTML(v, i); }).join('');
+  document.getElementById('sBody').style.display = SR.items.length ? 'flex' : 'none';
   SR.rendered = SR.items.length;
 }
 
-/* 站点筛选条：列出每个站点出了几条，点一下只看那个站的 */
-function renderSearchChips(){
-  var box = document.getElementById('sChips');
-  var wrap = document.getElementById('sFilter');
-  if (!box || !wrap) return;
+/* 左侧站点列（影视仓那种）：第一项「全部显示」，后面每个站点一行 + 条数。
+   按条数从多到少排，用户一眼先看到出片最多的站。 */
+function renderSearchSide(){
+  var box = document.getElementById('sSide');
+  if (!box) return;
   var cnt = {}, order = [];
   for (var i = 0; i < SR.items.length; i++){
     var v = SR.items[i];
@@ -2054,24 +2078,28 @@ function renderSearchChips(){
     if (!cnt[k]){ cnt[k] = {n:0, name:nz(v.site) || k}; order.push(k); }
     cnt[k].n++;
   }
-  if (!order.length){ wrap.style.display = 'none'; box.innerHTML = ''; return; }
+  if (!order.length){ box.innerHTML = ''; return; }
   order.sort(function(a, b){ return cnt[b].n - cnt[a].n; });
-  var html = '<span class="chip' + (SR.filter ? '' : ' on') + '" data-act="sf" data-val="">全部 ' +
-             SR.items.length + '</span>';
+  var html = '<div class="sIde' + (SR.filter ? '' : ' on') + '" data-act="sf" data-val="">' +
+             '<span class="sIdeN">全部显示</span>' +
+             '<span class="sIdeC">' + SR.items.length + '</span></div>';
   for (var j = 0; j < order.length; j++){
     var k2 = order[j];
-    html += '<span class="chip' + (SR.filter === k2 ? ' on' : '') + '" data-act="sf" data-val="' +
-            esc(k2) + '">' + esc(cnt[k2].name) + ' ' + cnt[k2].n + '</span>';
+    html += '<div class="sIde' + (SR.filter === k2 ? ' on' : '') + '" data-act="sf" data-val="' +
+            esc(k2) + '">' +
+            '<span class="sIdeN">' + esc(cnt[k2].name) + '</span>' +
+            '<span class="sIdeC">' + cnt[k2].n + '</span></div>';
   }
   box.innerHTML = html;
-  wrap.style.display = 'block';
 }
 
 function setSearchFilter(k){
   SR.filter = k || '';
   renderSearchGrid();
-  renderSearchChips();
+  renderSearchSide();
   updateSearchState();
+  var main = document.querySelector('#sBody .sMain');
+  if (main) main.scrollTop = 0;
 }
 
 function updateSearchState(){
@@ -2760,7 +2788,7 @@ function refreshSettings(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) return;
     var el = document.getElementById('verHint');
-    if (el) el.textContent = 'v' + (d.ver || '1.0.4');
+    if (el) el.textContent = 'v' + (d.ver || '1.0.5');
   });
 }
 
@@ -2916,7 +2944,7 @@ function resetAppAsk(){
 function openAbout(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) d = {};
-    var ver = d.ver || '1.0.4';
+    var ver = d.ver || '1.0.5';
     var el = document.getElementById('verHint');
     if (el) el.textContent = 'v' + ver;
     var html = '';

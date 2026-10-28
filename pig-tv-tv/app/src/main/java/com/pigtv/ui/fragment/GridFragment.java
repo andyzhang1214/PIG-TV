@@ -65,6 +65,15 @@ public class GridFragment extends BaseLazyFragment {
     private boolean isLoad = false;
     private boolean isTop = true;
     private View focusedView = null;
+    /**
+     * 一页几列。既是布局参数，也是「翻页」的判据：
+     * 焦点走到倒数第一行（position >= 总数 - 列数）就该取下一页了。
+     */
+    private int spanCount = 5;
+    /** 正在取下一页。getList 没有并发保护，回包只走一条 LiveData，重入必串台 */
+    private boolean pageLoading = false;
+    /** 已经翻到底（服务端 pagecount 到顶），别再请求了 */
+    private boolean noMorePage = false;
 
     private static class GridInfo{
         public String sortID="";
@@ -196,6 +205,8 @@ public class GridFragment extends BaseLazyFragment {
         this.page = 1;
         this.maxPage = 1;
         this.isLoad = false;
+        this.pageLoading = false;
+        this.noMorePage = false;
     }
 
     private void initView() {
@@ -206,7 +217,7 @@ public class GridFragment extends BaseLazyFragment {
         } else {
             // 分类页（v10）：分类搬到顶栏后左列腾空，5 列大卡正好铺满 1218 的版心，
             // 卡片尺寸和推荐页那行完全同款（215×322mm）。
-            int spanCount = 5;
+            spanCount = 5;
             if (style != null) {
                 spanCount = ImgUtil.spanCountByStyle(style, spanCount);
             }
@@ -221,6 +232,9 @@ public class GridFragment extends BaseLazyFragment {
             @Override
             public void onLoadMoreRequested() {
                 gridAdapter.setEnableLoadMore(true);
+                // 和焦点触发的翻页共用一把锁，别同时发两个请求（getList 会串台）
+                if (pageLoading || noMorePage) return;
+                pageLoading = true;
                 sourceViewModel.getList(sortData, page);
             }
         }, mGridView);
@@ -234,6 +248,7 @@ public class GridFragment extends BaseLazyFragment {
 
             @Override
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
+                maybeLoadNextPage(position);
             }
 
             @Override
@@ -301,6 +316,29 @@ public class GridFragment extends BaseLazyFragment {
         setLoadSir(mGridView);
     }
 
+    /**
+     * 焦点走到倒数第一行 → 主动取下一页。
+     *
+     * 为什么不能只靠 BaseQuickAdapter 的 setOnLoadMoreListener：
+     * 它内部监听的是 RecyclerView 的 onScrolled，只有「真的滚到底」才回调。
+     * 但电视是方向键移焦点，不是手指滑动 —— 一页 10 部（5 列 2 行）连一屏都
+     * 撑不满，RecyclerView 压根没有滚动事件，于是第二页永远不来。
+     * 用户看到的就是「分类页只有 10 部，按下键焦点卡在最后一行不动」。
+     *
+     * 这里改成按焦点位置判断，跟有没有滚动无关；原来的滚动监听保留，
+     * 触摸屏/鼠标滚轮场景还能用。两边共用 pageLoading 锁。
+     */
+    private void maybeLoadNextPage(int position) {
+        if (pageLoading || noMorePage) return;
+        if (gridAdapter == null || sortData == null || sourceViewModel == null) return;
+        int total = gridAdapter.getData().size();
+        if (total <= 0) return;
+        // 焦点还在前面的行就先不取，免得一进页面就把后面几页全拉下来
+        if (position < total - spanCount) return;
+        pageLoading = true;
+        sourceViewModel.getList(sortData, page);
+    }
+
     private void initViewModel() {
         if (sourceViewModel != null) {
             return;
@@ -310,6 +348,8 @@ public class GridFragment extends BaseLazyFragment {
             @Override
             public void onChanged(AbsXml absXml) {
 //                if(mGridView != null) mGridView.requestFocus();
+                // 不管成功失败都要解锁：卡住的话第二页就再也取不到了
+                pageLoading = false;
                 if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
                     if (page == 1) {
                         showSuccess();
@@ -325,7 +365,8 @@ public class GridFragment extends BaseLazyFragment {
                     }
                     page++;
                     maxPage = absXml.movie.pagecount;
-                    if (page > maxPage && maxPage!=0) {
+                    noMorePage = (maxPage != 0 && page > maxPage);
+                    if (noMorePage) {
                         gridAdapter.loadMoreEnd();
                         gridAdapter.setEnableLoadMore(false);
                     } else {
@@ -336,7 +377,8 @@ public class GridFragment extends BaseLazyFragment {
                     if (page == 1) {
                         showEmpty();
                     }
-                    if (page > maxPage && maxPage!=0) {
+                    noMorePage = (maxPage != 0 && page > maxPage);
+                    if (noMorePage) {
                         Toast.makeText(getContext(), "没有更多了", Toast.LENGTH_SHORT).show();
                         gridAdapter.loadMoreEnd();
                     } else {
@@ -359,6 +401,8 @@ public class GridFragment extends BaseLazyFragment {
         }
         showLoading();
         isLoad = false;
+        pageLoading = false;
+        noMorePage = false;
         scrollTop();
         toggleFilterStatus();
         sourceViewModel.getList(sortData, page);
@@ -384,6 +428,15 @@ public class GridFragment extends BaseLazyFragment {
     public void requestGridFocus() {
         if (mGridView == null) return;
         if (!mGridView.hasFocus()) mGridView.requestFocus();
+    }
+
+    /**
+     * 给 HomeActivity 用：分类页真正的那个网格。
+     * 不要通过 ViewPager 的 child 去找 —— setLoadSir 会把 RecyclerView 套一层，
+     * 而且 ViewPager 在页面缓存/复用时 getChildAt(currentItem) 可能拿到空容器。
+     */
+    public androidx.recyclerview.widget.RecyclerView gridRecycler() {
+        return mGridView;
     }
 
     public void showFilter() {
