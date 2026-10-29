@@ -83,9 +83,14 @@ public class ApiConfig {
     private final JarLoader jarLoader = new JarLoader();
     private final JsLoader jsLoader = new JsLoader();
     private final IPyLoader pyLoader =  new pyLoader();
-    // 拉配置用浏览器 UA：qist 等 Cloudflare 站会拦截 okhttp 特征的请求，
-    // 返回 11KB 的 HTML 挑战页，表现为间歇性「解析配置失败」。
-    private final String userAgent = "Mozilla/5.0 (Linux; Android 14; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+    // 拉配置的 UA 要分两套，因为不同的源按 UA 分流，而且是相反的：
+    //   1) 盒子迷.top / 饭太硬 这类站，只给带 okhttp 特征的请求返回配置 JSON，
+    //      浏览器 UA 一律 301 到一个 HTML 导航页（7.8KB，<title>TVBOX 影视仓</title>），
+    //      于是解析必然失败 —— 手机端用的就是 okhttp/3.15，所以同一个源手机能出片、TV 空白。
+    //   2) qist 这类套 Cloudflare 的站反过来，会拦 okhttp 特征，返回 11KB 的 HTML 挑战页。
+    // 所以首次用客户端 UA，重试时换浏览器 UA，两种站都能覆盖到。
+    private static final String UA_CLIENT = "okhttp/3.15";
+    private static final String UA_BROWSER = "Mozilla/5.0 (Linux; Android 14; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
     private final String requestAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9";
 
@@ -199,7 +204,7 @@ public class ApiConfig {
         // 运营商 DNS 会间歇性劫持配置域名（返回 200 + HTML 拦截页），重试一次
         // 大概率换到未污染的解析结果。解析失败和拉取失败都走重试，只重试一次。
         OkGo.<String>get(configUrl)
-                .headers("User-Agent", userAgent)
+                .headers("User-Agent", attempt == 0 ? UA_CLIENT : UA_BROWSER)
                 .headers("Accept", requestAccept)
                 .execute(new AbsCallback<String>() {
                     @Override
