@@ -48,6 +48,7 @@ import com.pigtv.ui.adapter.HomeLineAdapter;
 import com.pigtv.ui.adapter.HomePageAdapter;
 import com.pigtv.ui.adapter.SelectDialogAdapter;
 import com.pigtv.ui.dialog.SelectDialog;
+import com.pigtv.ui.dialog.SiteProbe;
 import com.pigtv.ui.dialog.TipDialog;
 import com.pigtv.ui.fragment.GridFragment;
 import com.pigtv.ui.fragment.BlankFragment;
@@ -363,6 +364,10 @@ public class HomeActivity extends BaseActivity {
         // 从收藏/历史/搜索页的顶栏点「分类」跳过来：数据就绪后直接落分类页
         pendingOpenCat = intent != null && intent.getBooleanExtra(V8TopBar.EXTRA_OPEN_CAT, false);
         initData();
+        // 开机预热站点体检：后台把所有源测一遍写进缓存，
+        // 用户点「切换源」时直接命中，不用对着一排「检测中」等一分钟。
+        // 内部会等配置/站点列表就绪再开始，不会拿空表白跑。
+        SiteProbe.warm(this);
     }
 
     @Override
@@ -2623,6 +2628,8 @@ public class HomeActivity extends BaseActivity {
                     return oldItem.getKey().equals(newItem.getKey());
                 }
             }, sites, sites.indexOf(ApiConfig.get().getHomeSourceBean()));
+            // 打开即测：徽章逐行出结果，全部测完按「有内容 → 快」重排
+            SiteProbe.attach(dialog, tvRecyclerView, sites, getString(R.string.dia_source));
             dialog.show();
         }
     }

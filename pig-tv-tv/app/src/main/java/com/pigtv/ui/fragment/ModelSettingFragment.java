@@ -31,6 +31,7 @@ import com.pigtv.ui.dialog.HomeIconDialog;
 import com.pigtv.ui.dialog.MediaSettingDialog;
 import com.pigtv.ui.dialog.ResetDialog;
 import com.pigtv.ui.dialog.SelectDialog;
+import com.pigtv.ui.dialog.SiteProbe;
 import com.pigtv.ui.dialog.XWalkInitDialog;
 import com.pigtv.util.FastClickCheckUtil;
 import com.pigtv.util.HawkConfig;
@@ -292,6 +293,8 @@ public class ModelSettingFragment extends BaseLazyFragment {
                             return oldItem.getKey().equals(newItem.getKey());
                         }
                     }, sites, sites.indexOf(ApiConfig.get().getHomeSourceBean()));
+                    // 打开即测：徽章逐行出结果，全部测完按「有内容 → 快」重排
+                    SiteProbe.attach(dialog, tvRecyclerView, sites, getString(R.string.dia_source));
                     dialog.show();
                 }
             }

@@ -1,6 +1,7 @@
 package com.pigtv.ui.adapter;
 
 import android.annotation.SuppressLint;
+import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,6 +34,24 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
         void click(T value, int pos);
 
         String getDisplay(T val);
+    }
+
+    /**
+     * 行尾徽章（可选）。站点选择弹窗用它显示体检结果，其它弹窗不设置就完全不显示，
+     * 行为跟改动前一致。
+     */
+    public interface BadgeInterface<T> {
+        /** 徽章文字，空串 = 不显示 */
+        String badgeOf(T value);
+
+        /** 徽章底色（ARGB），只在不显示时忽略 */
+        int badgeColorOf(T value);
+    }
+
+    private BadgeInterface<T> badgeInterface = null;
+
+    public void setBadgeInterface(BadgeInterface<T> badgeInterface) {
+        this.badgeInterface = badgeInterface;
     }
 
 
@@ -97,6 +116,23 @@ public class SelectDialogAdapter<T> extends ListAdapter<T, SelectDialogAdapter.S
         holder.itemView.setSelected(isSelected);
         View dot = holder.itemView.findViewById(R.id.dot);
         if (dot != null) dot.setVisibility(isSelected ? View.VISIBLE : View.GONE);
+
+        // 行尾徽章：没接体检的弹窗一律 GONE，行为和以前完全一样
+        TextView badge = holder.itemView.findViewById(R.id.tvBadge);
+        if (badge != null) {
+            String badgeText = badgeInterface == null ? "" : badgeInterface.badgeOf(value);
+            if (badgeText == null || badgeText.isEmpty()) {
+                badge.setVisibility(View.GONE);
+            } else {
+                badge.setVisibility(View.VISIBLE);
+                badge.setText(badgeText);
+                // 同一个 shape 被所有行共用，先 mutate 再染色，否则染一行全变
+                android.graphics.drawable.Drawable bg = badge.getBackground();
+                if (bg != null) bg.mutate();
+                badge.setBackgroundTintList(
+                        ColorStateList.valueOf(badgeInterface.badgeColorOf(value)));
+            }
+        }
 
         final boolean current = isSelected;
         holder.itemView.setOnClickListener(new View.OnClickListener() {

@@ -1475,22 +1475,35 @@ public class PhoneBridge {
     }
 
     /**
-     * 测一个接口活不活：打一次接口本身，返回耗时 + 内容是否像 TVBox 配置。
-     * 采集站失效时经常返回导航页/404 页（HTTP 仍 200），所以不只看状态码。
+     * 接口体检：打一次接口，既测线路（耗时/可达）也查内容（配置里有多少站、
+     * 组件能不能下、到底有没有能看的片）。
+     *
+     * <p>「ok」是本次调用是否成功，不代表接口能用；能不能用看 {@code alive}
+     * （= SourceSpeedTest 的 level 是否达到「有内容」）。两者分开是因为前端要能区分
+     * 「测了但源是死的」和「根本没测成」。
      */
     @JavascriptInterface
     public void speedTestApi(String url, String cbId) {
         pool.execute(() -> {
             try {
                 String u = url == null ? "" : url.trim();
-                JSONObject r = SourceSpeedTest.probe(u);
+                JSONObject r = SourceSpeedTest.check(u);
                 rememberSpeed(u, r);
                 JSONObject out = new JSONObject();
                 out.put("ok", 1);
-                out.put("ms", r.optLong("ms", 0));
                 out.put("alive", r.optInt("ok", 0));
                 out.put("reach", r.optInt("reach", 0));
+                out.put("ms", r.optLong("ms", 0));
+                out.put("level", r.optInt("level", 0));
                 out.put("msg", r.optString("msg", ""));
+                out.put("sites", r.optInt("sites", 0));
+                out.put("httpSites", r.optInt("httpSites", 0));
+                out.put("jarSites", r.optInt("jarSites", 0));
+                out.put("jsSites", r.optInt("jsSites", 0));
+                out.put("lives", r.optInt("lives", 0));
+                out.put("jarOk", r.optInt("jarOk", 0));
+                out.put("jarSize", r.optLong("jarSize", 0));
+                out.put("ua", r.optInt("ua", 0));
                 cb(cbId, out.toString());
             } catch (Throwable th) {
                 cbErr(cbId, th);
@@ -1821,6 +1834,15 @@ public class PhoneBridge {
             o.put("ok", r.optInt("ok", 0));
             o.put("reach", r.optInt("reach", 0));
             o.put("msg", r.optString("msg", ""));
+            // 体检明细：下次进列表不联网也能看出这条源「好在哪、坏在哪」
+            o.put("lv", r.optInt("level", 0));
+            o.put("sites", r.optInt("sites", 0));
+            o.put("http", r.optInt("httpSites", 0));
+            o.put("jar", r.optInt("jarSites", 0));
+            o.put("js", r.optInt("jsSites", 0));
+            o.put("lives", r.optInt("lives", 0));
+            o.put("jarOk", r.optInt("jarOk", 0));
+            o.put("jarSize", r.optLong("jarSize", 0));
             o.put("t", System.currentTimeMillis());
             map.put(url.trim(), o);
             Hawk.put(HawkConfig.PHONE_API_SPEED, map.toString());
@@ -1828,7 +1850,7 @@ public class PhoneBridge {
         }
     }
 
-    /** 把测速结果贴到列表项上，前端据此显示「128ms / 超时 / 非接口」 */
+    /** 把测速结果贴到列表项上，前端据此显示「128ms / 无内容 / 超时」 */
     private static void attachSpeed(JSONObject item, JSONObject speeds, String url) {
         if (item == null || speeds == null || TextUtils.isEmpty(url)) return;
         JSONObject sp = speeds.optJSONObject(url);
@@ -1837,6 +1859,14 @@ public class PhoneBridge {
             item.put("spd", sp.optLong("ms", 0));
             item.put("spdOk", sp.optInt("ok", 0));
             item.put("spdReach", sp.optInt("reach", 0));
+            item.put("spdLv", sp.optInt("lv", sp.optInt("ok", 0) > 0 ? 3 : 0));
+            item.put("spdSites", sp.optInt("sites", 0));
+            item.put("spdHttp", sp.optInt("http", 0));
+            item.put("spdJar", sp.optInt("jar", 0));
+            item.put("spdJs", sp.optInt("js", 0));
+            item.put("spdLives", sp.optInt("lives", 0));
+            item.put("spdJarOk", sp.optInt("jarOk", 0));
+            item.put("spdJarSize", sp.optLong("jarSize", 0));
             item.put("spdT", sp.optLong("t", 0));
             item.put("spdMsg", sp.optString("msg", ""));
         } catch (Throwable ignored) {
@@ -2231,6 +2261,512 @@ public class PhoneBridge {
                 cbErr(cbId, th);
             }
         });
+    }
+
+    // =====================================================================
+    //  站点体检（「切换片源站点」弹层用）
+    // =====================================================================
+
+    /**
+     * 每个站点这次到底能不能取到内容。对应 TV 版的 SiteProbe。
+     *
+     * <p>站点（{@link SourceBean}）没有自己的地址，只有一个 {@code csp_xxx} 类名，
+     * 内容全靠 spider 现算，所以没法像接口那样量 HTTP 耗时 —— 只能真问它要一次首页，
+     * 首页空就退一步问第一个分类，拿回来的条数 &gt; 0 才算真的能看。
+     *
+     * <p>结果按单个站点流式推给页面（{@code __evt('site', …)}），页面边测边出徽章，
+     * 全部测完前端自己决定隐藏哪些 —— 前端才知道当前滚动位置和「正在使用」是哪条。
+     */
+    private static final java.util.concurrent.ConcurrentHashMap<String, JSONObject> SITE_PROBE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> SITE_PROBE_AT =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    /**
+     * 并发 6：spider 内部共用 okhttp 连接池，开太大反而把弱网站全拖成超时；
+     * 但 4 个又太少——48 个站排在 4 个线程后面，弱网站一卡就是半分钟，
+     * 后面的站全程「检测中」，看起来像卡死。
+     */
+    private static final ExecutorService SITE_PROBE_POOL = Executors.newFixedThreadPool(6);
+    /** 定时收尾用：到点掐断那些还在半空的 spider 请求 */
+    private static final java.util.concurrent.ScheduledExecutorService SITE_TIMER =
+            Executors.newSingleThreadScheduledExecutor();
+    /** 结果留 30 分钟：5 分钟太短，看完一轮翻两页就全过期，等于每次进来都重测 */
+    private static final long SITE_FRESH_MS = 60 * 60 * 1000L;
+    /**
+     * 「无片 / 失败」只留 10 分钟。
+     * 这两类最容易误判（站临时抽风、spider 第一次 init 拉配置失败、弱网超时），
+     * 留太久等于把一个能用的站一直按在最底下。
+     */
+    private static final long SITE_FRESH_BAD_MS = 10 * 60 * 1000L;
+    /** 总预算：到点还没轮到的站推「未测」，前端不清空也不当无内容藏掉。
+     *  50 秒实测能跑完 45/48，剩下三个多半是死站，没必要让整张表陪它们等。 */
+    private static final long SITE_BUDGET_MS = 60_000L;
+    /** 单站硬上限：一个站卡住不能拖着整轮不结束（spider 调用无法中断，只能不认它的结果） */
+    private static final long SITE_ONE_MS = 20_000L;
+    /**
+     * 代次：每点一次「检测」就 +1，上一轮还在排队的任务看到代数变了立刻退出。
+     * 没有这个，用户关掉弹层再打开，新任务会排在旧任务后面，屏幕上就一直「检测中」。
+     */
+    private static final java.util.concurrent.atomic.AtomicInteger SITE_GEN =
+            new java.util.concurrent.atomic.AtomicInteger(0);
+
+    /** 前端自己发起过体检 → 预热没有意义了，而且再跑会把前台那轮顶掉 */
+    private static volatile boolean SITE_FG_USED = false;
+
+    /**
+     * @param seq   前端给的代次，原样带回，页面关掉重开后旧一轮的迟到结果自己丢弃
+     * @param force "1" = 忽略缓存全部重测（点「重新检测」）
+     */
+    @JavascriptInterface
+    public void probeSites(String seq, String force, String cbId) {
+        // 用户已经自己点开过站点列表：之后预热一律不再启动。
+        // 预热也走 doProbe 且会 +1 SITE_GEN，落在前台那一轮后面启动的话，
+        // 会把前台这轮整批顶掉 —— 表现就是「打开列表一直检测中，永远不出结果」。
+        SITE_FG_USED = true;
+        doProbe(spInt(seq), "1".equals(force == null ? "" : force.trim()), cbId, false);
+    }
+
+    /**
+     * 开机预热：App 一起来就在后台把全部站点测一遍存进缓存，
+     * 用户点「切换片源站点」时直接整批命中、秒出结果。
+     *
+     * <p>和 {@link #probeSites} 走同一套探测逻辑，区别只是不往页面推事件 ——
+     * 这时候弹层通常还没打开，推了也没人接。
+     */
+    @JavascriptInterface
+    public void warmSites(String cbId) {
+        warmTry(cbId, 0);
+    }
+
+    /** 配置/站点列表还没就绪就测，等于拿一张空表测，白跑一轮 —— 所以先等一会儿再试 */
+    private void warmTry(final String cbId, final int attempt) {
+        if (attempt > 4) return;
+        SITE_TIMER.schedule(() -> {
+            // 用户已经点开过列表（前台那轮正在跑）→ 预热直接放弃，别去顶人家的代次
+            if (SITE_FG_USED) return;
+            List<SourceBean> raw = null;
+            try {
+                raw = ApiConfig.get().getSourceBeanList();
+            } catch (Throwable ignored) {
+            }
+            if (raw == null || raw.isEmpty()) {
+                warmTry(cbId, attempt + 1);
+                return;
+            }
+            doProbe(-1, false, cbId, true);
+        }, attempt == 0 ? 4_000L : 8_000L, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * 用户切到这个站并且首页真的出片了 —— 直接把它在缓存里改判成「可用」。
+     * 体检再怎么小心也会误判（站临时抽风、需要先登录、超时），
+     * 用户实际点进去能用才是硬证据，下次排序不能再把它按在底下。
+     */
+    @JavascriptInterface
+    public void siteOk(String key, String cbId) {
+        String k = nz(key);
+        if (k.isEmpty()) {
+            cb(cbId, "{\"ok\":0}");
+            return;
+        }
+        JSONObject o = new JSONObject();
+        try {
+            o.put("st", 2);
+            o.put("n", 0);
+            o.put("msg", "可用");
+            o.put("ms", 0);
+        } catch (Throwable ignored) {
+        }
+        SITE_PROBE.put(k, o);
+        SITE_PROBE_AT.put(k, System.currentTimeMillis());
+        cb(cbId, "{\"ok\":1}");
+    }
+
+    private static boolean allCached(List<SourceBean> all) {
+        for (SourceBean sb : all) {
+            if (freshProbe(sb.getKey()) == null) return false;
+        }
+        return true;
+    }
+
+    /**
+     * @param silent true = 预热，只写缓存、不往页面推事件
+     */
+    private void doProbe(final int mySeq, final boolean forced, final String cbId, final boolean silent) {
+        // 新的一轮开始：上一轮还排在池子里的任务看到代数变了会立刻退出，
+        // 否则关掉弹层再打开时，新任务要排在旧任务后面，屏幕一直停在「检测中」。
+        final int myGen = SITE_GEN.incrementAndGet();
+        bgPool.execute(() -> {
+            try {
+                final List<SourceBean> all = new ArrayList<>();
+                List<SourceBean> raw = ApiConfig.get().getSourceBeanList();
+                if (raw != null) {
+                    for (SourceBean sb : raw) {
+                        if (sb == null || sb.getHide() == 1) continue;
+                        if (TextUtils.isEmpty(sb.getName())) continue;
+                        all.add(sb);
+                    }
+                }
+
+                // 组件没备好就开测，type=3 的站会全被判「组件里没有这个站」——
+                // 那不是站坏了，是我们还没把 jar 下回来，结论会误导人。
+                boolean needJar = false;
+                for (SourceBean sb : all) {
+                    if (needsJar(sb)) {
+                        needJar = true;
+                        break;
+                    }
+                }
+                if (needJar && !jarReady) ensureJarBlocking(JAR_WAIT_MS);
+                if (myGen != SITE_GEN.get()) return;
+
+                // 全部命中缓存就整批一次推完：一个个推的话，用户要盯着 48 行「检测中」
+                // 慢慢变绿，明明数据早就在内存里了。
+                if (!forced && silent) {
+                    // 预热：缓存齐了就没别的事了（不发事件、不回包）
+                    if (allCached(all)) return;
+                } else if (!forced && emitCached(mySeq, all)) {
+                    cb(cbId, probeDone(all.size(), all.size()).toString());
+                    return;
+                }
+
+                final long deadline = System.currentTimeMillis() + SITE_BUDGET_MS;
+                final CountDownLatch latch = new CountDownLatch(all.size());
+                // 已推过的 key：跑完用它找出「压根没轮上」的站，补一条「未测」，
+                // 不然那些行会永远停在「检测中」。
+                final java.util.Set<String> sent = java.util.Collections.newSetFromMap(
+                        new java.util.concurrent.ConcurrentHashMap<String, Boolean>());
+                final java.util.concurrent.atomic.AtomicBoolean closed =
+                        new java.util.concurrent.atomic.AtomicBoolean(false);
+
+                // 收尾（只会真正执行一次）：把没轮上的站标「未测」再回包。
+                // 不能等 latch —— 只要有一个站卡在 spider 里，整轮就得跟着干等，
+                // 屏幕上一直是「检测中 45/48」。
+                final Runnable finish = () -> {
+                    if (!closed.compareAndSet(false, true)) return;
+                    if (myGen != SITE_GEN.get()) return;
+                    if (!silent) {
+                        JSONObject un = spUntested();
+                        for (SourceBean sb : all) {
+                            if (sent.add(nz(sb.getKey()))) {
+                                emit("site", spSiteEvt(mySeq, sb, un).toString());
+                            }
+                        }
+                    }
+                    if (!silent) cb(cbId, probeDone(all.size(), sent.size()).toString());
+                };
+                // 看门狗：到点直接收尾，别管那几个还在半空中的请求
+                SITE_TIMER.schedule(finish, SITE_BUDGET_MS + 2_000L, TimeUnit.MILLISECONDS);
+
+                final java.util.concurrent.atomic.AtomicInteger left =
+                        new java.util.concurrent.atomic.AtomicInteger(all.size());
+                for (final SourceBean sb : all) {
+                    SITE_PROBE_POOL.execute(() -> {
+                        try {
+                            if (myGen != SITE_GEN.get()) return;
+                            JSONObject r = forced ? null : freshProbe(sb.getKey());
+                            if (r == null) {
+                                if (System.currentTimeMillis() > deadline) {
+                                    r = spUntested();
+                                } else {
+                                    r = probeOneSite(sb, deadline);
+                                    // 只有真正测出结论的才进缓存：「未测」不是结论
+                                    if (r.optInt("st", 0) != 0) {
+                                        SITE_PROBE.put(nz(sb.getKey()), r);
+                                        SITE_PROBE_AT.put(nz(sb.getKey()), System.currentTimeMillis());
+                                    }
+                                }
+                            }
+                            if (myGen != SITE_GEN.get()) return;
+                            sent.add(nz(sb.getKey()));
+                            if (!silent) emit("site", spSiteEvt(mySeq, sb, r).toString());
+                        } catch (Throwable ignored) {
+                        } finally {
+                            latch.countDown();
+                            if (left.decrementAndGet() <= 0) finish.run();
+                        }
+                    });
+                }
+                latch.await(SITE_BUDGET_MS + SITE_ONE_MS + 5_000L, TimeUnit.MILLISECONDS);
+                finish.run();
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /** 缓存全命中就整批推一次；有一条没缓存就返回 false，走逐站流程 */
+    private boolean emitCached(int seq, List<SourceBean> all) {
+        JSONArray arr = new JSONArray();
+        for (SourceBean sb : all) {
+            JSONObject r = freshProbe(sb.getKey());
+            if (r == null) return false;
+            arr.put(spSiteEvt(seq, sb, r));
+        }
+        JSONObject o = new JSONObject();
+        try {
+            o.put("seq", seq);
+            o.put("list", arr);
+        } catch (Throwable ignored) {
+            return false;
+        }
+        emit("sites", o.toString());
+        return true;
+    }
+
+    private static JSONObject probeDone(int total, int tested) {
+        JSONObject out = new JSONObject();
+        try {
+            out.put("ok", 1);
+            out.put("total", total);
+            out.put("tested", tested);
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
+    /** st=0：这轮没轮到它（超时 / 被新一轮顶掉），既不算有内容也不算没内容 */
+    private static JSONObject spUntested() {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("st", 0);
+            o.put("n", 0);
+            o.put("msg", "未测");
+            o.put("ms", 0);
+        } catch (Throwable ignored) {
+        }
+        return o;
+    }
+
+    /**
+     * 单站体检：state 和 TV 版 SiteProbe 对齐（2 有内容 / 3 无片 / 4 失败 / 5 脚本源 / 0 未测）
+     *
+     * <p>数量怎么来的：首页 {@code homeContent} 的 list 只是**推荐位**，很多源只给十几条，
+     * 拿它当「这个站有几部片」会差好几个数量级。所以再问一次分类接口 ——
+     * spider 的 {@code categoryContent} 通常带 {@code total}（分类总数）或
+     * {@code pagecount × limit}，那才是站方自己报的量。
+     *
+     * <p>两个都没有时宁可不报数字（前端显示「有内容」），
+     * 也不拿首页推荐位的条数冒充总片量。
+     *
+     * @param deadline 整轮预算的截止时间，过了就别再发第二次请求
+     */
+    private static JSONObject probeOneSite(SourceBean sb, long deadline) {
+        long t0 = System.currentTimeMillis();
+        JSONObject r = probeOnce(sb, deadline);
+        // 首轮就判「失败」而且失败得很快（不到 8 秒）→ 多半是 spider 第一次 init 抖动
+        // （要现拉配置/校验 token），不是站真的死了。用户实测「标失败的站进去能正常播」
+        // 基本都是这一类。超时（>8s）不重试 —— 那只会再等一次超时。
+        if (r.optInt("st", 0) == 4 && System.currentTimeMillis() - t0 < 8_000L) {
+            JSONObject again = probeOnce(sb, deadline);
+            if (again.optInt("st", 0) != 4) r = again;
+        }
+        try {
+            r.put("ms", System.currentTimeMillis() - t0);
+        } catch (Throwable ignored) {
+        }
+        return r;
+    }
+
+    /**
+     * 单站探一次。判定顺序是「能拿到内容就算活」，任何一步抛异常都不直接判死：
+     * <ol>
+     *   <li>首页 {@code homeContent} —— 只当线索用，抛异常不算结论（很多爬虫只实现分类，
+     *       首页直接 throw，按老逻辑就会被判「失败」，但点进去照样能播）；</li>
+     *   <li>分类 {@code categoryContent} —— 试前 3 个分类，任一有内容即算活。
+     *       只试第一个的话，撞上「最近更新」/需登录的空分类就会被判「无片」；</li>
+     *   <li>两边都调通但都没内容 → 无片（st=3）；全部抛异常 → 失败（st=4）。</li>
+     * </ol>
+     */
+    private static JSONObject probeOnce(SourceBean sb, long deadline) {
+        int st = 4;
+        int n = 0;
+        String msg = "";
+        String api = sb == null || sb.getApi() == null ? "" : sb.getApi().trim();
+        if (spIsScript(api)) {
+            // quickjs 求值必 SIGSEGV，碰都不能碰；测不了就不下「没内容」的结论
+            st = 5;
+            msg = "脚本源";
+        } else {
+            Spider sp = null;
+            try {
+                sp = ApiConfig.get().getCSP(sb);
+            } catch (Throwable ignored) {
+            }
+            if (sp == null || sp instanceof com.github.catvod.crawler.SpiderNull) {
+                st = 4;
+                msg = "组件里没有这个站";
+            } else {
+                String lastErr = null;
+
+                // ---- 1) 首页：软失败 ----
+                JSONObject home = null;
+                try {
+                    home = spObj(sp.homeContent(false));
+                } catch (Throwable th) {
+                    lastErr = spErrText(th);
+                }
+                JSONArray classes = home == null ? null : home.optJSONArray("class");
+                int homeLen = spListLen(home);
+                boolean anyCallOk = home != null;      // 有一次调用能正常返回，就说明站是通的
+
+                // ---- 2) 分类：最多试 3 个，任一有内容就停 ----
+                int total = 0;
+                int bestLen = homeLen;
+                int classCount = classes == null ? 0 : classes.length();
+                int tryN = Math.min(classCount, 3);
+                for (int i = 0; i < tryN; i++) {
+                    if (System.currentTimeMillis() >= deadline) break;
+                    String tid = spTidOf(classes.optJSONObject(i));
+                    if (tid.isEmpty()) continue;
+                    try {
+                        JSONObject cat = spObj(sp.categoryContent(tid, "1", false,
+                                new HashMap<String, String>()));
+                        anyCallOk = true;
+                        int t = spTotalOf(cat);
+                        int len = spListLen(cat);
+                        if (t > total) total = t;
+                        if (len > bestLen) bestLen = len;
+                        if (total > 0 || len > 0) break;   // 有结论了，别再挨个分类打
+                    } catch (Throwable th) {
+                        lastErr = spErrText(th);
+                    }
+                }
+
+                // ---- 3) 落结论 ----
+                if (total > 0) {
+                    st = 2;
+                    n = total;
+                    msg = spCountText(total, classCount > 1);
+                } else if (bestLen > 0) {
+                    st = 2;
+                    n = bestLen;
+                    msg = "可用";                 // 量不出总数就别报假数字
+                } else if (anyCallOk) {
+                    st = 3;                       // 接口调通了，只是真的没内容
+                    msg = "取不到内容";
+                } else {
+                    st = 4;                       // 一次都没调通
+                    msg = lastErr == null ? "连不上" : lastErr;
+                }
+            }
+        }
+        JSONObject o = new JSONObject();
+        try {
+            o.put("st", st);
+            o.put("n", n);
+            o.put("msg", msg);
+            o.put("ms", 0);
+        } catch (Throwable ignored) {
+        }
+        return o;
+    }
+
+    private static String spErrText(Throwable th) {
+        String m = th == null ? null : th.getMessage();
+        if (m == null || m.isEmpty()) m = th == null ? "未知错误" : th.getClass().getSimpleName();
+        return m.length() > 40 ? m.substring(0, 40) : m;
+    }
+
+    /**
+     * 分类接口自己报的总数：优先 total，退而求其次 pagecount × limit。
+     *
+     * <p>两个坑：有些源用 {@code pagecount = Integer.MAX_VALUE} 表示「无限/未知」，
+     * 有些源 total 直接给 {@code 2147483647}，乘起来还会整型溢出 ——
+     * 超过合理量级的一律当「没报」，宁可显示「有内容」也不甩个 2 亿部出来。
+     */
+    private static final long SP_COUNT_MAX = 5_000_000L;
+
+    private static int spTotalOf(JSONObject o) {
+        if (o == null) return 0;
+        long total = o.optLong("total", 0);
+        if (total > 0 && total <= SP_COUNT_MAX) return (int) total;
+        long pc = o.optLong("pagecount", 0);
+        long limit = o.optLong("limit", 0);
+        if (pc <= 0 || limit <= 0) return 0;
+        long v = pc * limit;                       // long 乘，不会溢出
+        if (v > 0 && v <= SP_COUNT_MAX) return (int) v;
+        return 0;
+    }
+
+    /** 徽章文案：只有站方自己报的量才写成数字，atLeast 表示这只是下限 */
+    private static String spCountText(int n, boolean atLeast) {
+        // 十部以下就别报数字了：不管是「1+」还是「1部」，看着都像在说这个站只有一部片
+        if (n < 10) return "可用";
+        String num;
+        if (n >= 10000) {
+            String s = String.format(java.util.Locale.US, "%.1f", n / 10000f);
+            if (s.endsWith(".0")) s = s.substring(0, s.length() - 2);
+            num = s + "万";
+        } else {
+            num = String.valueOf(n);
+        }
+        return atLeast ? num + "+" : num + "部";
+    }
+
+    private static JSONObject spSiteEvt(int seq, SourceBean sb, JSONObject r) {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("seq", seq);
+            o.put("key", nz(sb.getKey()));
+            o.put("st", r.optInt("st", 0));
+            o.put("n", r.optInt("n", 0));
+            o.put("msg", r.optString("msg", ""));
+            o.put("ms", r.optLong("ms", 0));
+        } catch (Throwable ignored) {
+        }
+        return o;
+    }
+
+    private static JSONObject freshProbe(String key) {
+        JSONObject r = SITE_PROBE.get(nz(key));
+        Long at = SITE_PROBE_AT.get(nz(key));
+        if (r == null || at == null) return null;
+        int st = r.optInt("st", 0);
+        if (st == 0) return null;                 // 「未测」不是结论，下次一定重测
+        // 好结果留久一点（1 小时），坏结果只留 10 分钟 —— 误判要能自己恢复，
+        // 否则一个能用的站会被一直按在列表最底下。
+        long ttl = (st == 3 || st == 4) ? SITE_FRESH_BAD_MS : SITE_FRESH_MS;
+        return System.currentTimeMillis() - at > ttl ? null : r;
+    }
+
+    private static int spInt(String s) {
+        try {
+            return Integer.parseInt(s == null ? "" : s.trim());
+        } catch (Throwable th) {
+            return 0;
+        }
+    }
+
+    private static boolean spIsScript(String api) {
+        if (api == null || api.isEmpty()) return false;
+        String a = api.toLowerCase();
+        return a.endsWith(".js") || a.contains(".js?") || a.contains("/drpy") || a.startsWith("js:");
+    }
+
+    private static JSONObject spObj(String json) {
+        if (json == null) return null;
+        String s = json.trim();
+        if (s.isEmpty() || s.charAt(0) != '{') return null;
+        try {
+            return new JSONObject(s);
+        } catch (Throwable th) {
+            return null;
+        }
+    }
+
+    private static int spListLen(JSONObject o) {
+        if (o == null) return 0;
+        JSONArray a = o.optJSONArray("list");
+        return a == null ? 0 : a.length();
+    }
+
+    /** 一个分类节点的 tid；有的源写 type_id，有的源写 id */
+    private static String spTidOf(JSONObject c) {
+        if (c == null) return "";
+        String tid = c.optString("type_id", "");
+        if (tid.isEmpty()) tid = c.optString("id", "");
+        return tid;
     }
 
     /** 切换首页片源站点，等同 TV 版 showSiteSwitch 里选中后的 setSourceBean */

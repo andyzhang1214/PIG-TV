@@ -28,6 +28,25 @@
         android:textColor="@color/v8_dialog_item_tx"
         android:textSize="@dimen/ts_18" />
 
+    <!-- 站点体检结果：默认 GONE，只有接入体检的弹窗才会显示。
+         字色恒白 —— 父行获得焦点时会整块反白，深色徽章底仍然读得清。 -->
+    <TextView
+        android:id="@+id/tvBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6mm"
+        android:background="@drawable/v8_badge_bg"
+        android:includeFontPadding="false"
+        android:maxLength="12"
+        android:paddingStart="4mm"
+        android:paddingTop="1.5mm"
+        android:paddingEnd="4mm"
+        android:paddingBottom="1.5mm"
+        android:singleLine="true"
+        android:textColor="#FFFFFFFF"
+        android:textSize="@dimen/ts_12"
+        android:visibility="gone" />
+
     <View
         android:id="@+id/dot"
         android:layout_width="7mm"

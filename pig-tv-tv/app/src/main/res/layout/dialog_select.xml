@@ -51,18 +51,55 @@
             app:tv_selectedItemIsCentered="true"
             app:tv_verticalSpacingWithMargins="@dimen/vs_10" />
 
-        <TextView
-            android:id="@+id/dlgHint"
+        <!--
+            底部一行：左「按键提示」+ 右「重新检测」。
+            必须装在一个横向 LinearLayout 里，不能把提示的上下约束直接挂到按钮上 ——
+            按钮默认 GONE 时在 ConstraintLayout 里会塌成 0×0 的点，
+            提示被 top/bottom 同时约束到那个点上，高度和位置都会跟着变，
+            结果「换片源 / 选清晰度」这些没接体检的弹窗提示行全跑位。
+        -->
+        <LinearLayout
+            android:id="@+id/dlgFoot"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/vs_25"
-            android:includeFontPadding="false"
-            android:text="@string/v8_dlg_hint"
-            android:textColor="#4DFFFFFF"
-            android:textSize="@dimen/ts_18"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/list" />
+            app:layout_constraintTop_toBottomOf="@+id/list">
+
+            <TextView
+                android:id="@+id/dlgHint"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/v8_dlg_hint"
+                android:textColor="#4DFFFFFF"
+                android:textSize="@dimen/ts_18" />
+
+            <!-- 站点体检专用：只有接入了体检的弹窗才显示，其它弹窗保持 GONE（不占位） -->
+            <TextView
+                android:id="@+id/btnRefresh"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/vs_20"
+                android:background="@drawable/v8_btn_ghost"
+                android:clickable="true"
+                android:focusable="true"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/vs_25"
+                android:paddingTop="@dimen/vs_10"
+                android:paddingEnd="@dimen/vs_25"
+                android:paddingBottom="@dimen/vs_10"
+                android:text="@string/v8_probe_refresh"
+                android:textColor="@color/v8_dialog_item_tx"
+                android:textSize="@dimen/ts_16"
+                android:visibility="gone" />
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

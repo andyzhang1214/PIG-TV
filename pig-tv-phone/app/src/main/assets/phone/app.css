@@ -61,6 +61,24 @@
   --shadowHero:0 20px 44px rgba(0,0,0,.6);
   --shadowCard:0 8px 20px rgba(0,0,0,.4);
   --noise:.05;
+  /* 玻璃 / 弹层 / 环境光的统一开关：浅色块里全部覆盖一遍 */
+  --dockBlur:blur(26px) saturate(150%);
+  --glassBlur:blur(16px) saturate(150%);
+  --glassSolid:rgba(20,20,27,.96);
+  --glassHi:rgba(255,255,255,.09);
+  --rowBg:rgba(255,255,255,.065);
+  --rowLine:transparent;
+  --ambVeil:rgba(6,6,9,.52);
+  --ambOn:.55;
+  --altDim:rgba(6,5,8,.96);
+  --altDimBlur:blur(18px);
+  --altSheetBg:transparent;
+  --altSheetLine:transparent;
+  --altSheetBlur:none;
+  --altSheetShadow:none;
+  --sheetTop:0px;
+  --sheetRadius:0px;
+  --altHeadTop:calc(20px + var(--sat));
 
   /* 页面底：v11 起大面积交给「海报环境光」，这层只做兜底，
      所以比原来那套红紫光斑克制得多，避免和海报自身的色调打架 */
@@ -89,91 +107,121 @@
   --sat:env(safe-area-inset-top,0px);
   --sab:env(safe-area-inset-bottom,0px);
 }
-/* 浅色：暖米白底。:not([data-theme]) 表示「用户还没做选择」，这时才跟随系统。 */
+/* 浅色：冷白底 + 四团柔光（iOS 液态玻璃那套）。
+   :not([data-theme]) 表示「用户还没做选择」，这时才跟随系统。
+   注意：不要在这里再写 --bgVig 的暗角 —— 那层灰色暗角就是旧版「整屏发暗」的元凶。 */
 @media (prefers-color-scheme:light){
   :root:not([data-theme]){
     color-scheme:light;
-    --ink:23,24,28;
-    --bg:#F5F1EC;
-    --bg-rgb:245,241,236;
-    --tx:#17181C;
-    --tx2:rgba(23,24,28,.64);
-    --tx3:rgba(23,24,28,.50);
-    --ac:#E25A1E;
-    --ac2:#F08A2C;
+    --ink:20,22,28;
+    --bg:#FAFBFE;
+    --bg-rgb:250,251,254;
+    --tx:#14161C;
+    --tx2:rgba(20,22,28,.64);
+    --tx3:rgba(20,22,28,.44);
+    --ac:#E8551B;
+    --ac2:#F0873A;
     --err:#C62828;
     --tint:210,80,30;
-    --card:rgba(255,255,255,.62);
-    --card2:rgba(255,255,255,.92);
-    --line:rgba(23,24,28,.10);
-    --divider:rgba(23,24,28,.07);
-    --sheet:#FFFFFF;
-    --sheet-rgb:255,255,255;
-    --panel:#FFFFFF;
-    --overlay:rgba(250,247,243,.985);
-    --tabBg:rgba(252,249,245,.92);
-    --btnSolid:#17181C;
+    --card:rgba(255,255,255,.46);
+    --card2:rgba(255,255,255,.66);
+    --line:rgba(16,20,32,.07);
+    --divider:rgba(16,20,32,.06);
+    --sheet:rgba(251,252,255,.72);
+    --sheet-rgb:251,252,255;
+    --panel:rgba(255,255,255,.72);
+    --overlay:rgba(252,253,255,.94);
+    --tabBg:rgba(255,255,255,.55);
+    --btnSolid:#14161C;
     --btnInk:#FFFFFF;
-    --posterBg:#E5E0D9;
-    --scrim:rgba(0,0,0,.55);
-    --mask:rgba(48,38,30,.40);
-    --shadowHero:0 18px 36px rgba(70,45,30,.16);
-    --shadowCard:0 8px 18px rgba(70,45,30,.12);
-    --noise:.028;
-    --bgGrad:
-      radial-gradient(520px 420px at 16% 0%,rgba(255,140,100,.18),transparent 68%),
-      radial-gradient(460px 380px at 90% 8%,rgba(255,190,130,.14),transparent 72%),
-      linear-gradient(178deg,#FDF9F4 0%,#F6F2EC 46%,#EFEAE3 100%);
-    --bgVig:radial-gradient(122% 80% at 50% 30%,transparent 52%,rgba(150,135,120,.20) 100%);
-    --dockBg:rgba(255,255,255,.84);
-    --dockLine:rgba(23,24,28,.09);
-    --dockHi:rgba(255,255,255,.90);
-    --dockShadow:0 12px 28px rgba(70,45,30,.16),0 1px 3px rgba(70,45,30,.10);
-    --dockSel:rgba(226,90,30,.12);
-    --dockSelLine:rgba(226,90,30,.26);
+    --posterBg:#E7EAF0;
+    --scrim:rgba(16,20,32,.26);
+    --mask:rgba(16,20,32,.22);
+    --shadowHero:0 22px 44px -18px rgba(24,32,52,.30);
+    --shadowCard:0 12px 28px -14px rgba(24,32,52,.22);
+    --noise:.03;
+    --bgGrad:radial-gradient(520px 400px at 6% -8%,rgba(255,148,86,.50),transparent 68%),radial-gradient(460px 380px at 104% 4%,rgba(104,138,255,.34),transparent 70%),radial-gradient(560px 420px at 46% 108%,rgba(184,138,255,.28),transparent 70%),radial-gradient(420px 340px at 0% 84%,rgba(108,200,255,.18),transparent 72%),linear-gradient(180deg,#FCFCFE 0%,#F6F7FC 52%,#F1F2F9 100%);
+    --bgVig:none;
+    --dockBg:rgba(255,255,255,.72);
+    --dockLine:rgba(255,255,255,.90);
+    --dockHi:rgba(255,255,255,1);
+    --dockShadow:0 18px 38px -16px rgba(24,32,52,.28),0 1px 3px rgba(24,32,52,.06);
+    --dockSel:rgba(255,138,69,.18);
+    --dockSelLine:rgba(232,85,27,.22);
+    --dockBlur:blur(40px) saturate(180%);
+    --glassBlur:blur(22px) saturate(180%);
+    --glassSolid:rgba(255,255,255,.95);
+    --glassHi:rgba(255,255,255,.98);
+    --rowBg:rgba(255,255,255,.80);
+    --rowLine:rgba(16,20,32,.07);
+    --ambVeil:rgba(252,253,255,.76);
+    --ambOn:.16;
+    --altDim:rgba(16,20,32,.18);
+    --altDimBlur:blur(4px) saturate(120%);
+    --altSheetBg:rgba(250,251,255,.72);
+    --altSheetLine:rgba(255,255,255,.95);
+    --altSheetBlur:blur(44px) saturate(180%);
+    --altSheetShadow:0 -24px 60px -24px rgba(24,32,52,.30);
+    --sheetTop:calc(86px + var(--sat));
+    --sheetRadius:26px;
+    --altHeadTop:18px;
   }
 }
 /* 原生兜底：老 WebView 不认识 prefers-color-scheme 时靠这个属性切 */
 html[data-theme="light"]{
   color-scheme:light;
-  --ink:23,24,28;
-  --bg:#F5F1EC;
-  --bg-rgb:245,241,236;
-  --tx:#17181C;
-  --tx2:rgba(23,24,28,.64);
-  --tx3:rgba(23,24,28,.50);
-  --ac:#E25A1E;
-  --ac2:#F08A2C;
+  --ink:20,22,28;
+  --bg:#FAFBFE;
+  --bg-rgb:250,251,254;
+  --tx:#14161C;
+  --tx2:rgba(20,22,28,.64);
+  --tx3:rgba(20,22,28,.44);
+  --ac:#E8551B;
+  --ac2:#F0873A;
   --err:#C62828;
   --tint:210,80,30;
-  --card:rgba(255,255,255,.62);
-  --card2:rgba(255,255,255,.92);
-  --line:rgba(23,24,28,.10);
-  --divider:rgba(23,24,28,.07);
-  --sheet:#FFFFFF;
-  --sheet-rgb:255,255,255;
-  --panel:#FFFFFF;
-  --overlay:rgba(250,247,243,.985);
-  --tabBg:rgba(252,249,245,.92);
-  --btnSolid:#17181C;
+  --card:rgba(255,255,255,.46);
+  --card2:rgba(255,255,255,.66);
+  --line:rgba(16,20,32,.07);
+  --divider:rgba(16,20,32,.06);
+  --sheet:rgba(251,252,255,.72);
+  --sheet-rgb:251,252,255;
+  --panel:rgba(255,255,255,.72);
+  --overlay:rgba(252,253,255,.94);
+  --tabBg:rgba(255,255,255,.55);
+  --btnSolid:#14161C;
   --btnInk:#FFFFFF;
-  --posterBg:#E5E0D9;
-  --scrim:rgba(0,0,0,.55);
-  --mask:rgba(48,38,30,.40);
-  --shadowHero:0 18px 36px rgba(70,45,30,.16);
-  --shadowCard:0 8px 18px rgba(70,45,30,.12);
-  --noise:.028;
-  --bgGrad:
-    radial-gradient(520px 420px at 16% 0%,rgba(255,140,100,.18),transparent 68%),
-    radial-gradient(460px 380px at 90% 8%,rgba(255,190,130,.14),transparent 72%),
-    linear-gradient(178deg,#FDF9F4 0%,#F6F2EC 46%,#EFEAE3 100%);
-  --bgVig:radial-gradient(122% 80% at 50% 30%,transparent 52%,rgba(150,135,120,.20) 100%);
-  --dockBg:rgba(255,255,255,.84);
-  --dockLine:rgba(23,24,28,.09);
-  --dockHi:rgba(255,255,255,.90);
-  --dockShadow:0 12px 28px rgba(70,45,30,.16),0 1px 3px rgba(70,45,30,.10);
-  --dockSel:rgba(226,90,30,.12);
-  --dockSelLine:rgba(226,90,30,.26);
+  --posterBg:#E7EAF0;
+  --scrim:rgba(16,20,32,.26);
+  --mask:rgba(16,20,32,.22);
+  --shadowHero:0 22px 44px -18px rgba(24,32,52,.30);
+  --shadowCard:0 12px 28px -14px rgba(24,32,52,.22);
+  --noise:.03;
+  --bgGrad:radial-gradient(520px 400px at 6% -8%,rgba(255,148,86,.50),transparent 68%),radial-gradient(460px 380px at 104% 4%,rgba(104,138,255,.34),transparent 70%),radial-gradient(560px 420px at 46% 108%,rgba(184,138,255,.28),transparent 70%),radial-gradient(420px 340px at 0% 84%,rgba(108,200,255,.18),transparent 72%),linear-gradient(180deg,#FCFCFE 0%,#F6F7FC 52%,#F1F2F9 100%);
+  --bgVig:none;
+  --dockBg:rgba(255,255,255,.72);
+  --dockLine:rgba(255,255,255,.90);
+  --dockHi:rgba(255,255,255,1);
+  --dockShadow:0 18px 38px -16px rgba(24,32,52,.28),0 1px 3px rgba(24,32,52,.06);
+  --dockSel:rgba(255,138,69,.18);
+  --dockSelLine:rgba(232,85,27,.22);
+  --dockBlur:blur(40px) saturate(180%);
+  --glassBlur:blur(22px) saturate(180%);
+  --glassSolid:rgba(255,255,255,.95);
+  --glassHi:rgba(255,255,255,.98);
+  --rowBg:rgba(255,255,255,.80);
+    --rowLine:rgba(16,20,32,.07);
+  --ambVeil:rgba(252,253,255,.76);
+  --ambOn:.16;
+  --altDim:rgba(16,20,32,.18);
+  --altDimBlur:blur(4px) saturate(120%);
+  --altSheetBg:rgba(250,251,255,.72);
+  --altSheetLine:rgba(255,255,255,.95);
+  --altSheetBlur:blur(44px) saturate(180%);
+  --altSheetShadow:0 -24px 60px -24px rgba(24,32,52,.30);
+  --sheetTop:calc(86px + var(--sat));
+  --sheetRadius:26px;
+  --altHeadTop:18px;
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -194,8 +242,10 @@ svg{display:block}
   transition:background .3s linear}
 #amb{position:absolute;inset:-18%;background-size:cover;background-position:center;
   filter:blur(46px) saturate(1.7);opacity:0;transition:opacity .55s var(--ease)}
-#amb.on{opacity:.55}
-#amb::after{content:"";position:absolute;inset:0;background:rgba(6,6,9,.52)}
+#amb.on{opacity:var(--ambOn)}
+/* 环境光上压的那层纱：深色是黑纱（压亮海报），浅色必须是白纱 ——
+   沿用 rgba(6,6,9,.52) 会把整屏染成脏褐灰，这是旧版浅色发暗的第二个元凶 */
+#amb::after{content:"";position:absolute;inset:0;background:var(--ambVeil)}
 #bg::after{content:"";position:absolute;inset:0;background:var(--bgVig)}
 #bg::before{content:"";position:absolute;inset:0;opacity:var(--noise);pointer-events:none;
   background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
@@ -281,7 +331,7 @@ svg{display:block}
 .heroScrim{position:absolute;inset:0;
   background:
     linear-gradient(180deg,rgba(6,6,9,.72) 0%,rgba(6,6,9,.10) 22%,rgba(6,6,9,0) 42%),
-    linear-gradient(0deg,var(--bg) 0%,rgba(6,6,9,.94) 14%,rgba(6,6,9,.55) 36%,rgba(6,6,9,0) 62%)}
+    linear-gradient(0deg,var(--bg) 0%,rgba(6,6,9,.92) 3%,rgba(6,6,9,.80) 14%,rgba(6,6,9,.55) 36%,rgba(6,6,9,0) 62%)}
 
 /* 信息区：kicker → 大标题 → meta → 简介 → 标签 → 按钮，全部左对齐 */
 .heroBot{position:absolute;left:var(--pad);right:var(--pad);bottom:calc(18px + var(--sab))}
@@ -509,7 +559,9 @@ svg{display:block}
 /* 顶部不放「头像 + 站点名 + 统计」卡片：那一块全是接口侧信息，
    而收藏 / 历史的数量本来就在下面两行的右侧。 */
 .melist{margin:4px var(--pad) 0;border-radius:18px;overflow:hidden;background:var(--card);
-  border:1px solid var(--line);box-shadow:var(--shadowCard)}
+  border:1px solid var(--line);box-shadow:var(--shadowCard),inset 0 .5px 0 var(--glassHi);
+  /* 真·毛玻璃：能透出底下的柔光斑。卡片数量少（一页 4~5 组），模糊代价可控 */
+  backdrop-filter:var(--glassBlur);-webkit-backdrop-filter:var(--glassBlur)}
 .melist.top{margin-top:16px}
 .meitem{display:flex;align-items:center;gap:12px;padding:14px 15px;font-size:13.5px;
   border-bottom:1px solid var(--divider)}
@@ -541,9 +593,10 @@ svg{display:block}
   background:var(--dockBg);
   border:1px solid var(--dockLine);
   box-shadow:var(--dockShadow),inset 0 1px 0 var(--dockHi);
-  /* saturate 压到 150%：默认值再高一点，海报底色会透成一片绿/紫，玻璃条看着发脏 */
-  backdrop-filter:blur(26px) saturate(150%);
-  -webkit-backdrop-filter:blur(26px) saturate(150%)}
+  /* 饱和度别拉太高：默认值再往上，海报底色会透成一片绿/紫，玻璃条看着发脏。
+     深浅两套的模糊量分别写在 --dockBlur（浅色更大，因为底更亮、需要有厚度） */
+  backdrop-filter:var(--dockBlur);
+  -webkit-backdrop-filter:var(--dockBlur)}
 .tab{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:3px;color:var(--tx3);transition:color .18s var(--ease)}
 .tab .ic{position:relative;z-index:1;width:22px;height:22px;
@@ -860,18 +913,34 @@ svg{display:block}
 /* 区块标题右侧的「换源」 */
 .dMore{font-size:12px;color:var(--ac2);font-weight:700;padding:4px 2px}
 
-/* ---------- 换源 / 切站点 全屏弹层 ---------- */
+/* ---------- 换源 / 切站点 弹层 ----------
+   浅色模式下做成「底下页面变暗 + 从 86dp 处升起一块圆角玻璃」的 iOS 卡片，
+   而不是整屏糊一层白（旧版 --overlay 是 .985 不透明的米白，等于换了个白页面）。
+   几何全部由 token 控制：深色 --sheetTop:0 / --altSheetBg:transparent → 观感与旧版一致。
+   ::before 必须是绝对定位（不参加 flex），否则会把标题栏挤下去。 */
 #dAlt{position:fixed;inset:0;z-index:95;display:none;flex-direction:column;
-  background:var(--overlay);backdrop-filter:blur(18px)}
+  padding-top:var(--sheetTop);
+  background:var(--altDim);
+  backdrop-filter:var(--altDimBlur);-webkit-backdrop-filter:var(--altDimBlur)}
+#dAlt::before{content:"";position:absolute;left:0;right:0;top:var(--sheetTop);bottom:0;
+  border-radius:var(--sheetRadius) var(--sheetRadius) 0 0;
+  background:var(--altSheetBg);border-top:1px solid var(--altSheetLine);
+  box-shadow:var(--altSheetShadow);
+  backdrop-filter:var(--altSheetBlur);-webkit-backdrop-filter:var(--altSheetBlur);
+  pointer-events:none}
+#dAlt > *{position:relative;z-index:1}
 #dAlt.on{display:flex}
 .altHead{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;
-  padding:calc(20px + var(--sat)) 18px 14px;font-size:17px;font-weight:800;
+  padding:var(--altHeadTop) 18px 14px;font-size:17px;font-weight:800;
   letter-spacing:-.2px;gap:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .altClose{font-size:12.5px;font-weight:400;color:var(--tx3);padding:6px 2px 6px 12px;flex:0 0 auto}
 .altList{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
   padding:0 14px calc(20px + var(--sab))}
-.altRow{padding:14px 15px;border-radius:15px;background:var(--card);
-  border:1px solid transparent;margin-bottom:9px;transition:transform .14s var(--ease)}
+/* 列表行比「弹层自身」更白一点：没有这层差，玻璃卡片里就分不出行，
+   整页糊成一块。行数多（48 条），所以这里不挂 backdrop-filter，纯靠不透明度。 */
+.altRow{padding:14px 15px;border-radius:15px;background:var(--rowBg);
+  border:1px solid var(--rowLine);margin-bottom:9px;transition:transform .14s var(--ease);
+  box-shadow:inset 0 .5px 0 var(--glassHi)}
 .altRow:active{transform:scale(.985)}
 .altRow.cur{border-color:rgba(255,138,90,.45);background:rgba(255,122,69,.11)}
 .altN{font-size:14.5px;font-weight:600;line-height:1.32;word-break:break-word}
@@ -898,6 +967,25 @@ svg{display:block}
 .apiSpd.warn{color:#C08A16;background:rgba(192,138,22,.15)}
 .apiSpd.bad{color:#D9534F;background:rgba(217,83,79,.14)}
 .apiSpd.wait{opacity:.6}
+/* 列表顶部工具条：全部检测 + 一句结果汇总 */
+.apiBar{display:flex;align-items:center;gap:10px;padding:2px 0 10px}
+.apiBarBtn{flex:0 0 auto;font-size:12.5px;padding:8px 13px;border-radius:11px;
+  color:rgba(var(--ink),.78);background:rgba(var(--ink),.07);letter-spacing:.2px}
+.apiBarBtn:active{background:rgba(var(--ink),.15)}
+/* 检测中：降低存在感，避免被反复点 */
+.apiBarBtn.on{opacity:.55}
+.apiBarTip{flex:1;min-width:0;font-size:11.5px;color:rgba(var(--ink),.45);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 站点体检底部条：结果汇总 + 重新检测（只有「切换片源站点」会显示） */
+.altFoot{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:10px 16px calc(12px + var(--sab));border-top:1px solid rgba(var(--ink),.08)}
+.altFootTip{flex:1;min-width:0;font-size:12px;color:var(--tx3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.altBt{flex:0 0 auto;font-size:12.5px;font-weight:600;color:var(--ac);
+  padding:8px 14px;border-radius:11px;background:rgba(255,122,69,.12)}
+.altBt:active{background:rgba(255,122,69,.22)}
+/* 体检徽章「不显示」：不测的站（脚本源 / 未测）干脆不占位 */
+.apiSpd.hide{display:none}
 .altRow.add .altN{color:var(--ac)}
 
 /* =====================================================================
@@ -991,3 +1079,22 @@ html[data-theme="light"] .logo.g{color:#1F8E63}
   word-break:break-all;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .errCopy{margin-top:6px;font-size:10.5px;color:var(--ac);opacity:.85}
+
+/* =====================================================================
+   液态玻璃：底部弹层 / 确认框
+   ---------------------------------------------------------------------
+   --sheet / --panel 在浅色下已经是半透明的，不挂模糊的话底下页面是「清晰
+   透出来」而不是「模糊透出来」，看着像两层图叠一起，很脏。
+   数量只有 1~2 层同时存在，模糊代价可以接受。
+   ===================================================================== */
+.dSheet,.fltPanel,.askBox{
+  backdrop-filter:var(--glassBlur);-webkit-backdrop-filter:var(--glassBlur)}
+
+/* 老 WebView（Chrome < 76）不认 backdrop-filter：退化成高不透明白，
+   层次弱一点，但不会把文字压在透出来的海报上导致读不清。
+   注意 --glassSolid 深色也有值，这里不分主题。 */
+@supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){
+  .melist,#tabs,#dAlt::before,.dSheet,.fltPanel,.askBox{background:var(--glassSolid)}
+  /* 弹层已经不透明了，行再叠一层白就会白成一片，改成只留描边 */
+  .altRow{background:transparent}
+}

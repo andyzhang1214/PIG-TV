@@ -333,6 +333,10 @@
     <string name="v8_line_fail">这个分类没读到内容，按 OK 重试</string>
     <string name="v8_filter">筛选</string>
     <string name="v8_dlg_hint">OK 确定 · BACK 取消 · ← → ↑ ↓ 选择</string>
+    <!-- 站点体检：底部刷新 + 隐藏计数 -->
+    <string name="v8_probe_refresh">重新检测</string>
+    <string name="v8_probe_hidden">%1$d 个源没内容，已排到最后</string>
+    <string name="v8_probe_none">所有源都没取到内容</string>
     <string name="v8_count_unit">%1$d 部</string>
     <string name="v8_hero_none_tag">暂无内容</string>
     <string name="v8_hero_none_title">这个片源没有内容</string>

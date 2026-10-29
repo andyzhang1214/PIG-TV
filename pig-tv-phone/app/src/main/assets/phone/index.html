@@ -228,7 +228,7 @@
       </div>
       <div class="meitem ar" onclick="openAbout()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".9" fill="currentColor"/></svg>
-        关于<span class="v" id="verHint">v1.0.8</span>
+        关于<span class="v" id="verHint">v1.0.9</span>
       </div>
     </div>
     <div style="height:6px"></div>
@@ -293,6 +293,11 @@
     <span class="altClose" onclick="closeAlt()">关闭</span>
   </div>
   <div class="altList" id="altList"></div>
+  <!-- 站点体检结果条：只有「切换片源站点」会显示，换源弹层一直隐藏 -->
+  <div class="altFoot" id="altFoot" style="display:none">
+    <div class="altFootTip" id="altFootTip"></div>
+    <div class="altBt" onclick="probeSites(true)">重新检测</div>
+  </div>
 </div>
 
 <!-- ================= 筛选值选择（底部弹层） ================= -->
@@ -430,6 +435,21 @@ window.__evt = function(name, s){
       if (Number(d.seq) !== searchSeq) return;
       mergeSearch(d.items || [], d.done, d.total);
       onSearchProgress();
+    } else if (name === 'site'){
+      /* 站点体检：测完一个站推一条，页面只改那一个徽章。
+         d.seq 是打开弹层时取的代次，弹层关了/重开了就整批丢弃。 */
+      if (Number(d.seq) !== SP.seq) return;
+      onSiteEvt(d);
+    } else if (name === 'sites'){
+      /* 全部命中缓存：一条通知带整批结果，进来就出完整列表，
+         不用眼看着 48 行「检测中」一个个变绿。 */
+      if (Number(d.seq) !== SP.seq) return;
+      var arr = d.list || [];
+      for (var si = 0; si < arr.length; si++) SP.res[arr[si].key] = arr[si];
+      SP.done = arr.length;
+      SP.probing = false;
+      if (SP.timer){ clearTimeout(SP.timer); SP.timer = null; }
+      finalizeSites();
     }
   }catch(e){ console.log('evt error', e); }
 };
@@ -1157,6 +1177,14 @@ function loadAll(){
     renderHot();
     fillHotPool();
     loadHist();
+    /* 刚切换过来的站：分类都拿到了，说明这个站确实是活的。
+       体检再怎么小心也会误判（站临时抽风 / 要登录 / 超时），
+       用户实际点进去能用才是硬证据 —— 让原生把它在缓存里改判成「可用」，
+       下次打开列表就不会又沉到最底下。 */
+    if (pendingSiteOk && (ST.sorts || []).length){
+      ncall('siteOk', [pendingSiteOk]);
+      pendingSiteOk = '';
+    }
     /* 换片源后「下次打开看到什么」就是这一次的结果，落盘 */
     homeCacheSaveSoon();
   });
@@ -1870,12 +1898,17 @@ window.toggleAdFilter = toggleAdFilter;
    换源（换站点播同一部片） / 切换首页片源站点
    ===================================================================== */
 function showAlt(title, html){
+  SP.seq++; SP.probing = false;          // 换一个弹层就等于作废上一轮体检
   document.getElementById('altTitle').textContent = title;
   document.getElementById('altList').innerHTML = html || '';
+  document.getElementById('altFoot').style.display = 'none';
   document.getElementById('dAlt').classList.add('on');
 }
 function setAltList(html){ document.getElementById('altList').innerHTML = html || ''; }
-function closeAlt(){ document.getElementById('dAlt').classList.remove('on'); }
+function closeAlt(){
+  SP.seq++; SP.probing = false;
+  document.getElementById('dAlt').classList.remove('on');
+}
 window.closeAlt = closeAlt;
 
 /* 详情页「换源」：拿片名搜遍所有站，列出同一部片的其他片源 */
@@ -1909,8 +1942,22 @@ window.pickAlt = function(i){
   toast('已换成「' + (x.site || x.name) + '」');
 };
 
+/* =====================================================================
+   切换片源站点（带体检：能取到几部片 / 无片 / 失败 / 脚本源）
+   ---------------------------------------------------------------------
+   站点和「片源接口」不是一回事：接口是一个 JSON 地址，能量 HTTP 耗时；
+   站点只是一行 csp_xxx 类名，内容要问 spider 现算。所以这里测的不是网速，
+   是「真能取到几部片」。测完把一条内容都没有的藏掉，省得一个个点着试。
+   ===================================================================== */
+var SP = {seq:0, sites:[], res:{}, idx:{}, done:0, total:0, probing:false, timer:null};
+/* 刚切换过去的站点：等首页真拿到分类再回告原生「这站可用」，
+   用来纠正体检误判（点进去能播、列表里却标失败/无片） */
+var pendingSiteOk = '';
+
 /* 首页点源名：切换片源站点（对应 TV 版首页的「切换源」） */
 window.openSites = function(){
+  SP.res = {}; SP.idx = {}; SP.done = 0; SP.total = 0; SP.probing = false;
+  if (SP.timer){ clearTimeout(SP.timer); SP.timer = null; }
   showAlt('切换片源站点', '<div class="loadmore" style="padding:44px 0">正在读取站点…</div>');
   ncall('sites', [], function(r){
     var list = (r && r.list) || [];
@@ -1918,20 +1965,138 @@ window.openSites = function(){
       setAltList('<div class="loadmore" style="padding:44px 0">没有可切换的站点</div>');
       return;
     }
-    window.__sites = list;
-    setAltList(list.map(function(x, i){
-      return '<div class="altRow' + (x.cur ? ' cur' : '') + '" onclick="pickSite(' + i + ')">' +
-        '<div class="altN">' + esc(x.name) + '</div>' +
-        '<div class="altS">' + (x.cur ? '正在使用' : '点按切换到该站点') + '</div>' +
-      '</div>';
-    }).join(''));
+    SP.sites = list;
+    SP.total = list.length;
+    for (var i = 0; i < list.length; i++) SP.idx[list[i].key] = i;
+    probeSites(false);
   });
 };
+
+/* 体检：原生逐站推 __evt('site')，全部结束回一个总数。
+   打开弹层就测（和 TV 版一致），有缓存时原生会整批推一次，几乎秒出。 */
+function probeSites(force){
+  if (SP.probing || !SP.sites.length) return;
+  SP.probing = true; SP.done = 0;
+  document.getElementById('altFoot').style.display = 'none';
+  document.getElementById('altTitle').textContent = '切换片源站点   0/' + SP.total;
+  renderSites(SP.sites);
+  var seq = SP.seq;
+  /* 兜底：原生那边 52 秒看门狗一到就收尾，最晚 70 秒。
+     万一回包丢了（WebView 卡顿/原生异常），也不能让页面永远「检测中」。 */
+  if (SP.timer) clearTimeout(SP.timer);
+  SP.timer = setTimeout(function(){
+    SP.timer = null;
+    if (!SP.probing || seq !== SP.seq) return;
+    SP.probing = false;
+    finalizeSites();
+  }, 80000);
+  ncall('probeSites', [String(seq), force ? '1' : '0'], function(r){
+    if (seq !== SP.seq) return;          // 弹层已经关了 / 换了别的弹层
+    SP.probing = false;
+    if (SP.timer){ clearTimeout(SP.timer); SP.timer = null; }
+    if (!r || !r.ok) toast((r && r.msg) || '检测失败');
+    finalizeSites();
+  });
+}
+
+/* 一行一站：名字 + 副标题 + 右侧徽章。徽章按 key 反查，位置用下标（体检期间顺序不变） */
+function renderSites(list){
+  window.__sites = list;
+  /* 重排之后 SP.idx 必须跟着重算：onSiteEvt 用 idx 找那一行的徽章，
+     还按原始下标去改就会改到别的站上（体检收尾后迟到的结果会乱跳） */
+  SP.idx = {};
+  for (var k = 0; k < list.length; k++) SP.idx[list[k].key] = k;
+  setAltList(list.map(function(x, i){
+    var m = siteSpd(x);
+    return '<div class="altRow apiRow' + (x.cur ? ' cur' : '') + '" onclick="pickSite(' + i + ')">' +
+      '<div class="apiMain">' +
+        '<div class="altN">' + esc(x.name) + '</div>' +
+        '<div class="altS">' + (x.cur ? '正在使用' : '点按切换到该站点') + '</div>' +
+      '</div>' +
+      '<span class="apiSpd ' + m.c + '">' + m.t + '</span>' +
+    '</div>';
+  }).join(''));
+}
+
+function siteSpd(x){
+  var r = SP.res[x.key];
+  if (!r) return SP.probing ? {t:'检测中', c:'wait'} : {t:'未测', c:'hide'};
+  /* st=2 的文案由原生算好：站方自己报了总数就是「3200+」/「1.2万」，
+     量不出总数就是「有内容」—— 不再拿首页推荐位的条数冒充总片量。 */
+  if (r.st === 2) return {t: r.msg || (r.n + '部'), c:'good'};
+  if (r.st === 3) return {t:'无片', c:'warn'};
+  if (r.st === 5) return {t:'脚本源', c:'hide'};
+  if (r.st === 0) return {t:'未测', c:'wait'};
+  if (r.st === 4) return {t:'失败', c:'bad'};
+  return {t:'', c:'hide'};
+}
+
+/* 单站结果到了：只改那一个徽章，别整表重绘（重绘会把滚动位置弹回顶部） */
+function onSiteEvt(d){
+  SP.res[d.key] = d;
+  SP.done++;
+  var i = SP.idx[d.key];
+  var el = document.querySelectorAll('#altList .apiSpd')[i];
+  if (el && i != null){
+    var x = SP.sites[i] || {key:d.key};
+    var m = siteSpd(x);
+    el.className = 'apiSpd ' + m.c;
+    el.textContent = m.t;
+  }
+  if (SP.probing){
+    var t = document.getElementById('altTitle');
+    if (t) t.textContent = '切换片源站点   ' + SP.done + '/' + SP.total;
+  }
+}
+
+/* 全部测完：按「能用的在上、没片/失败的沉底」重排，一条都不藏。
+   以前是把无片/失败的直接摘掉，结果体检误判的站（用户明明点进去能播）
+   在列表里直接消失，连点都点不到。宁可好坏都摆出来，让顺序说话。 */
+function finalizeSites(){
+  var arr = SP.sites.slice();
+  var ok = 0, bad = 0, untested = 0, origIdx = {};
+  for (var i = 0; i < arr.length; i++){
+    origIdx[arr[i].key] = i;
+    var r = SP.res[arr[i].key];
+    if (!r || r.st === 0) untested++;
+    else if (r.st === 3 || r.st === 4) bad++;
+    else ok++;
+  }
+  arr.sort(function(a, b){
+    if (!!a.cur !== !!b.cur) return a.cur ? -1 : 1;      // 正在用的永远第一
+    var d = siteRank(SP.res[a.key]) - siteRank(SP.res[b.key]);
+    if (d) return d;
+    /* 老 WebView 的 sort 不保证稳定，用原始下标兜底，免得每次刷新顺序都在跳 */
+    return (origIdx[a.key] || 0) - (origIdx[b.key] || 0);
+  });
+  renderSites(arr);
+  document.getElementById('altTitle').textContent = '切换片源站点';
+  var tip;
+  if (!ok && !untested) tip = '所有源都没取到内容';
+  else tip = '共 ' + arr.length + ' 个源 · ' + ok + ' 个正常';
+  if (bad) tip += ' · ' + bad + ' 个没内容（已排到最后）';
+  if (untested) tip += ' · ' + untested + ' 个未测';
+  document.getElementById('altFootTip').textContent = tip;
+  document.getElementById('altFoot').style.display = 'flex';
+}
+
+/* 排序权重：越小越靠前。未测的夹在「能用」和「没内容」之间 ——
+   它只是这轮没轮到，不该和有片的分在一起，也不该和无片的混为一谈。 */
+function siteRank(r){
+  if (!r) return 2;
+  if (r.st === 2) return 0;
+  if (r.st === 0) return 2;
+  if (r.st === 5) return 3;
+  if (r.st === 3) return 4;
+  return 5;
+}
 
 window.pickSite = function(i){
   var x = (window.__sites || [])[i];
   if (!x) return;
+  SP.seq++; SP.probing = false;
   closeAlt();
+  pendingSiteOk = x.key;          // 等首页真拿到分类后回告原生「这站是好的」
   ncall('setSite', [x.key], function(r){
     if (!r || !r.ok){ toast((r && r.msg) || '切换失败'); return; }
     var nm = r.name || x.name || '';
@@ -2632,71 +2797,178 @@ function addrOf(u){
 window.openApiList = function(){
   showAlt('片源接口', '<div class="loadmore" style="padding:44px 0">正在读取…</div>');
   ncall('cfgList', [], function(r){
-    var list = (r && r.list) || [];
-    window.__apis = list;
+    window.__apis = (r && r.list) || [];
     // 列表和「我的」那行必须用同一份数据算，否则会出现
     // 「外面写 3 个、点进去只有 1 条」这种对不上的情况
-    applyApiHint(list);
-    // 标题带上条数：一眼就能确认存了几条
-    document.getElementById('altTitle').textContent =
-      list.length > 1 ? ('片源接口 · ' + list.length + ' 个') : '片源接口';
-    if (!list.length){
-      setAltList('<div class="loadmore" style="padding:32px 0 20px">还没有保存过接口</div>' + apiAddRow());
-      return;
-    }
-    var html = list.map(function(x, i){
-      // 「使用中」那条不给删除按钮：删掉等于把正在用的接口弄丢；
-      // 但可以改名（名字就是显示用的）。
-      // 内置源（builtin）连改名都不给：它来自安装包里的 strings.xml，
-      // 改了没地方存，下次启动又变回去，只会让人以为改名失败。
-      var rename = '<span class="apiRen" onclick="event.stopPropagation();renameApi(' + i + ')">改名</span>';
-      var curTag = x.builtin ? '内置 · 使用中' : '使用中';
-      // 测速结果：毫秒数是上次实测的，超时/非接口用颜色区分，
-      // 一眼能看出哪条源已经废了，不用切过去试。
-      var spd = '';
-      if (x.spd){
-        var bad = !x.spdOk;
-        var txt = bad ? (x.spdReach ? '非接口' : '超时') : (x.spd + 'ms');
-        spd = '<span class="apiSpd ' + (bad ? (x.spdReach ? 'warn' : 'bad') : 'good') +
-              '" data-i="' + i + '" onclick="event.stopPropagation();speedApi(' + i + ')">' + txt + '</span>';
-      } else {
-        spd = '<span class="apiSpd" data-i="' + i + '" onclick="event.stopPropagation();speedApi(' + i + ')">测速</span>';
-      }
-      var act = x.cur
-        ? spd + '<span class="apiAct">' + curTag + '</span>' + (x.builtin ? '' : rename)
-        : spd + rename + '<span class="apiDel" onclick="event.stopPropagation();delApi(' + i + ')">删除</span>';
-      return '<div class="altRow apiRow' + (x.cur ? ' cur' : '') + '" onclick="pickApi(' + i + ')">' +
-        '<div class="apiMain">' +
-          '<div class="altN">' + esc(x.name || addrOf(x.url)) + '</div>' +
-          '<div class="altS">' + esc(addrOf(x.url)) + '</div>' +
-        '</div>' + act +
-      '</div>';
-    }).join('');
-    setAltList(html + apiAddRow());
+    applyApiHint(window.__apis);
+    renderApiList();
   });
 };
 
-/* 单条测速：打一次接口本身，把耗时贴在徽章上（Java 侧已持久化，退出再进还在） */
-window.speedApi = function(i){
-  var x = (window.__apis || [])[i];
-  if (!x) return;
-  var chip = document.querySelector('#altList .apiSpd[data-i="' + i + '"]');
-  if (chip){ chip.className = 'apiSpd wait'; chip.textContent = '测速中'; }
-  var label = x.name || addrOf(x.url);
-  ncall('speedTestApi', [x.url], function(d){
-    if (chip){ chip.className = 'apiSpd'; chip.textContent = '测速'; }
-    if (!d || !d.ok){ toast('测速失败'); return; }
-    var alive = d.alive ? 1 : 0;
-    if (chip){
-      chip.className = 'apiSpd ' + (alive ? 'good' : (d.reach ? 'warn' : 'bad'));
-      chip.textContent = alive ? (d.ms + 'ms') : (d.reach ? '非接口' : '超时');
-    }
-    // 同步内存里的副本，列表不重新拉也能保持一致
-    x.spd = d.ms; x.spdOk = alive; x.spdReach = d.reach ? 1 : 0;
-    toast(alive
-      ? ('「' + label + '」' + d.ms + 'ms 正常')
-      : ('「' + label + '」' + (d.msg || '连不上')));
+/* 测速结论级别：3 有内容 / 2 配置正常但没内容 / 1 非接口 / 0 连不上 / -1 没测过。
+   老数据只有 spdOk，这里兜住，升级后不会突然全变「超时」。 */
+function apiLevel(x){
+  if (!x || !x.spd) return -1;
+  if (typeof x.spdLv === 'number') return x.spdLv;
+  if (x.spdOk) return 3;
+  return x.spdReach ? 1 : 0;
+}
+
+function apiBadgeText(x){
+  var lv = apiLevel(x);
+  if (lv < 0) return '检测';
+  if (lv >= 3) return (x.spd || 0) + 'ms';
+  // 2 档里还有一种「配置太大没读完」：不是没内容，只是没数清，别吓人
+  if (lv === 2) return /没读完/.test(x.spdMsg || '') ? '未清点' : '无内容';
+  return lv === 1 ? '非接口' : '超时';
+}
+
+function apiBadgeClass(x){
+  var lv = apiLevel(x);
+  if (lv < 0) return 'apiSpd';
+  return 'apiSpd ' + (lv >= 3 ? 'good' : (lv >= 2 ? 'warn' : (lv === 1 ? 'warn' : 'bad')));
+}
+
+/* 第二行：地址 + 有结果时补一句概况，不点开也能看出这条源值不值。
+   站点数用「·91站」这种紧凑写法，长域名（punycode 尤其长）时才不会把结论挤掉。 */
+function apiSub(x){
+  var s = addrOf(x.url);
+  var lv = apiLevel(x);
+  if (lv >= 3 && x.spdSites) return s + '·' + x.spdSites + '站';
+  if (lv === 2) return s + '·没内容';
+  return s;
+}
+
+/* 点徽章后的一句话详情（含站点构成，便于判断「为什么没内容」） */
+function apiDetail(x){
+  var name = x.name || addrOf(x.url);
+  var lv = apiLevel(x);
+  if (lv < 0) return '「' + name + '」还没检测';
+  if (lv < 3) return '「' + name + '」' + (x.spdMsg || apiBadgeText(x));
+  var parts = [(x.spd || 0) + 'ms'];
+  if (x.spdSites) parts.push(x.spdSites + ' 站' + (x.spdJar ? '（' + x.spdJar + ' 靠组件）' : ''));
+  if (x.spdJar) parts.push('组件' + (x.spdJarOk ? '正常' : '失效'));
+  if (x.spdLives) parts.push('直播 ' + x.spdLives + ' 组');
+  return '「' + name + '」' + parts.join(' · ');
+}
+
+/* 检测完按「能用 → 快 → 没测过」排，使用中的那条永远置顶，
+   免得用户切完接口发现它跑到列表最底下。 */
+function sortApis(){
+  var list = window.__apis || [];
+  list.sort(function(a, b){
+    if (!!a.cur !== !!b.cur) return a.cur ? -1 : 1;
+    var la = apiLevel(a), lb = apiLevel(b);
+    if (la !== lb) return lb - la;
+    if (la < 0) return 0;
+    return (a.spd || 0) - (b.spd || 0);
   });
+  window.__apis = list;
+}
+
+function renderApiList(){
+  var list = window.__apis || [];
+  var title = document.getElementById('altTitle');
+  if (title) title.textContent =
+    list.length > 1 ? ('片源接口 · ' + list.length + ' 个') : '片源接口';
+  if (!list.length){
+    setAltList('<div class="loadmore" style="padding:32px 0 20px">还没有保存过接口</div>' + apiAddRow());
+    return;
+  }
+  // 已测过的条数写在工具条上，一眼知道「要不要点全部检测」
+  var tested = 0, usable = 0;
+  for (var k = 0; k < list.length; k++){
+    if (apiLevel(list[k]) >= 0) tested++;
+    if (apiLevel(list[k]) >= 3) usable++;
+  }
+  var bar = '<div class="apiBar">' +
+    '<span class="apiBarBtn" id="apiBarBtn" onclick="checkAllApis()">全部检测</span>' +
+    '<span class="apiBarTip">' +
+      (tested ? ('可用 ' + usable + '/' + list.length) : '点一下检测哪条线路还能用、里面有没有片') +
+    '</span>' +
+  '</div>';
+
+  var html = list.map(function(x, i){
+    // 「使用中」那条不给删除按钮：删掉等于把正在用的接口弄丢；
+    // 但可以改名（名字就是显示用的）。
+    // 内置源（builtin）连改名都不给：它来自安装包里的 strings.xml，
+    // 改了没地方存，下次启动又变回去，只会让人以为改名失败。
+    var rename = '<span class="apiRen" onclick="event.stopPropagation();renameApi(' + i + ')">改名</span>';
+    var curTag = x.builtin ? '内置 · 使用中' : '使用中';
+    var spd = '<span class="' + apiBadgeClass(x) + '" data-i="' + i +
+              '" onclick="event.stopPropagation();speedApi(' + i + ')">' + apiBadgeText(x) + '</span>';
+    var act = x.cur
+      ? spd + '<span class="apiAct">' + curTag + '</span>' + (x.builtin ? '' : rename)
+      : spd + rename + '<span class="apiDel" onclick="event.stopPropagation();delApi(' + i + ')">删除</span>';
+    return '<div class="altRow apiRow' + (x.cur ? ' cur' : '') + '" data-row="' + i +
+      '" onclick="pickApi(' + i + ')">' +
+      '<div class="apiMain">' +
+        '<div class="altN">' + esc(x.name || addrOf(x.url)) + '</div>' +
+        '<div class="altS">' + esc(apiSub(x)) + '</div>' +
+      '</div>' + act +
+    '</div>';
+  }).join('');
+  setAltList(bar + html + apiAddRow());
+}
+
+/* 单条体检：打一次接口，既测耗时也清点内容构成（Java 侧已持久化，退出再进还在）。
+   silent=true 时给「全部检测」用：不弹 toast，只更新徽章，避免刷屏。 */
+window.speedApi = function(i, silent){
+  var x = (window.__apis || [])[i];
+  if (!x) return Promise.resolve(null);
+  var chip = document.querySelector('#altList .apiSpd[data-i="' + i + '"]');
+  if (chip){ chip.className = 'apiSpd wait'; chip.textContent = '检测中'; }
+  return new Promise(function(resolve){
+    ncall('speedTestApi', [x.url], function(d){
+      if (!d || !d.ok){
+        if (chip){ chip.className = 'apiSpd'; chip.textContent = '检测'; }
+        if (!silent) toast('检测失败：' + ((d && d.msg) || '未知错误'));
+        resolve(null);
+        return;
+      }
+      // 同步内存副本，列表不重新拉也能保持一致
+      x.spd = d.ms; x.spdOk = d.alive; x.spdReach = d.reach;
+      x.spdLv = d.level; x.spdSites = d.sites; x.spdHttp = d.httpSites;
+      x.spdJar = d.jarSites; x.spdJs = d.jsSites; x.spdLives = d.lives;
+      x.spdJarOk = d.jarOk; x.spdJarSize = d.jarSize; x.spdMsg = d.msg;
+      if (chip){
+        chip.className = apiBadgeClass(x);
+        chip.textContent = apiBadgeText(x);
+      }
+      var row = document.querySelector('#altList .apiRow[data-row="' + i + '"] .altS');
+      if (row) row.textContent = apiSub(x);
+      if (!silent) toast(apiDetail(x));
+      resolve(d);
+    });
+  });
+};
+
+/* 全部检测：串行跑（并发会把弱网下的每条都拖成超时，也排不出真实快慢）。
+   跑完按结果排序重渲染，「使用中」那条置顶。 */
+window.checkAllApis = function(){
+  var list = window.__apis || [];
+  if (!list.length || window.__checking) return;
+  window.__checking = true;
+  var total = list.length, done = 0;
+  var btn = document.getElementById('apiBarBtn');
+  if (btn) btn.className = 'apiBarBtn on';
+  function step(){
+    if (done >= total){
+      window.__checking = false;
+      sortApis();
+      renderApiList();
+      var ok = 0;
+      for (var k = 0; k < window.__apis.length; k++){
+        if (apiLevel(window.__apis[k]) >= 3) ok++;
+      }
+      toast('检测完成：' + ok + '/' + total + ' 条有内容');
+      return;
+    }
+    if (btn) btn.textContent = '检测中 ' + (done + 1) + '/' + total;
+    // 检测期间不排序、不重渲染，index 才稳定
+    speedApi(done, true).then(function(){ done++; step(); });
+  }
+  step();
 };
 
 function apiAddRow(){
@@ -2805,7 +3077,7 @@ function refreshSettings(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) return;
     var el = document.getElementById('verHint');
-    if (el) el.textContent = 'v' + (d.ver || '1.0.8');
+    if (el) el.textContent = 'v' + (d.ver || '1.0.9');
   });
 }
 
@@ -2961,7 +3233,7 @@ function resetAppAsk(){
 function openAbout(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) d = {};
-    var ver = d.ver || '1.0.8';
+    var ver = d.ver || '1.0.9';
     var el = document.getElementById('verHint');
     if (el) el.textContent = 'v' + ver;
     var html = '';
@@ -3116,6 +3388,10 @@ document.addEventListener('visibilitychange', function(){
   refreshSettings();   // 「我的」里的缓存大小 / 站点数 / DNS 先填上，进页面不闪
   /* 继续观看来自原生数据库，不依赖 spider 组件，冷启动也能立刻显示 */
   loadHist();
+  /* 站点体检预热：App 一起来就在后台把全部站点测一遍存着。
+     等 8 秒是让首页配置和 spider 组件先拿到（原生那边还会自己等站点列表就绪），
+     用户点「切换片源站点」时就有缓存，不用对着 48 行「检测中」干等。 */
+  setTimeout(function(){ ncall('warmSites', []); }, 8000);
 })();
 </script>
 </body>
