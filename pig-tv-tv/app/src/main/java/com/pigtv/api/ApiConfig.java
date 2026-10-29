@@ -145,6 +145,15 @@ public class ApiConfig {
     }
 
     public void loadConfig(boolean useCache, LoadConfigCallback callback, Activity activity) {
+        loadConfig(useCache, callback, activity, 0);
+    }
+
+    /**
+     * 带重试层数的实现。重试次数必须由调用方传进来：
+     * 原来写成「递归调用自己 + 局部 retried[0]++」，每次递归都会把计数重置成 0，
+     * 于是「只重试一次」实际变成了死循环（配置不是 JSON 时一直打网络，界面永远转圈）。
+     */
+    private void loadConfig(boolean useCache, LoadConfigCallback callback, Activity activity, final int attempt) {
         // Embedded Source : Update in Strings.xml if required
         // qist 已下线：老包把它当内置源，用户可能在设置里手填过，Hawk 里就留着一条死链
         migrateLegacyApiUrl();
@@ -189,7 +198,6 @@ public class ApiConfig {
         String configKey = TempKey;
         // 运营商 DNS 会间歇性劫持配置域名（返回 200 + HTML 拦截页），重试一次
         // 大概率换到未污染的解析结果。解析失败和拉取失败都走重试，只重试一次。
-        final int[] retried = {0};
         OkGo.<String>get(configUrl)
                 .headers("User-Agent", userAgent)
                 .headers("Accept", requestAccept)
@@ -215,10 +223,24 @@ public class ApiConfig {
                             callback.success();
                         } catch (Throwable th) {
                             th.printStackTrace();
-                            if (retried[0]++ < 1) {
+                            if (attempt < 1) {
                                 LOG.i("echo---解析配置失败，自动重试一次");
-                                loadConfig(useCache, callback, activity);
+                                loadConfig(useCache, callback, activity, attempt + 1);
                                 return;
+                            }
+                            // 网络通了、但拿回来的不是配置（站点把旧路径 301 到网页 /
+                            // 运营商塞了拦截页）。手机端启动是 loadConfig(true) 先吃缓存，
+                            // 所以同一个源手机看着正常、TV 直接空白。这里补一次缓存兜底，
+                            // 让两端表现一致：拿不到新配置就用上次成功的。
+                            if (cache.exists()) {
+                                try {
+                                    LOG.i("echo---两次都拿不到配置，退回本地缓存");
+                                    parseJson(apiUrl, cache);
+                                    callback.success();
+                                    return;
+                                } catch (Throwable th2) {
+                                    th2.printStackTrace();
+                                }
                             }
                             callback.error("解析配置失败");
                         }
@@ -236,9 +258,9 @@ public class ApiConfig {
                                 th.printStackTrace();
                             }
                         }
-                        if (retried[0]++ < 1) {
+                        if (attempt < 1) {
                             LOG.i("echo---拉取配置失败，自动重试一次");
-                            loadConfig(useCache, callback, activity);
+                            loadConfig(useCache, callback, activity, attempt + 1);
                             return;
                         }
                         callback.error("拉取配置失败\n" + (response.getException() != null ? response.getException().getMessage() : ""));

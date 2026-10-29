@@ -28,7 +28,6 @@ import com.pigtv.ui.activity.DetailActivity;
 import com.pigtv.ui.activity.FastSearchActivity;
 import com.pigtv.ui.activity.SearchActivity;
 import com.pigtv.ui.adapter.GridAdapter;
-import com.pigtv.ui.adapter.GridFilterKVAdapter;
 import com.pigtv.ui.dialog.TvFilterDialog;
 import com.pigtv.ui.tv.widget.LoadMoreView;
 import com.pigtv.util.ImgUtil;
