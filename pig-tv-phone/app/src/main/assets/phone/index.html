@@ -148,6 +148,17 @@
       </div>
     </div>
 
+    <!-- 账号卡：未登录点进去是登录/注册，已登录点进去看账号信息和登出。
+         游客模式下这里只是个入口，不影响下面任何功能 —— 不登录照样能看片。 -->
+    <div class="accBar" onclick="openAcc()">
+      <div class="accAv guest" id="accAv">游</div>
+      <div class="accTxt">
+        <div class="accName" id="accName">游客</div>
+        <div class="accSub" id="accSub">登录后收藏、历史和设置在多端同步</div>
+      </div>
+      <svg class="ic accGo" viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7"/></svg>
+    </div>
+
     <div class="melist top">
       <div class="meitem" onclick="openListPage('fav')">
         <svg class="ic" viewBox="0 0 24 24"><path d="M6.5 4.5h11v15l-5.5-4-5.5 4z"/></svg>
@@ -232,6 +243,59 @@
       </div>
     </div>
     <div style="height:6px"></div>
+  </section>
+
+  <!-- ================= 账号 ================= -->
+  <!-- 未登录是「登录 / 注册」表单，已登录是账号信息 + 退出。
+       服务器地址折叠在最下面：正常用户不用管，换了机器/IP 时不用重新打包就能改。 -->
+  <section id="pAcc" class="page">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="back" onclick="go('me')" style="margin:0">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7"/></svg>
+        </div>
+        <div class="htitle">账号</div>
+      </div>
+    </div>
+
+    <div id="accForm">
+      <div class="accTabs">
+        <div class="accTab on" id="tabLogin" onclick="switchAcc('login')">登录</div>
+        <div class="accTab" id="tabReg" onclick="switchAcc('reg')">注册</div>
+      </div>
+      <div class="accField">
+        <label>账号</label>
+        <input id="accUser" type="text" autocomplete="username" placeholder="4-20 位字母、数字或下划线">
+      </div>
+      <div class="accField">
+        <label>密码</label>
+        <input id="accPwd" type="password" autocomplete="current-password" placeholder="8-32 位，需同时含字母和数字">
+      </div>
+      <div class="accField" id="accPwd2Wrap" style="display:none">
+        <label>确认密码</label>
+        <input id="accPwd2" type="password" autocomplete="new-password" placeholder="再输一次">
+      </div>
+      <div class="accBtn" id="accBtn" onclick="doAcc()">登录</div>
+      <div class="accErr" id="accErr"></div>
+      <div class="accTip">不登录也能正常看片。登录只是多了「收藏 / 历史 / 设置」多端同步。</div>
+      <div class="accAdv" onclick="toggleAccAdv()">服务器：<b id="accBase">—</b></div>
+      <div class="accAdvBox" id="accAdvBox" style="display:none">
+        <input id="accBaseInput" type="text" placeholder="http://1.2.3.4:8088">
+        <div class="mini" onclick="saveAccBase()">保存</div>
+      </div>
+    </div>
+
+    <div id="accBox" style="display:none">
+      <div class="accInfo">
+        <div class="row"><span class="k">账号</span><span class="v" id="accMyName">—</span></div>
+        <div class="row"><span class="k">用户 ID</span><span class="v" id="accMyUid">—</span></div>
+        <div class="row"><span class="k">本机版本</span><span class="v" id="accMyVer">—</span></div>
+      </div>
+      <div class="accOut" onclick="doAccLogout()">退出登录</div>
+      <div class="accTip">退出只清登录状态，本机收藏、历史和设置全部保留。</div>
+    </div>
+
+    <div style="height:10px"></div>
   </section>
 
   <!-- ================= 收藏 / 历史 列表页 ================= -->
@@ -3408,14 +3472,15 @@ function askYes(){
 var state = {page:'home'};
 /* scrollLockUntil 在「状态」那一节声明（scrollCatTop / reloadCat 都在它前面用） */
 function go(p){
-  var map = {home:'pH', cat:'pC', live:'pLive', me:'pM', list:'pL'};
+  var map = {home:'pH', cat:'pC', live:'pLive', me:'pM', list:'pL', acc:'pAcc'};
   Object.keys(map).forEach(function(k){
     var el = document.getElementById(map[k]);
     if (el) el.classList.toggle('on', k === p);
   });
   /* tabOf：列表页（收藏/历史）算在「收藏」这一格上，
-     这样从底栏点「收藏」进来时高亮的是收藏，而不是「我的」 */
-  var tabOf = {home:'home', cat:'cat', live:'live', me:'me', list:'fav'};
+     这样从底栏点「收藏」进来时高亮的是收藏，而不是「我的」。
+     账号页同理算在「我的」上，否则底栏会一格都不亮。 */
+  var tabOf = {home:'home', cat:'cat', live:'live', me:'me', list:'fav', acc:'me'};
   document.querySelectorAll('.tab').forEach(function(t){
     t.classList.toggle('on', t.dataset.p === tabOf[p]);
   });
@@ -3429,10 +3494,144 @@ function go(p){
     renderCatFilt();
     if (ST.sorts.length && !ST.curSort) openSort(ST.sorts[0].id);
   }
-  if (p === 'me'){ loadHist(); refreshSettings(); }
+  if (p === 'me'){ loadHist(); refreshSettings(); loadAcc(); }
   /* 直播页：第一次进来才拉，之后靠 liveSt.loaded 复用（分组和频道不会中途变，
      真正换了直播源时 openLiveCfg() 那边的回调会清掉这个标记）。 */
   if (p === 'live') loadLive(false);
+}
+
+/* =====================================================================
+   账号 / 会员（2026-10-30）
+   ---------------------------------------------------------------------
+   原生侧负责「跟服务端说话 + 存 token」，这里只管界面。
+   token 不会回传到 JS —— WebView 里任何一个注入点都不该拿到它。
+
+   游客 → 登录是「加功能」不是「换模式」：未登录时下面的收藏、历史、
+   设置全都照旧走本地，登录后只是多了一条同步链路。
+   ===================================================================== */
+var ACC = {mode:'login', logged:0, base:'', busy:0};
+
+function openAcc(){ go('acc'); loadAcc(); }
+
+function loadAcc(){
+  ncall('accInfo', [], function(d){
+    if (!d || !d.ok) return;
+    ACC.base = d.base || '';
+    accSet('accBase', ACC.base || '未设置');
+    var bi = document.getElementById('accBaseInput');
+    if (bi && !bi.value) bi.value = ACC.base || '';
+    renderAcc(d.logged ? 1 : 0, d);
+  });
+}
+
+function renderAcc(logged, d){
+  ACC.logged = logged;
+  var av = document.getElementById('accAv');
+  var nm = document.getElementById('accName');
+  var sub = document.getElementById('accSub');
+  if (logged){
+    var n = (d && d.name) || '';
+    if (av){ av.textContent = n ? n.charAt(0).toUpperCase() : '我'; av.className = 'accAv'; }
+    if (nm) nm.textContent = n || '已登录';
+    if (sub) sub.textContent = '已登录 · 点这里查看账号信息';
+  } else {
+    if (av){ av.textContent = '游'; av.className = 'accAv guest'; }
+    if (nm) nm.textContent = '游客';
+    if (sub) sub.textContent = '登录后收藏、历史和设置在多端同步';
+  }
+  var f = document.getElementById('accForm');
+  var box = document.getElementById('accBox');
+  if (f) f.style.display = logged ? 'none' : '';
+  if (box) box.style.display = logged ? '' : 'none';
+  if (logged && d){
+    accSet('accMyName', d.name || '—');
+    accSet('accMyUid', d.uid ? String(d.uid) : '—');
+    accSet('accMyVer', 'v' + (d.verName || '') + (d.verCode ? '（' + d.verCode + '）' : ''));
+  }
+}
+
+function accSet(id, txt){ var e = document.getElementById(id); if (e) e.textContent = txt; }
+function accErr(msg){ accSet('accErr', msg || ''); }
+
+function accBusy(on, txt){
+  ACC.busy = on ? 1 : 0;
+  var b = document.getElementById('accBtn');
+  if (!b) return;
+  b.className = on ? 'accBtn off' : 'accBtn';
+  b.textContent = on ? (txt || '处理中…') : (ACC.mode === 'reg' ? '注册' : '登录');
+}
+
+function switchAcc(mode){
+  ACC.mode = mode === 'reg' ? 'reg' : 'login';
+  var tl = document.getElementById('tabLogin'), tr = document.getElementById('tabReg');
+  if (tl) tl.className = ACC.mode === 'login' ? 'accTab on' : 'accTab';
+  if (tr) tr.className = ACC.mode === 'reg' ? 'accTab on' : 'accTab';
+  var w = document.getElementById('accPwd2Wrap');
+  if (w) w.style.display = ACC.mode === 'reg' ? '' : 'none';
+  var b = document.getElementById('accBtn');
+  if (b && !ACC.busy) b.textContent = ACC.mode === 'reg' ? '注册' : '登录';
+  accErr('');
+}
+
+function doAcc(){
+  if (ACC.busy) return;
+  var uEl = document.getElementById('accUser');
+  var pEl = document.getElementById('accPwd');
+  var u = uEl ? String(uEl.value || '').trim() : '';
+  var p = pEl ? String(pEl.value || '') : '';
+  if (!u || !p){ accErr('请填写账号和密码'); return; }
+  var isReg = ACC.mode === 'reg';
+  if (isReg){
+    var p2El = document.getElementById('accPwd2');
+    var p2 = p2El ? String(p2El.value || '') : '';
+    /* 本地先挡一遍，省得为了「密码没数字」这类问题跑一趟服务器 */
+    if (u.length < 4 || u.length > 20){ accErr('账号需 4-20 位'); return; }
+    if (!/^[A-Za-z0-9_]+$/.test(u)){ accErr('账号只能用字母、数字和下划线'); return; }
+    if (p.length < 8 || p.length > 32){ accErr('密码需 8-32 位'); return; }
+    if (!/[A-Za-z]/.test(p) || !/[0-9]/.test(p)){ accErr('密码要同时含字母和数字'); return; }
+    if (p !== p2){ accErr('两次输入的密码不一致'); return; }
+  }
+  accErr('');
+  accBusy(1, isReg ? '注册中…' : '登录中…');
+  ncall(isReg ? 'accRegister' : 'accLogin', [u, p], function(r){
+    accBusy(0);
+    if (!r || !r.ok){
+      /* 原生把封禁原因拼好了（含解封时间），原样展示 */
+      accErr((r && r.msg) || '操作失败，请稍后重试');
+      return;
+    }
+    toast(isReg ? '注册成功，已登录' : '登录成功');
+    if (pEl) pEl.value = '';
+    var p2e = document.getElementById('accPwd2');
+    if (p2e) p2e.value = '';
+    loadAcc();
+  });
+}
+
+function doAccLogout(){
+  ncall('accLogout', [], function(){
+    toast('已退出登录');
+    loadAcc();
+  });
+}
+
+function toggleAccAdv(){
+  var box = document.getElementById('accAdvBox');
+  if (!box) return;
+  box.style.display = box.style.display === 'none' ? 'flex' : 'none';
+}
+
+function saveAccBase(){
+  var el = document.getElementById('accBaseInput');
+  var v = el ? String(el.value || '').trim() : '';
+  if (!v){ toast('地址不能为空'); return; }
+  ncall('accSetBase', [v], function(r){
+    if (!r || !r.ok){ toast('地址保存失败'); return; }
+    ACC.base = r.base || v;
+    accSet('accBase', ACC.base);
+    if (el) el.value = ACC.base;
+    toast('已保存：' + ACC.base);
+  });
 }
 
 var toastT = null;

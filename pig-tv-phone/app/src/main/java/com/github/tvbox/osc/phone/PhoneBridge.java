@@ -12,6 +12,8 @@ import android.widget.Toast;
 
 import com.github.catvod.crawler.Spider;
 import com.bumptech.glide.Glide;
+import com.github.tvbox.osc.account.AccountApi;
+import com.github.tvbox.osc.account.AccountStore;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.api.JarFetcher;
 import com.github.tvbox.osc.bean.AbsJson;
@@ -3391,6 +3393,239 @@ public class PhoneBridge {
         } catch (Throwable th) {
             cbErr(cbId, th);
         }
+    }
+
+    // ==================== 会员 / 账号（2026-10-30） ====================
+    /* 服务端跑在用户自己的机器上（裸 IP、无域名），所以这里所有请求都是 http。
+       回调统一走 ok:1/0 + msg 的约定，和现有桥方法一致。
+
+       一条纪律：**token 永远不回传给 JS**。前端只需要知道「登录了没、叫什么」，
+       把 token 交给 WebView 等于把它交给任何一个 XSS 注入点。 */
+
+    /** 当前登录态 + 服务器地址。进「我的」页时拉一次 */
+    @JavascriptInterface
+    public void accInfo(String cbId) {
+        main.post(() -> {
+            try {
+                JSONObject o = new JSONObject();
+                o.put("ok", 1);
+                o.put("logged", AccountStore.logged() ? 1 : 0);
+                o.put("name", AccountStore.name());
+                o.put("uid", AccountStore.uid());
+                o.put("base", AccountApi.base());
+                o.put("defaultBase", AccountApi.DEFAULT_BASE);
+                o.put("deviceId", AccountStore.deviceId());
+                o.put("verName", appVerName());
+                o.put("verCode", appVerCode());
+                cb(cbId, o.toString());
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    @JavascriptInterface
+    public void accLogin(final String user, final String pwd, final String cbId) {
+        final String u = nz(user).trim();
+        final String p = nz(pwd);
+        if (u.isEmpty() || p.isEmpty()) {
+            cbErrMsg(cbId, "请输入账号和密码");
+            return;
+        }
+        pool.execute(() -> {
+            try {
+                afterAuth(AccountApi.login(u, p, AccountStore.deviceId(), android.os.Build.MODEL,
+                        "phone", appVerCode()), cbId);
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    @JavascriptInterface
+    public void accRegister(final String user, final String pwd, final String cbId) {
+        final String u = nz(user).trim();
+        final String p = nz(pwd);
+        if (u.isEmpty() || p.isEmpty()) {
+            cbErrMsg(cbId, "请输入账号和密码");
+            return;
+        }
+        pool.execute(() -> {
+            try {
+                afterAuth(AccountApi.register(u, p, AccountStore.deviceId(), android.os.Build.MODEL,
+                        "phone", appVerCode()), cbId);
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /** 登录/注册的公共收尾：成功存 token，失败把封禁原因原样说清楚 */
+    private void afterAuth(AccountApi.Res r, String cbId) {
+        try {
+            if (r.ok && r.data != null) {
+                String token = r.str("token");
+                long uid = r.num("userId", 0);
+                String name = r.str("username");
+                AccountStore.save(token, uid, name);
+                JSONObject o = new JSONObject();
+                o.put("ok", 1);
+                o.put("name", name);
+                o.put("uid", uid);
+                cb(cbId, o.toString());
+                return;
+            }
+            JSONObject o = new JSONObject();
+            o.put("ok", 0);
+            o.put("code", r.code);
+            o.put("http", r.http);
+            // 403 = 被封 / 被踢，必须让用户看到「到什么时候」和「为什么」，
+            // 只回一句「登录失败」的话，用户只会反复重试然后来找客服
+            o.put("banned", r.http == 403 ? 1 : 0);
+            o.put("msg", r.http == 403
+                    ? (r.banText().isEmpty() ? "账号已被封禁" : r.banText())
+                    : (r.message.isEmpty() ? "登录失败，请稍后重试" : r.message));
+            cb(cbId, o.toString());
+        } catch (Throwable th) {
+            cbErr(cbId, th);
+        }
+    }
+
+    /** 登出：先尽力通知服务端撤销会话，失败也照样本地登出（离线也要能退） */
+    @JavascriptInterface
+    public void accLogout(String cbId) {
+        pool.execute(() -> {
+            try {
+                if (AccountStore.logged()) {
+                    AccountApi.logout();
+                }
+            } catch (Throwable ignored) {
+            }
+            AccountStore.clear();
+            try {
+                JSONObject o = new JSONObject();
+                o.put("ok", 1);
+                cb(cbId, o.toString());
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /** 改服务器地址（登录页「高级」里那个输入框） */
+    @JavascriptInterface
+    public void accSetBase(String url, String cbId) {
+        try {
+            String b = AccountApi.normalizedBase(nz(url));
+            if (b.isEmpty()) {
+                cbErrMsg(cbId, "地址不能为空");
+                return;
+            }
+            AccountApi.setBase(b);
+            JSONObject o = new JSONObject();
+            o.put("ok", 1);
+            o.put("base", AccountApi.base());
+            cb(cbId, o.toString());
+        } catch (Throwable th) {
+            cbErr(cbId, th);
+        }
+    }
+
+    /**
+     * 检查更新。
+     * manual=1 是用户主动点「检查更新」：忽略「稍后再说」记录，一定要给反馈；
+     * manual=0 是启动/回前台的静默检查：被跳过的版本不打扰。
+     */
+    @JavascriptInterface
+    public void checkUpdate(String manual, String cbId) {
+        final boolean byUser = "1".equals(nz(manual)) || "true".equalsIgnoreCase(nz(manual));
+        pool.execute(() -> {
+            try {
+                int cur = appVerCode();
+                AccountApi.Res r = AccountApi.checkUpdate("phone", deviceAbi(), cur);
+                Hawk.put(HawkConfig.LAST_UPDATE_CHECK, System.currentTimeMillis());
+                JSONObject o = new JSONObject();
+                if (!r.ok) {
+                    o.put("ok", 0);
+                    o.put("msg", r.message.isEmpty() ? "检查更新失败" : r.message);
+                    cb(cbId, o.toString());
+                    return;
+                }
+                int code = (int) r.num("versionCode", 0);
+                boolean has = r.data != null && r.data.has("hasUpdate")
+                        ? r.data.get("hasUpdate").getAsBoolean() : code > cur;
+                int skip = 0;
+                try {
+                    Integer s = Hawk.get(HawkConfig.SKIP_VERSION_CODE, 0);
+                    skip = s == null ? 0 : s;
+                } catch (Throwable ignored) {
+                }
+                boolean muted = !byUser && has && code == skip;
+                o.put("ok", 1);
+                o.put("current", cur);
+                o.put("hasUpdate", has && !muted ? 1 : 0);
+                o.put("skipped", muted ? 1 : 0);
+                o.put("versionCode", code);
+                o.put("versionName", r.str("versionName"));
+                o.put("fileUrl", r.str("fileUrl"));
+                o.put("fileSize", r.num("fileSize", 0));
+                o.put("sha256", r.str("sha256"));
+                o.put("changelog", r.str("changelog"));
+                o.put("force", r.data != null && r.data.has("force")
+                        && r.data.get("force").getAsBoolean() ? 1 : 0);
+                cb(cbId, o.toString());
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /** 记住「稍后再说」的版本，同版本不再自动弹 */
+    @JavascriptInterface
+    public void skipVersion(String codeStr, String cbId) {
+        try {
+            Hawk.put(HawkConfig.SKIP_VERSION_CODE, spInt(codeStr));
+            JSONObject o = new JSONObject();
+            o.put("ok", 1);
+            cb(cbId, o.toString());
+        } catch (Throwable th) {
+            cbErr(cbId, th);
+        }
+    }
+
+    private int appVerCode() {
+        try {
+            return act.getPackageManager().getPackageInfo(act.getPackageName(), 0).versionCode;
+        } catch (Throwable ignored) {
+            return 0;
+        }
+    }
+
+    private String appVerName() {
+        try {
+            return nz(act.getPackageManager().getPackageInfo(act.getPackageName(), 0).versionName);
+        } catch (Throwable ignored) {
+            return "";
+        }
+    }
+
+    /** 服务端 abi 取值域：arm64 / armeabi / universal */
+    private static String deviceAbi() {
+        try {
+            for (String a : android.os.Build.SUPPORTED_ABIS) {
+                if (a == null) {
+                    continue;
+                }
+                if (a.startsWith("arm64")) {
+                    return "arm64";
+                }
+                if (a.startsWith("armeabi")) {
+                    return "armeabi";
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return "universal";
     }
 
     /** 进程自重启：先起新 Activity 再杀自己，系统会用已入队的 Intent 重新拉起 */

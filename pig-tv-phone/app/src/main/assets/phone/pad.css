@@ -279,6 +279,13 @@
   #pM .hdr,#pLive .hdr{max-width:820px;margin-left:auto;margin-right:auto;
     padding-left:0;padding-right:0}
 
+  /* 账号卡和账号页的输入框同样要限宽：不加的话账号卡会比下面那排列表
+     宽一圈，左边突出一截，看着像两个不同的容器（2026-10-30 实测截图） */
+  .accBar,.accTabs,.accField,.accBtn,.accErr,.accTip,.accAdv,.accAdvBox,
+  .accInfo,.accOut{max-width:820px;margin-left:auto;margin-right:auto}
+  #pAcc .hdr{max-width:820px;margin-left:auto;margin-right:auto;
+    padding-left:0;padding-right:0}
+
   /* ---------- 详情：左右两栏 ----------
      左栏海报通栏，右栏标题/信息/选集独立滚动。
      这是平板上最省事又最像样的详情版式。 */

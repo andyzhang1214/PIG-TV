@@ -1098,3 +1098,90 @@ html[data-theme="light"] .logo.g{color:#1F8E63}
   /* 弹层已经不透明了，行再叠一层白就会白成一片，改成只留描边 */
   .altRow{background:transparent}
 }
+
+/* =====================================================================
+   账号 / 会员（2026-10-30）
+   ---------------------------------------------------------------------
+   规则同全站：颜色只走变量（--tx/--tx2/--tx3/--card/--line/--ac/--err），
+   写死颜色的话浅色主题下会变成「白底白字」。
+   账号卡不是海报，所以这里用 --rowBg 而不是恒白字。
+   ===================================================================== */
+.accBar{
+  display:flex;align-items:center;gap:12px;
+  margin:2px var(--pad) 12px;padding:14px;
+  background:var(--rowBg);border:1px solid var(--line);border-radius:18px;
+  cursor:pointer;
+}
+.accBar:active{background:var(--card2)}
+.accAv{
+  width:42px;height:42px;border-radius:50%;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;font-weight:700;color:var(--acInk);
+  background:linear-gradient(135deg,var(--ac),var(--ac2));
+}
+.accAv.guest{background:var(--card2);color:var(--tx2)}
+.accTxt{flex:1;min-width:0}
+.accName{font-size:15px;font-weight:600;color:var(--tx);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.accSub{font-size:12px;color:var(--tx3);margin-top:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.accGo{width:18px;height:18px;color:var(--tx3);flex:0 0 auto}
+
+/* 登录 / 注册切换 */
+.accTabs{display:flex;gap:8px;margin:0 var(--pad) 16px}
+.accTab{
+  flex:1;text-align:center;padding:10px 0;border-radius:12px;
+  font-size:14px;color:var(--tx2);background:var(--card);
+  border:1px solid transparent;
+}
+.accTab.on{
+  color:var(--ac);background:rgba(var(--tint),.14);
+  border-color:rgba(var(--tint),.35);font-weight:600;
+}
+
+.accField{margin:0 var(--pad) 12px}
+.accField label{display:block;font-size:12px;color:var(--tx3);margin:0 0 6px 2px}
+.accField input{
+  width:100%;box-sizing:border-box;padding:13px 14px;font-size:15px;
+  color:var(--tx);background:var(--card);
+  border:1px solid var(--line);border-radius:14px;outline:none;
+}
+.accField input:focus{border-color:rgba(var(--tint),.55)}
+
+.accBtn{
+  margin:18px var(--pad) 0;padding:14px;text-align:center;
+  font-size:15px;font-weight:600;color:var(--acInk);
+  background:linear-gradient(135deg,var(--ac),var(--ac2));border-radius:14px;
+}
+.accBtn.off{opacity:.55}
+.accErr{
+  margin:10px var(--pad) 0;font-size:13px;color:var(--err);
+  min-height:18px;line-height:1.5;
+}
+.accTip{margin:12px var(--pad) 0;font-size:12px;color:var(--tx3);line-height:1.6}
+
+/* 服务器地址（默认折叠，出问题时才需要改） */
+.accAdv{margin:24px var(--pad) 0;font-size:12px;color:var(--tx3);text-align:center}
+.accAdv b{color:var(--tx2);font-weight:500;word-break:break-all}
+.accAdvBox{margin:10px var(--pad) 0;display:flex;gap:8px}
+.accAdvBox input{
+  flex:1;min-width:0;padding:11px 12px;font-size:13px;color:var(--tx);
+  background:var(--card);border:1px solid var(--line);border-radius:12px;outline:none;
+}
+.accAdvBox .mini{
+  padding:11px 14px;font-size:13px;color:var(--tx);
+  background:var(--card2);border-radius:12px;white-space:nowrap;
+}
+
+/* 已登录 */
+.accInfo{margin:0 var(--pad);padding:6px 16px;background:var(--rowBg);
+  border:1px solid var(--line);border-radius:16px}
+.accInfo .row{display:flex;justify-content:space-between;gap:14px;
+  padding:11px 0;font-size:14px;border-bottom:1px solid var(--divider)}
+.accInfo .row:last-child{border-bottom:none}
+.accInfo .row .k{color:var(--tx3)}
+.accInfo .row .v{color:var(--tx);max-width:64%;text-align:right;word-break:break-all}
+.accOut{
+  margin:22px var(--pad) 0;padding:14px;text-align:center;font-size:15px;
+  color:var(--err);background:var(--card);border:1px solid var(--line);border-radius:14px;
+}

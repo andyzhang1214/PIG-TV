@@ -88,6 +88,28 @@ public class HawkConfig {
      */
     public static final String PHONE_THEME_MODE = "phone_theme_mode";
 
+    // ---- 会员 / 账号（2026-10-30 新增）----
+    /**
+     * 会员服务端地址，形如 {@code http://1.2.3.4:8088}。
+     * 没配就走 {@link com.github.tvbox.osc.account.AccountApi#DEFAULT_BASE}。
+     * 单机部署、没有域名，所以这里存的是裸 IP，用户可在登录页改。
+     */
+    public static final String ACCOUNT_BASE = "account_base";
+    /** 登录后拿到的 JWT，没这个值就是游客模式 */
+    public static final String USER_TOKEN = "user_token";
+    public static final String USER_ID = "user_id";
+    public static final String USER_NAME = "user_name";
+    /**
+     * 设备唯一标识（首次启动生成 UUID 后一直复用）。
+     * 服务端靠它做「同账号最多 N 个网段」的判定 —— 换设备就算新设备，
+     * 所以绝对不能每次启动重新生成，否则老设备会被判成幽灵设备。
+     */
+    public static final String DEVICE_ID = "device_id";
+    /** 用户点过「稍后再说」的版本号，同版本不再自动弹更新 */
+    public static final String SKIP_VERSION_CODE = "skip_version_code";
+    /** 上次静默检查更新的时间（毫秒），用于「回前台超过 6 小时才再查」 */
+    public static final String LAST_UPDATE_CHECK = "last_update_check";
+
     // Live Settings
     public static final String LIVE_CHANNEL = "last_live_channel_name";
     public static final String LIVE_CHANNEL_GROUP = "last_live_channel_group_name";
