@@ -1899,6 +1899,8 @@ window.toggleAdFilter = toggleAdFilter;
    ===================================================================== */
 function showAlt(title, html){
   SP.seq++; SP.probing = false;          // 换一个弹层就等于作废上一轮体检
+  SP.supp = {}; SP.running = false;
+  SP.open = false; stopSitePoll();       // 站点列表没开着，别再回读缓存
   document.getElementById('altTitle').textContent = title;
   document.getElementById('altList').innerHTML = html || '';
   document.getElementById('altFoot').style.display = 'none';
@@ -1907,6 +1909,9 @@ function showAlt(title, html){
 function setAltList(html){ document.getElementById('altList').innerHTML = html || ''; }
 function closeAlt(){
   SP.seq++; SP.probing = false;
+  SP.supp = {}; SP.running = false;
+  SP.open = false; stopSitePoll();
+  if (SP.timer){ clearTimeout(SP.timer); SP.timer = null; }
   document.getElementById('dAlt').classList.remove('on');
 }
 window.closeAlt = closeAlt;
@@ -1947,19 +1952,32 @@ window.pickAlt = function(i){
    ---------------------------------------------------------------------
    站点和「片源接口」不是一回事：接口是一个 JSON 地址，能量 HTTP 耗时；
    站点只是一行 csp_xxx 类名，内容要问 spider 现算。所以这里测的不是网速，
-   是「真能取到几部片」。测完把一条内容都没有的藏掉，省得一个个点着试。
+   是「真能取到几部片」。
+
+   检测时机和 TV 版完全一致：打开列表先把缓存结论摆出来，只有「过期 / 没结论」
+   的那几条会在后台补测（好结果 1 小时、坏结果 10 分钟就过期），其余行原地不动；
+   全量重测只留给底部的「重新检测」。App 启动时原生还会预热跑一轮（只进缓存）。
    ===================================================================== */
-var SP = {seq:0, sites:[], res:{}, idx:{}, done:0, total:0, probing:false, timer:null};
+var SP = {seq:0, sites:[], res:{}, idx:{}, done:0, total:0, probing:false, timer:null,
+          open:false, at:0, running:false, poll:null, pollN:0,
+          supp:{}, refreshed:false};
 /* 刚切换过去的站点：等首页真拿到分类再回告原生「这站可用」，
    用来纠正体检误判（点进去能播、列表里却标失败/无片） */
 var pendingSiteOk = '';
 
-/* 首页点源名：切换片源站点（对应 TV 版首页的「切换源」） */
+/* 首页点源名：切换片源站点（对应 TV 版首页的「切换源」）
+   ---------------------------------------------------------------------
+   打开先摆上次的结论，再只补测「过期 / 没结论」的那几条（和 TV 版一致）。
+   以前是「一打开就整轮重测」，「失败 / 无片」只留 10 分钟新鲜期，十几个坏站
+   每次进来都得重问一遍，用户其实只是想换个站，却要对着「检测中 0/48」等半分钟。 */
 window.openSites = function(){
   SP.res = {}; SP.idx = {}; SP.done = 0; SP.total = 0; SP.probing = false;
-  if (SP.timer){ clearTimeout(SP.timer); SP.timer = null; }
+  SP.at = 0; SP.pollN = 0; SP.supp = {}; SP.refreshed = false; SP.running = false;
+  stopSitePoll();
   showAlt('切换片源站点', '<div class="loadmore" style="padding:44px 0">正在读取站点…</div>');
+  SP.open = true;                        // showAlt 会把它清掉，这里重新立起来
   ncall('sites', [], function(r){
+    if (!SP.open) return;
     var list = (r && r.list) || [];
     if (!list.length){
       setAltList('<div class="loadmore" style="padding:44px 0">没有可切换的站点</div>');
@@ -1968,15 +1986,98 @@ window.openSites = function(){
     SP.sites = list;
     SP.total = list.length;
     for (var i = 0; i < list.length; i++) SP.idx[list[i].key] = i;
-    probeSites(false);
+    renderSites(list);                   // 先把行摆出来，徽章等缓存回来再补
+    loadCachedSites();
   });
 };
 
-/* 体检：原生逐站推 __evt('site')，全部结束回一个总数。
-   打开弹层就测（和 TV 版一致），有缓存时原生会整批推一次，几乎秒出。 */
+/* 读上一次的检测结论（原生只读缓存，不开测）。
+   刚开 App 就点进来时后台预热还没跑完：unknown>0 就每 3 秒回读一次，
+   结论一条条补上，最多盯 2 分钟。这只是看进度，不是重新检测。
+   缓存里有「过期 / 没结论」的（stale），转去向原生要一轮补测 —— 和 TV 一致。 */
+function loadCachedSites(){
+  var seq = SP.seq;
+  ncall('sitesCached', [String(seq)], function(r){
+    if (seq !== SP.seq || !SP.open) return;
+    var arr = (r && r.list) || [];
+    var stale = (r && r.stale) || [];
+    var unknown = 0;
+    for (var i = 0; i < arr.length; i++){
+      SP.res[arr[i].key] = arr[i];
+      if (!arr[i].st) unknown++;
+    }
+    SP.done = SP.total - unknown;
+    if (r && r.at) SP.at = r.at;
+    SP.running = !!(r && r.running);
+    /* 有过期项、又还没补过、预热也不在跑 → 只把这几条重新问一遍。
+       预热正在跑的话先别插队：那一轮本来就在补这些，抢它的代次等于从头再来。 */
+    if (stale.length && !SP.refreshed && !SP.probing && !SP.running){
+      startStaleRefresh(stale);         // 内部会先标「检测中」再要补测
+      return;
+    }
+    if (unknown > 0){
+      /* 边等边补徽章，别整表重绘 —— 一重绘滚动位置就弹回顶部 */
+      paintSiteBadges();
+      paintSitesFoot();
+      if (SP.pollN < 40){
+        SP.pollN++;
+        stopSitePoll();
+        SP.poll = setTimeout(function(){
+          SP.poll = null;
+          if (SP.open) loadCachedSites();
+        }, 3000);
+        return;
+      }
+    }
+    stopSitePoll();
+    finalizeSites();                     // 结论齐了（或等够了）：按好坏重排一次
+  });
+}
+
+/* 补测过期项（对应 TV 的 run(panel, false)）：只测这几条，其余行不动。
+   被补测的行显示「检测中」，结果到了逐站换徽章；收尾时按新结论重排一次。 */
+function startStaleRefresh(keys){
+  SP.refreshed = true;
+  SP.supp = {};
+  for (var i = 0; i < keys.length; i++) SP.supp[keys[i]] = 1;
+  SP.running = true;
+  stopSitePoll();                        // 有事件推过来了，不用再回读缓存
+  paintSiteBadges();
+  paintSitesFoot();
+  var seq = SP.seq;
+  ncall('refreshSites', [String(seq)], function(){
+    if (seq !== SP.seq || !SP.open) return;
+    SP.running = false;
+    SP.supp = {};
+    SP.at = Date.now();                  // 补测过了，页脚的时间要从现在算
+    finalizeSites();
+  });
+}
+
+function stopSitePoll(){
+  if (SP.poll){ clearTimeout(SP.poll); SP.poll = null; }
+}
+
+/* 只改徽章文字，不重绘列表 */
+function paintSiteBadges(){
+  var rows = document.querySelectorAll('#altList .apiSpd');
+  var list = window.__sites || SP.sites;
+  for (var i = 0; i < list.length; i++){
+    var el = rows[i];
+    if (!el) continue;
+    var m = siteSpd(list[i]);
+    el.className = 'apiSpd ' + m.c;
+    el.textContent = m.t;
+  }
+}
+
+/* 体检：只有点「重新检测」才会走到这里 —— 原生逐站推 __evt('site')，
+   全部结束回一个总数。 */
 function probeSites(force){
   if (SP.probing || !SP.sites.length) return;
-  SP.probing = true; SP.done = 0;
+  SP.probing = true; SP.done = 0; SP.pollN = 0;
+  SP.supp = {}; SP.refreshed = true;    // 全量重测已经覆盖了补测范围
+  stopSitePoll();
   document.getElementById('altFoot').style.display = 'none';
   document.getElementById('altTitle').textContent = '切换片源站点   0/' + SP.total;
   renderSites(SP.sites);
@@ -1995,6 +2096,7 @@ function probeSites(force){
     SP.probing = false;
     if (SP.timer){ clearTimeout(SP.timer); SP.timer = null; }
     if (!r || !r.ok) toast((r && r.msg) || '检测失败');
+    else { SP.at = Date.now(); SP.running = false; }
     finalizeSites();
   });
 }
@@ -2020,6 +2122,9 @@ function renderSites(list){
 
 function siteSpd(x){
   var r = SP.res[x.key];
+  /* 正在补测这一条：哪怕有旧结论也先写「检测中」，测完立刻换掉 ——
+     与 TV 版 RUNNING 优先于 CACHE 的表现一致 */
+  if (SP.supp && SP.supp[x.key]) return {t:'检测中', c:'wait'};
   if (!r) return SP.probing ? {t:'检测中', c:'wait'} : {t:'未测', c:'hide'};
   /* st=2 的文案由原生算好：站方自己报了总数就是「3200+」/「1.2万」，
      量不出总数就是「有内容」—— 不再拿首页推荐位的条数冒充总片量。 */
@@ -2035,6 +2140,7 @@ function siteSpd(x){
 function onSiteEvt(d){
   SP.res[d.key] = d;
   SP.done++;
+  if (SP.supp) delete SP.supp[d.key];       // 这条有结论了，别再写「检测中」
   var i = SP.idx[d.key];
   var el = document.querySelectorAll('#altList .apiSpd')[i];
   if (el && i != null){
@@ -2054,14 +2160,8 @@ function onSiteEvt(d){
    在列表里直接消失，连点都点不到。宁可好坏都摆出来，让顺序说话。 */
 function finalizeSites(){
   var arr = SP.sites.slice();
-  var ok = 0, bad = 0, untested = 0, origIdx = {};
-  for (var i = 0; i < arr.length; i++){
-    origIdx[arr[i].key] = i;
-    var r = SP.res[arr[i].key];
-    if (!r || r.st === 0) untested++;
-    else if (r.st === 3 || r.st === 4) bad++;
-    else ok++;
-  }
+  var origIdx = {};
+  for (var i = 0; i < arr.length; i++) origIdx[arr[i].key] = i;
   arr.sort(function(a, b){
     if (!!a.cur !== !!b.cur) return a.cur ? -1 : 1;      // 正在用的永远第一
     var d = siteRank(SP.res[a.key]) - siteRank(SP.res[b.key]);
@@ -2071,13 +2171,50 @@ function finalizeSites(){
   });
   renderSites(arr);
   document.getElementById('altTitle').textContent = '切换片源站点';
+  paintSitesFoot();
+}
+
+/* 底部汇总：能用的几个、没内容的几个、未测几个，外加「上次什么时候测的」。
+   打开只读缓存时没有检测过程，这一行就是用户判断「要不要点重新检测」的唯一依据。
+   这一栏是单行省略号，**最要紧的必须写在最前面**：补测进行中就先把「补测 n 个」
+   顶上去（时间先让位），闲下来才轮到「x 分钟前」。 */
+function paintSitesFoot(){
+  var ok = 0, bad = 0, untested = 0, supp = 0;
+  for (var i = 0; i < SP.sites.length; i++){
+    var r = SP.res[SP.sites[i].key];
+    if (!r || r.st === 0) untested++;
+    else if (r.st === 3 || r.st === 4) bad++;
+    else ok++;
+    if (SP.supp && SP.supp[SP.sites[i].key]) supp++;
+  }
   var tip;
-  if (!ok && !untested) tip = '所有源都没取到内容';
-  else tip = '共 ' + arr.length + ' 个源 · ' + ok + ' 个正常';
-  if (bad) tip += ' · ' + bad + ' 个没内容（已排到最后）';
-  if (untested) tip += ' · ' + untested + ' 个未测';
+  if (!SP.at && !ok && !bad){
+    /* 刚开 App 就点进来：后台那轮还在跑，告诉他是在跑，不是没数据 */
+    tip = SP.running
+      ? ('后台检测中 ' + (SP.sites.length - untested) + '/' + SP.sites.length)
+      : '还没检测过 · 点「重新检测」';
+  } else if (supp || (SP.running && untested)){
+    /* 正在补测：先说这件事，时间挪到后面（截掉也不影响判断） */
+    tip = (supp ? '补测 ' + supp + ' 个' : '补测中') + ' · ' + ok + ' 正常';
+    if (bad) tip += ' · ' + bad + ' 没内容';
+    if (untested) tip += ' · ' + untested + ' 未测';
+  } else {
+    tip = (SP.at ? siteAgo(SP.at) + ' · ' : '') + ok + ' 正常';
+    if (bad) tip += ' · ' + bad + ' 没内容';
+    if (untested) tip += ' · ' + untested + ' 未测';
+  }
   document.getElementById('altFootTip').textContent = tip;
   document.getElementById('altFoot').style.display = 'flex';
+}
+
+function siteAgo(ts){
+  var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return '刚刚';
+  var m = Math.round(s / 60);
+  if (m < 60) return m + ' 分钟前';
+  var h = Math.round(m / 60);
+  if (h < 24) return h + ' 小时前';
+  return Math.round(h / 24) + ' 天前';
 }
 
 /* 排序权重：越小越靠前。未测的夹在「能用」和「没内容」之间 ——

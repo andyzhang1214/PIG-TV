@@ -2314,6 +2314,29 @@ public class PhoneBridge {
     private static volatile boolean SITE_FG_USED = false;
 
     /**
+     * 当前是否有一轮探测在跑（预热也算）。
+     * 页面打开时靠它判断「要不要盯着缓存等结论补上」—— 不再自己另起一轮。
+     */
+    private static volatile boolean SITE_ROUNDING = false;
+
+    /** 参与体检的站点：隐藏的、没有名字的不算，否则列表里会多出几条点不了的幽灵行 */
+    private static List<SourceBean> visibleSites() {
+        List<SourceBean> all = new ArrayList<>();
+        List<SourceBean> raw = null;
+        try {
+            raw = ApiConfig.get().getSourceBeanList();
+        } catch (Throwable ignored) {
+        }
+        if (raw == null) return all;
+        for (SourceBean sb : raw) {
+            if (sb == null || sb.getHide() == 1) continue;
+            if (TextUtils.isEmpty(sb.getName())) continue;
+            all.add(sb);
+        }
+        return all;
+    }
+
+    /**
      * @param seq   前端给的代次，原样带回，页面关掉重开后旧一轮的迟到结果自己丢弃
      * @param force "1" = 忽略缓存全部重测（点「重新检测」）
      */
@@ -2324,6 +2347,92 @@ public class PhoneBridge {
         // 会把前台这轮整批顶掉 —— 表现就是「打开列表一直检测中，永远不出结果」。
         SITE_FG_USED = true;
         doProbe(spInt(seq), "1".equals(force == null ? "" : force.trim()), cbId, false);
+    }
+
+    /**
+     * 只读缓存：打开「切换片源站点」时把上次的结论直接摆出来，<b>本身不测</b>。
+     *
+     * <p>以前是「打开弹层就整轮重测」。因为「失败 / 无片」只留 10 分钟新鲜期，
+     * 十几个坏站每次进来都得重问一遍，用户对着「检测中 0/48」等半分钟 ——
+     * 而他其实只是想换个站。
+     *
+     * <p>现在的规矩和 TV 版完全一致：<b>先摆缓存</b>，然后只补测「过期 / 没结论」的
+     * 那几条（{@link #refreshSites}，对应 TV 的 {@code run(panel, false)}）；
+     * 全量重测只留给底部「重新检测」。
+     *
+     * <p>返回里带 {@code at}（最近一次出结论的时间）、{@code unknown}（还没结论的站数）
+     * 和 {@code stale}（需要补测的 key 列表）。用户刚开 App 就点进来时开机预热还在跑，
+     * 页面靠 {@code unknown} 决定要不要继续回读缓存看进度。
+     */
+    @JavascriptInterface
+    public void sitesCached(String seq, String cbId) {
+        final int mySeq = spInt(seq);
+        bgPool.execute(() -> {
+            try {
+                final List<SourceBean> all = visibleSites();
+                JSONArray arr = new JSONArray();
+                // 结论过期（好结果 >1h、坏结果 >10min）或压根没结论的站。
+                // 页面拿到这份清单后调 refreshSites 只补测这几条 —— 和 TV 版
+                // SiteProbe.attach() 里 run(panel, false) 的行为一致。
+                JSONArray stale = new JSONArray();
+                long newest = 0;
+                int unknown = 0;
+                for (SourceBean sb : all) {
+                    String k = nz(sb.getKey());
+                    JSONObject r = SITE_PROBE.get(k);
+                    Long at = SITE_PROBE_AT.get(k);
+                    if (at != null && at > newest) newest = at;
+                    if (r == null || r.optInt("st", 0) == 0) unknown++;
+                    if (freshProbe(k) == null) stale.put(k);
+                    arr.put(spSiteEvt(mySeq, sb, r == null ? spUntested() : r));
+                }
+                JSONObject out = new JSONObject();
+                out.put("ok", 1);
+                out.put("list", arr);
+                out.put("at", newest);
+                out.put("unknown", unknown);
+                out.put("stale", stale);
+                out.put("running", SITE_ROUNDING);
+                cb(cbId, out.toString());
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /**
+     * 只补测「结论过期 / 还没结论」的站 —— 对应 TV 版 {@code SiteProbe.attach()}
+     * 里的 {@code run(panel, false)}：
+     * <ul>
+     *   <li>好结果留 1 小时、坏结果留 10 分钟（误判要能自己恢复）；</li>
+     *   <li>只把那几条重新问一遍，其余行原地不动，界面不重绘、不跳滚动；</li>
+     *   <li>结果逐站推 {@code __evt('site')}，徽章一个个换，不挡操作。</li>
+     * </ul>
+     *
+     * <p>页面只在「打开列表、缓存里确有需要补的」时调一次；用户点「重新检测」
+     * 走的是 {@link #probeSites}（force=1，全量清缓存重测）。
+     */
+    @JavascriptInterface
+    public void refreshSites(String seq, String cbId) {
+        // 已经改用前台这套了，开机预热别再启动一轮来抢代次
+        SITE_FG_USED = true;
+        final int mySeq = spInt(seq);
+        bgPool.execute(() -> {
+            try {
+                final List<SourceBean> stale = new ArrayList<>();
+                for (SourceBean sb : visibleSites()) {
+                    if (freshProbe(sb.getKey()) == null) stale.add(sb);
+                }
+                // 全都在新鲜期内：什么都不用做，页面自己会把徽章留着
+                if (stale.isEmpty()) {
+                    cb(cbId, probeDone(0, 0).toString());
+                    return;
+                }
+                doProbe(mySeq, false, cbId, false, stale);
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
     }
 
     /**
@@ -2393,20 +2502,22 @@ public class PhoneBridge {
      * @param silent true = 预热，只写缓存、不往页面推事件
      */
     private void doProbe(final int mySeq, final boolean forced, final String cbId, final boolean silent) {
+        doProbe(mySeq, forced, cbId, silent, null);
+    }
+
+    /**
+     * @param scope 只测这几个站（补测过期项用）；null = 全部可见站
+     */
+    private void doProbe(final int mySeq, final boolean forced, final String cbId,
+                         final boolean silent, final List<SourceBean> scope) {
         // 新的一轮开始：上一轮还排在池子里的任务看到代数变了会立刻退出，
         // 否则关掉弹层再打开时，新任务要排在旧任务后面，屏幕一直停在「检测中」。
         final int myGen = SITE_GEN.incrementAndGet();
+        SITE_ROUNDING = true;
         bgPool.execute(() -> {
             try {
-                final List<SourceBean> all = new ArrayList<>();
-                List<SourceBean> raw = ApiConfig.get().getSourceBeanList();
-                if (raw != null) {
-                    for (SourceBean sb : raw) {
-                        if (sb == null || sb.getHide() == 1) continue;
-                        if (TextUtils.isEmpty(sb.getName())) continue;
-                        all.add(sb);
-                    }
-                }
+                final List<SourceBean> all =
+                        (scope != null && !scope.isEmpty()) ? scope : visibleSites();
 
                 // 组件没备好就开测，type=3 的站会全被判「组件里没有这个站」——
                 // 那不是站坏了，是我们还没把 jar 下回来，结论会误导人。
@@ -2446,11 +2557,15 @@ public class PhoneBridge {
                     if (!closed.compareAndSet(false, true)) return;
                     if (myGen != SITE_GEN.get()) return;
                     if (!silent) {
-                        JSONObject un = spUntested();
                         for (SourceBean sb : all) {
-                            if (sent.add(nz(sb.getKey()))) {
-                                emit("site", spSiteEvt(mySeq, sb, un).toString());
-                            }
+                            String k = nz(sb.getKey());
+                            if (!sent.add(k)) continue;
+                            // 补测轮里没轮上的站：它本来就有结论（只是过期了），
+                            // 拿「未测」去盖会把徽章擦成空白，看起来像刚测就挂了。
+                            // 只有全量重测才写未测 —— 那时旧结论确实不该再信。
+                            JSONObject old = forced ? null : SITE_PROBE.get(k);
+                            emit("site", spSiteEvt(mySeq, sb,
+                                    old != null ? old : spUntested()).toString());
                         }
                     }
                     if (!silent) cb(cbId, probeDone(all.size(), sent.size()).toString());
@@ -2491,6 +2606,10 @@ public class PhoneBridge {
                 finish.run();
             } catch (Throwable th) {
                 cbErr(cbId, th);
+            } finally {
+                // 只有「还是当前这一轮」才清标志：新一轮已经接手时乱清会让
+                // 页面在「正在检测」和「测完了」之间闪
+                if (myGen == SITE_GEN.get()) SITE_ROUNDING = false;
             }
         });
     }
