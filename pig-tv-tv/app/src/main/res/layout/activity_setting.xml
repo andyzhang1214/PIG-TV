@@ -20,7 +20,7 @@
         android:includeFontPadding="false"
         android:text="@string/v8_setting_title"
         android:textColor="#FFFFFFFF"
-        android:textSize="@dimen/v8_cat_title"
+        android:textSize="@dimen/v8_set_title"
         android:textStyle="bold" />
 
     <LinearLayout
@@ -31,7 +31,7 @@
 
         <com.owen.tvrecyclerview.widget.TvRecyclerView
             android:id="@+id/mGridView"
-            android:layout_width="@dimen/v8_cat_w"
+            android:layout_width="@dimen/v8_set_w"
             android:layout_height="match_parent"
             android:layout_marginStart="@dimen/h_edge"
             android:clipChildren="false"

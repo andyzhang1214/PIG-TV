@@ -2,7 +2,7 @@
 <!-- 配置中心左侧分组项：与首页分类页同一套皮（焦点淡底 + 左竖条） -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/v8_cat_item_h"
+    android:layout_height="@dimen/v8_set_item_h"
     android:layout_marginBottom="@dimen/vs_4"
     android:background="@drawable/v8_cat_bg"
     android:focusable="true"
@@ -15,10 +15,10 @@
         android:duplicateParentState="true"
         android:gravity="start|center_vertical"
         android:includeFontPadding="false"
-        android:paddingStart="@dimen/v8_cat_pad"
-        android:paddingEnd="@dimen/v8_cat_pad"
+        android:paddingStart="@dimen/v8_set_pad"
+        android:paddingEnd="@dimen/v8_set_pad"
         android:singleLine="true"
-        android:textColor="@color/v8_cat_tx"
-        android:textSize="@dimen/v8_cat_tx" />
+        android:textColor="@color/v8_set_tx"
+        android:textSize="@dimen/v8_set_tx" />
 
 </FrameLayout>

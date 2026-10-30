@@ -495,7 +495,11 @@ public class HomeActivity extends BaseActivity {
         navItems.add(new NavItem(NT_HIST));
         // 分类不再各自占一个顶栏标签（以前 6 个分类 + 更多 = 一排 11 项，
         // 3 米外根本扫不过来）：全部收进「影视」，选中后下面才展开二级菜单
-        if (!catTabs.isEmpty()) navItems.add(new NavItem(NT_FILM));
+        //
+        // 「影视」常驻，不再等 catTabs 非空才出现：数据没回来 / 这个站只给首页推荐时，
+        // 顶栏凭空少一项，用户只会觉得 UI 坏了（「接口资源都加载出来了，为什么没有影视」）。
+        // 分类真为空时点进去会落到 showCatEmpty()，把「这个接口没有分类」讲清楚。
+        navItems.add(new NavItem(NT_FILM));
         navItems.add(new NavItem(NT_LIVE));
         navItems.add(new NavItem(NT_FAV));
         inflateNav();
@@ -2223,6 +2227,9 @@ public class HomeActivity extends BaseActivity {
                             ApiConfig.get().getHomeSourceBean().getKey(), new ArrayList<MovieSort.SortData>(), true));
                 }
                 initViewPager(absXml);
+                android.util.Log.i("PIG-TV", "echo--home-nav sorts=" + sorts.size()
+                        + " real=" + realSortCount() + " catTabs=" + catTabs.size()
+                        + " first=" + (sorts.isEmpty() ? "-" : sorts.get(0).id + "/" + sorts.get(0).name));
                 SourceBean home = ApiConfig.get().getHomeSourceBean();
                 if (home != null && home.getName() != null && !home.getName().isEmpty()) {
                     tvPillSource.setText(home.getName());

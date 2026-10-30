@@ -427,6 +427,33 @@ public class ApiConfig {
     /** 本进程只自愈一次：源站配置本身写错时，重下多少次都一样，不能无限删缓存。 */
     private static volatile boolean mainJarHealed = false;
 
+    /** 上一次「组件里找不到这个类」的类名，用来区分「组件过期」和「这个站本来就没有」 */
+    private static volatile String lastMissingCls = "";
+
+    /**
+     * 记一次「组件里没有这个类」，返回是否该把整个主组件判为过期。
+     *
+     * <p>不能一遇到 ClassNotFoundException 就删主组件。接口更新比组件快是常态：
+     * 新增的站（比如两个用 {@code csp_XPathGuard} 的导航站）在旧组件里根本没有对应类，
+     * 但这**不代表组件该换** —— 其它几十个站都靠这一个 jar 活着。
+     *
+     * <p>真出过事：1.0.9 加了开机预热，预热挨个探站点，探到这两个没有类的站就
+     * {@link #invalidateMainJar()}，把全站共用的主组件删了 → 重新下载的十几秒里
+     * 首页和影视页全都空着，用户看到的就是「资源都加载出来了却没有视频内容」。
+     *
+     * <p>现在的判据：**两个不同的类都找不到**才认为是组件版本对不上。
+     * 同一个类被多个站引用（常见）只说明那几个站不支持当前组件，不动主组件。
+     */
+    public boolean noteClassMissing(String clsKey) {
+        if (clsKey == null || clsKey.isEmpty()) return false;
+        String last = lastMissingCls;
+        if (last != null && !last.isEmpty() && !last.equals(clsKey)) {
+            return true;
+        }
+        lastMissingCls = clsKey;
+        return false;
+    }
+
     /**
      * 把主组件缓存判为「与当前接口不匹配」：删缓存 + 丢掉已注册的 classLoader。
      * <p>下次 {@link #loadJar} 会重新下载，而不是继续命中旧包。
@@ -644,7 +671,21 @@ public class ApiConfig {
                             LOG.e("echo---jar 写入缓存失败");
                         }
                     }
-                    if (installed) lastJarDiag = lastJarDiag + " 已生效";
+                    if (installed) {
+                        // 上面那次 load() 注册的 DexClassLoader 绑的是 **.part 路径**，
+                        // rename 之后这个文件已经不存在了。加固壳里的站点类是懒加载的，
+                        // 等 getCSP/categoryContent 真正用到时才炸 —— 现象是「配置和组件
+                        // 都显示加载成功，但站点全部没有内容」。丢掉它，按正式缓存路径重注册。
+                        jarLoader.removeLoader("main");
+                        installed = jarLoader.load(cache.getAbsolutePath());
+                        if (!installed) {
+                            cache.delete();
+                            lastJarDiag = lastJarDiag + " 按缓存路径重新加载失败，已丢弃";
+                            LOG.e("echo---jar 缓存路径重新加载失败");
+                        } else {
+                            lastJarDiag = lastJarDiag + " 已生效";
+                        }
+                    }
                 } else {
                     // 关键：**半截的包要留着**。下一轮 Range 续传就靠它，
                     // 删掉等于每次失败都从 0 开始，慢网永远下不完。

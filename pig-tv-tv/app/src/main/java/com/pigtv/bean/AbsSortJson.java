@@ -17,12 +17,18 @@ public class AbsSortJson implements Serializable {
         AbsSortXml absSortXml = new AbsSortXml();
         MovieSort movieSort = new MovieSort();
         movieSort.sortList = new ArrayList<>();
-        for (AbsJsonClass cls : classes) {
-            MovieSort.SortData sortData = new MovieSort.SortData();
-            sortData.id = cls.type_id;
-            sortData.name = cls.type_name;
-            sortData.flag = cls.type_flag;
-            movieSort.sortList.add(sortData);
+        // 有的接口只给首页推荐、不给 class（classes 为 null）。
+        // 原来这里直接 for-each 会抛 NPE，异常被 sortJson() 的 catch 吞掉后
+        // 整个配置解析成 null —— 表现是首页一片空，连顶栏「影视」都不出现。
+        if (classes != null) {
+            for (AbsJsonClass cls : classes) {
+                if (cls == null) continue;
+                MovieSort.SortData sortData = new MovieSort.SortData();
+                sortData.id = cls.type_id;
+                sortData.name = cls.type_name;
+                sortData.flag = cls.type_flag;
+                movieSort.sortList.add(sortData);
+            }
         }
         if (list != null && !list.isEmpty()) {
             Movie movie = new Movie();

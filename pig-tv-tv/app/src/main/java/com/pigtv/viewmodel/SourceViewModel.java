@@ -260,7 +260,17 @@ public class SourceViewModel extends ViewModel {
                         if (sortJson != null) {
                             if (sortJson.trim().isEmpty() || "{}".equals(sortJson.trim()))
                                 com.pigtv.api.SpiderDiag.set("站点返回了空内容（可能该站在维护或已停用）");
+                            // 首页有内容、影视页却「没有分类」时，先看这一行：
+                            // 站点到底给没给 class（有的接口只给 list，或者字段名写成 classes）
+                            LOG.i("echo--getSort-json len=" + sortJson.length()
+                                    + " hasClass=" + sortJson.contains("\"class\"")
+                                    + " hasClasses=" + sortJson.contains("\"classes\"")
+                                    + " head=" + sortJson.substring(0, Math.min(200, sortJson.length())));
                             final AbsSortXml sortXml = sortJson(sortResult, sortJson);
+                            LOG.i("echo--getSort-parsed " + (sortXml == null ? "xml=null"
+                                    : ("sorts=" + (sortXml.classes == null || sortXml.classes.sortList == null
+                                    ? "null" : String.valueOf(sortXml.classes.sortList.size())))
+                                    + " list=" + (sortXml.videoList == null ? 0 : sortXml.videoList.size())));
                             if (sortXml == null)
                                 com.pigtv.api.SpiderDiag.set("站点返回的分类解析不了（不是标准 JSON）");
                             if (sortXml != null && Hawk.get(HawkConfig.HOME_REC, 0) == 1) {
@@ -1028,8 +1038,10 @@ public class SourceViewModel extends ViewModel {
     private AbsSortXml sortJson(MutableLiveData<AbsSortXml> result, String json) {
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            AbsSortJson sortJson = gson.fromJson(obj, new TypeToken<AbsSortJson>() {
-            }.getType());
+            // 不要用 new TypeToken<AbsSortJson>(){}.getType()：
+            // 匿名子类的泛型签名会被 R8 裁掉，直接抛 IllegalStateException，
+            // 分类就整个解析成 null。给具体 Class 就行。
+            AbsSortJson sortJson = gson.fromJson(obj, AbsSortJson.class);
             AbsSortXml data = sortJson.toAbsSortXml();
             try {
                 if (obj.has("filters")) {
@@ -1058,6 +1070,10 @@ public class SourceViewModel extends ViewModel {
             }
             return data;
         } catch (Exception e) {
+            // 别静默吞：解析失败时首页会「有推荐没分类」，影视页直接空态，
+            // 不打印根本看不出是哪一步挂的
+            LOG.e("echo--getSort-parse-fail " + e);
+            e.printStackTrace();
             return null;
         }
     }
@@ -1174,8 +1190,7 @@ public class SourceViewModel extends ViewModel {
                                                             String res = response.body();
                                                             if (!TextUtils.isEmpty(res)) {
                                                                 try {
-                                                                    AbsJson absJson = gson.fromJson(res, new TypeToken<AbsJson>() {
-                                                                    }.getType());
+                                                                    AbsJson absJson = gson.fromJson(res, AbsJson.class);
                                                                     resData[0] = absJson.toAbsXml();
                                                                     absXml(resData[0], sb.getKey());
                                                                 } catch (Exception e) {
@@ -1200,8 +1215,7 @@ public class SourceViewModel extends ViewModel {
                                                 String res = sp.detailContent(ids);
                                                 if (!TextUtils.isEmpty(res)) {
                                                     try {
-                                                        AbsJson absJson = gson.fromJson(res, new TypeToken<AbsJson>() {
-                                                        }.getType());
+                                                        AbsJson absJson = gson.fromJson(res, AbsJson.class);
                                                         resData[0] = absJson.toAbsXml();
                                                         absXml(resData[0], sb.getKey());
                                                     } catch (Exception e) {
@@ -1377,8 +1391,7 @@ public class SourceViewModel extends ViewModel {
                     "\t\t\"vod_play_url\": \"0$magnet:?xt=urn:btih:9e9358b946c427962533472efdd2efd9e9e38c67&dn=%e9%98%b3%e5%85%89%e7%94%b5%e5%bd%b1www.ygdy8.com.%e7%83%ad%e8%a1%80.2022.BD.1080P.%e9%9f%a9%e8%af%ad%e4%b8%ad%e8%8b%b1%e5%8f%8c%e5%ad%97.mkv&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337%2fannounce&tr=udp%3a%2f%2fexodus.desync.com%3a6969%2fannounce\"\n" +
                     "\t}]\n" +
                     "}";*/
-            AbsJson absJson = gson.fromJson(json, new TypeToken<AbsJson>() {
-            }.getType());
+            AbsJson absJson = gson.fromJson(json, AbsJson.class);
             AbsXml data = absJson.toAbsXml();
             absXml(data, sourceKey);
             if (searchResult == result) {

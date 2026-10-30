@@ -36,22 +36,38 @@ import java.util.regex.Pattern;
  */
 public class DefaultConfig {
 
+    /**
+     * 把站点自己的分类整理成首页要用的那一列。
+     *
+     * <p>接口里可以给某个站点单独写 {@code categories}（要哪几个分类、按什么顺序）。
+     * 但站点的分类名经常改（「电影片」→「电影」），一改就一个都对不上 ——
+     * 以前这里会直接返回空列表，于是 {@code sorts} 里只剩 my0、
+     * 顶栏「影视」整项消失，用户看到的现象就是「接口资源都加载出来了，却没有影视标签」，
+     * 而首页推荐照样有内容，很难想到是分类匹配失败。</p>
+     *
+     * <p>所以：一个都没匹配上时当作没配，退回站点自己的全部分类。
+     * 顺序仍按 {@code categories} 里写的来（Collections.sort 是稳定排序）。</p>
+     */
     public static List<MovieSort.SortData> adjustSort(String sourceKey, List<MovieSort.SortData> list, boolean withMy) {
         List<MovieSort.SortData> data = new ArrayList<>();
-        if (sourceKey != null) {
+        if (sourceKey != null && list != null) {
             SourceBean sb = ApiConfig.get().getSource(sourceKey);
-            ArrayList<String> categories = sb.getCategories();
-            if (!categories.isEmpty()) {
+            ArrayList<String> categories = sb == null ? null : sb.getCategories();
+            boolean picked = false;
+            if (categories != null && !categories.isEmpty()) {
                 for (String cate : categories) {
                     for (MovieSort.SortData sortData : list) {
-                        if (sortData.name.equals(cate)) {
+                        if (sortData.name != null && sortData.name.equals(cate)) {
                             if (sortData.filters == null)
                                 sortData.filters = new ArrayList<>();
                             data.add(sortData);
+                            picked = true;
                         }
                     }
                 }
-            } else {
+            }
+            // picked=false：没配 categories，或配了但一个都没匹配上（分类名改过）→ 全量铺
+            if (!picked) {
                 for (MovieSort.SortData sortData : list) {
                     if (sortData.filters == null)
                         sortData.filters = new ArrayList<>();

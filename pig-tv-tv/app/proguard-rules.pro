@@ -206,7 +206,14 @@
 -dontwarn jcifs.**
 
 # 实体类
-#-keep class com.pigtv.bean.** { *; }
+# 必须 keep：Gson / XStream 都靠字段名和泛型签名反射建对象。
+# 这行以前是注释状态，R8 把匿名 TypeToken 子类的签名一并裁掉之后，
+# `new TypeToken<AbsSortJson>(){}.getType()` 直接抛
+# 「TypeToken must be created with a type argument」——
+# 表现就是配置和组件都加载成功，但分类解析成空：首页只剩推荐、影视页空态、
+# 搜索/详情也一起废掉。
+-keep class com.pigtv.bean.** { *; }
+-keepclassmembers class com.pigtv.bean.** { *; }
 -keep class com.pigtv.ui.fragment.homes.**{*;}
 #CardView
 -keep class com.pigtv.ui.tv.widget.card.**{*;}

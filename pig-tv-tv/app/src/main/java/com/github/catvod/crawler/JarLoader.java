@@ -249,15 +249,21 @@ public class JarLoader {
             // 这里最常抓到的是 NoClassDefFoundError: com.github.catvod.net.OkHttp ——
             // 也就是「R8 把宿主给 jar 用的 API 改名了」，报给前端才能看出来。
             com.pigtv.api.SpiderDiag.fail("加载站点 " + clsKey, th);
-            // 主 jar 里没有这个类：多半是站点换了新组件、本地缓存还是旧包
-            // （接口不声明 md5 时，光看文件分辨不出来），旧包能 load 就一直接着用，
-            // 表现就是「接口连上了但没内容」。把旧组件丢掉，下次加载会重下。
+            // 主 jar 里没有这个类：可能是组件过期（站点换了新包、本地还是旧的），
+            // 也可能只是**这个站本来就不在这版组件里**（接口更新比组件快，很常见）。
+            // 后者绝不能删主组件 —— 几十个站共用这一个 jar，一删全瘫。
+            // 交给 noteClassMissing 判断：两个不同的类都缺才算组件过期。
             if (jar.isEmpty()
                     && (th instanceof ClassNotFoundException || th instanceof NoClassDefFoundError)) {
-                if (com.pigtv.api.ApiConfig.get().invalidateMainJar()) {
+                if (com.pigtv.api.ApiConfig.get().noteClassMissing(clsKey)
+                        && com.pigtv.api.ApiConfig.get().invalidateMainJar()) {
                     com.pigtv.api.SpiderDiag.set("站点 " + clsKey
                             + " 在本地组件里不存在（当前组件是旧版），已清掉旧组件，"
                             + "点「重新加载」会自动下载新组件");
+                } else {
+                    // 只报这个站用不了，别动主组件
+                    com.pigtv.api.SpiderDiag.set("这个站点不在当前组件里（" + clsKey
+                            + "），换一个片源即可，其它站点不受影响");
                 }
             }
             th.printStackTrace();

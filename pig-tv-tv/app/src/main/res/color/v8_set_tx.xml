@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 配置中心左列文字。
+     和分类页的 v8_cat_tx 分开：分类页一屏十几个分类，未被选中的压到 55% 白是
+     为了让「当前分类」跳出来；配置中心只有 4 项、大片留白，未选中的那三项
+     再压到 55% 就真的看不见了（用户原话「看都看不见」）。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FFFFFFFF" />
+    <item android:state_selected="true" android:color="#FFFFFFFF" />
+    <item android:color="#B8FFFFFF" />
+</selector>
