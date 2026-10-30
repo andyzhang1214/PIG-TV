@@ -64,10 +64,9 @@ _build/
 # ---------- WorkBuddy 工作记忆 / 临时排查文件（本地专用，不入库）----------
 .workbuddy/
 
-# ---------- 服务端 / 管理后台（pig-tv-server、pig-tv-admin）----------
+# ---------- 通用（前端工程 / 工具链缓存）----------
+# 服务端与管理后台已迁到独立仓库 Pig-Tv-Manager，本仓库只放 App
 node_modules/
 .vite/
 target/
 *.log
-pig-tv-server/data/
-pig-tv-server/logs/
