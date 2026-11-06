@@ -3,6 +3,7 @@ package com.pigtv.util.live;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -15,6 +16,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -58,6 +60,9 @@ import okhttp3.ResponseBody;
  * </ul>
  */
 public final class LiveLineProbe {
+
+    /** 排查用：`adb logcat -s PigLive` */
+    private static final String TAG = "PigLive";
 
     /** 并发：直播线大多挂在同一批 CDN 上，放开了跑会互相拖成超时 */
     private static final int CONCURRENCY = 3;
@@ -162,6 +167,10 @@ public final class LiveLineProbe {
                 return oa - ob;
             }
         });
+        // 只在顺序真的变了时打——每次切台都打会把日志刷满
+        if (!out.equals(urls)) {
+            Log.i(TAG, "rank " + brief(urls) + "  ->  " + brief(out));
+        }
         return out;
     }
 
@@ -198,13 +207,15 @@ public final class LiveLineProbe {
         }
         final String sig = signature(urls);
         if (RUNNING.put(sig, Boolean.TRUE) != null) return;      // 已经在跑
+        Log.i(TAG, "probe start n=" + urls.size() + "  " + brief(urls));
 
         ORCH.execute(new Runnable() {
             @Override
             public void run() {
                 try {
                     runProbe(urls);
-                } catch (Throwable ignored) {
+                } catch (Throwable t) {
+                    Log.w(TAG, "probe error", t);
                 } finally {
                     RUNNING.remove(sig);
                     if (onDone != null) MAIN.post(onDone);
@@ -249,9 +260,20 @@ public final class LiveLineProbe {
         }
         try {
             latch.await(BUDGET_MS + 600L, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            Log.w(TAG, "probe interrupted", e);
         }
+        StringBuilder sb = new StringBuilder();
+        for (String u : urls) {
+            Score s = SCORES.get(u);
+            sb.append(' ').append(hostOf(u)).append('=');
+            if (s == null) sb.append('?');
+            else if (s.dead) sb.append("dead");
+            else sb.append(String.format(Locale.US, "%.2fMiB/%dms%s",
+                        s.speed, s.delay, s.placeholder ? "/AD" : ""));
+        }
+        Log.i(TAG, "probe done" + sb);
     }
 
     private static Score measure(String url) {
@@ -322,6 +344,7 @@ public final class LiveLineProbe {
         } catch (Throwable t) {
             s.dead = true;
             if (s.delay < 0) s.delay = -1;
+            Log.w(TAG, "measure fail " + hostOf(clean) + " : " + t);
         } finally {
             if (in != null) {
                 try {
@@ -401,6 +424,29 @@ public final class LiveLineProbe {
         Score s = SCORES.get(url);
         if (s == null || s.at == 0) return Long.MAX_VALUE;
         return s.delay < 0 ? Long.MAX_VALUE - 1 : s.delay;
+    }
+
+    /** 日志用：`下标:host`，不打完整地址（线路名后面可能带 token） */
+    private static String brief(List<String> urls) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < urls.size(); i++) {
+            if (i > 0) sb.append(',');
+            sb.append(i).append(':').append(hostOf(urls.get(i)));
+        }
+        return sb.toString();
+    }
+
+    private static String hostOf(String url) {
+        if (url == null) return "null";
+        int i = url.indexOf("://");
+        int st = i >= 0 ? i + 3 : 0;
+        int e = url.indexOf('/', st);
+        if (e < 0) e = url.length();
+        int d = url.indexOf('$');            // 线路标签，不属于地址
+        if (d >= 0 && d < e) e = d;
+        e = Math.min(e, url.length());
+        String h = url.substring(Math.min(st, e), e);
+        return h.length() > 40 ? h.substring(0, 40) : h;
     }
 
     private static String signature(List<String> urls) {

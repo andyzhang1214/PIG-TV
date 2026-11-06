@@ -1,5 +1,7 @@
 package com.pigtv.util;
 
+import android.util.Log;
+
 import androidx.annotation.Nullable;
 
 import com.orhanobut.hawk.Hawk;
@@ -38,6 +40,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 上限 {@link #MAX_ENTRIES} 条（超了按最久没碰过的淘汰），避免长期使用后无限膨胀。
  */
 public final class FailBackoff {
+
+    private static final String TAG = "PigLive";
 
     /** 连续失败到几次才开始冻结 */
     private static final int FREEZE_THRESHOLD = 3;
@@ -89,6 +93,10 @@ public final class FailBackoff {
                 ? 0L
                 : now + backoffOf(e.fails);
         save();
+        if (e.frozenUntil > 0) {
+            Log.i(TAG, "frozen " + key + " fails=" + e.fails
+                    + " for " + (backoffOf(e.fails) / 60000L) + "min");
+        }
     }
 
     /** 现在是否在冻结期 */
