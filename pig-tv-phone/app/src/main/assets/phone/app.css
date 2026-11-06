@@ -986,6 +986,10 @@ svg{display:block}
 .altBt:active{background:rgba(255,122,69,.22)}
 /* 体检徽章「不显示」：不测的站（脚本源 / 未测）干脆不占位 */
 .apiSpd.hide{display:none}
+/* 「暂停」必须可见 —— 它和 hide 是两回事：hide 是「没有徽章」，
+   pause 是「有状态但这一轮没验证」。用 hide 会整块 display:none，
+   统计里明明有它、界面上一个字都看不到。 */
+.apiSpd.pause{color:#8A8F98;background:rgba(138,143,152,.14)}
 .altRow.add .altN{color:var(--ac)}
 
 /* =====================================================================

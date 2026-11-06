@@ -172,9 +172,15 @@ public final class FailBackoff {
         String raw = null;
         try {
             raw = Hawk.get(SP_KEY, "");
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // 这里以前是纯 ignored：Hawk 没准备好就整条静默失败，退避等于没落盘，
+            // 而外部唯一能看到的症状是「重启后死站又全测一遍」，根本查不到根因。
+            Log.w(TAG, "backoff load fail", t);
         }
-        if (raw == null || raw.isEmpty()) return;
+        if (raw == null || raw.isEmpty()) {
+            Log.i(TAG, "backoff load: empty");
+            return;
+        }
         try {
             JSONObject o = new JSONObject(raw);
             Iterator<String> it = o.keys();
@@ -188,7 +194,9 @@ public final class FailBackoff {
                 e.lastTouch = v.optLong("t", 0L);
                 if (e.fails > 0) MAP.put(k, e);
             }
-        } catch (Throwable ignored) {
+            Log.i(TAG, "backoff load: " + MAP.size() + " entries / " + raw.length() + " chars");
+        } catch (Throwable t) {
+            Log.w(TAG, "backoff parse fail: " + raw.substring(0, Math.min(80, raw.length())), t);
         }
     }
 
@@ -206,7 +214,8 @@ public final class FailBackoff {
                 o.put(en.getKey(), v);
             }
             Hawk.put(SP_KEY, o.toString());
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            Log.w(TAG, "backoff save fail", t);
         }
     }
 

@@ -272,14 +272,16 @@ public final class SiteProbe {
         long now = System.currentTimeMillis();
         for (SourceBean sb : p.sites) {
             final String key = sb.getKey();
+            // 退避期内一律摆「暂停」，而且必须排在读缓存前面。
+            // 不这么写的话，缓存里那条「失败」的 TTL 活到退避结束，把冻结分支整个盖住：
+            // 用户看到的是「失败」，其实这一轮压根没测 —— 分不清「刚测的不通」和
+            // 「很久没测、已知最近不通」，而这正是加「暂停」态想区分的东西。
+            if (!force && FailBackoff.isFrozen(key)) {
+                CACHE.put(key, frozenResult());
+                continue;
+            }
             Result r = CACHE.get(key);
             if (force || !isFresh(key, r, now)) {
-                // 冷启动后 CACHE 是空的，但上一轮会话已经把这个站判进退避期了。
-                // 这种情况摆一个「暂停」占位，别再白测一次——这也是退避必须落盘的原因。
-                if (!force && r == null && FailBackoff.isFrozen(key)) {
-                    CACHE.put(key, frozenResult());
-                    continue;
-                }
                 todo.add(sb);
             }
         }
@@ -703,8 +705,8 @@ public final class SiteProbe {
     /**
      * 缓存里的结论还能不能用。
      *
-     * <p>好结果 1 小时；失败 = max(10 分钟, 退避剩余时间)；无片固定 10 分钟（不进退避）；
-     * 「暂停」占位只在还冻结着的时候算数。
+     * <p>好结果 1 小时；失败 / 无片固定 10 分钟（「不进退避」是说无片；失败虽然记账，
+     * 但冻结由调用方单独判，不靠这里拉长 TTL）；「暂停」占位只在还冻结着的时候算数。
      */
     private static boolean isFresh(String key, Result r, long now) {
         if (r == null) return false;
@@ -712,11 +714,9 @@ public final class SiteProbe {
         if (r.state == ST_FROZEN) return FailBackoff.isFrozen(key);
         if (r.state == ST_OK) return r.at > 0 && now - r.at <= FRESH_MS;
         long ttl;
-        if (r.state == ST_FAIL) {
-            // 连不上：10 分钟打底，失败次数多了按退避拉长
-            ttl = Math.max(FRESH_BAD_MS, FailBackoff.remainMs(key));
-        } else if (r.state == ST_EMPTY) {
-            // 无片：固定 10 分钟，不进退避
+        if (r.state == ST_FAIL || r.state == ST_EMPTY) {
+            // 连不上 / 无片：都是 10 分钟。失败次数多了由 FailBackoff 冻结，
+            // 冻结期摆「暂停」，不靠把「失败」的 TTL 拉长来间接实现。
             ttl = FRESH_BAD_MS;
         } else {
             // 脚本源这类「测不了」的：按好结果留，本来也不会真去测

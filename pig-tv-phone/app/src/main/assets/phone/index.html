@@ -2133,8 +2133,9 @@ function siteSpd(x){
   if (r.st === 5) return {t:'脚本源', c:'hide'};
   if (r.st === 0) return {t:'未测', c:'wait'};
   /* st=7：连续失败过、还在退避期里，这一轮故意没测。
-     不能显示成「失败」（那是结论），也不能显示成「未测」（那像超时没轮到）—— */
-  if (r.st === 7) return {t:'暂停', c:'hide'};
+     不能显示成「失败」（那是结论），也不能显示成「未测」（那像超时没轮到）。
+     样式必须用 pause 不能用 hide —— hide 是 display:none，会把徽章整块藏掉。 */
+  if (Number(r.st) === 7) return {t:'暂停', c:'pause'};
   if (r.st === 4) return {t:'失败', c:'bad'};
   return {t:'', c:'hide'};
 }

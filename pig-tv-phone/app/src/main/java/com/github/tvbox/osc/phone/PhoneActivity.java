@@ -185,7 +185,12 @@ public class PhoneActivity extends AppCompatActivity implements CancelAdapt {
             }
         });
 
-        web.loadUrl("file:///android_asset/phone/index.html?theme=" + (isNightMode() ? "dark" : "light"));
+        // URL 里必须带版本号：只带 theme 的话每次升级 URL 都一样，WebView 会拿
+        // 缓存里的旧 index.html —— 表现是「APK 里已经是新前端，界面还是老行为」，
+        // 用户升级后前端改动全部不生效。带上 versionCode，升级即换 URL。
+        web.loadUrl("file:///android_asset/phone/index.html?v="
+                + com.github.tvbox.osc.BuildConfig.VERSION_CODE
+                + "&theme=" + (isNightMode() ? "dark" : "light"));
 
         // 兜底：3 秒还没回调就把壳亮出来
         new android.os.Handler(getMainLooper()).postDelayed(this::hideSplash, 3000);
@@ -200,7 +205,9 @@ public class PhoneActivity extends AppCompatActivity implements CancelAdapt {
         s.setAllowFileAccess(true);
         s.setAllowContentAccess(true);
         s.setLoadsImagesAutomatically(true);
-        s.setCacheMode(WebSettings.LOAD_DEFAULT);
+        // 页面全部来自 assets，没有需要缓存的东西。LOAD_DEFAULT 会让 WebView 保留一份
+        // 旧的 index.html，升级后前端改动不生效（现象：APK 里 md5 已是新版，界面还是老行为）。
+        s.setCacheMode(WebSettings.LOAD_NO_CACHE);
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setTextZoom(100);
         s.setSupportZoom(false);

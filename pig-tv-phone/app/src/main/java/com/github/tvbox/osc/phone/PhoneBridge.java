@@ -2381,6 +2381,10 @@ public class PhoneBridge {
                 for (SourceBean sb : all) {
                     String k = nz(sb.getKey());
                     JSONObject r = SITE_PROBE.get(k);
+                    // 冻结期优先于缓存：这里以前直接摆缓存的「失败」，把「暂停」整个盖住。
+                    // 用户看到「失败」以为是刚测的结论，其实这一轮压根没测 ——
+                    // 这正是加「暂停」态要区分的东西，必须在这里也判一次。
+                    if (FailBackoff.isFrozen(k)) r = spFrozen();
                     Long at = SITE_PROBE_AT.get(k);
                     if (at != null && at > newest) newest = at;
                     if (r == null || r.optInt("st", 0) == 0) unknown++;
@@ -2422,7 +2426,12 @@ public class PhoneBridge {
             try {
                 final List<SourceBean> stale = new ArrayList<>();
                 for (SourceBean sb : visibleSites()) {
-                    if (freshProbe(sb.getKey()) == null) stale.add(sb);
+                    final String k = sb.getKey();
+                    // 冻结的站也要放进这一轮：它不会被真测（doProbe 里 freshProbe 直接
+                    // 给「暂停」，不花一个请求），但必须让它走出一次事件 ——
+                    // 只按 freshProbe != null 筛的话，冻结站既不补测、又没人给页面发结果，
+                    // 那一行就永远停在「未测」，用户分不清是没轮到还是冻着。
+                    if (freshProbe(k) == null || FailBackoff.isFrozen(k)) stale.add(sb);
                 }
                 // 全都在新鲜期内：什么都不用做，页面自己会把徽章留着
                 if (stale.isEmpty()) {
@@ -2604,8 +2613,18 @@ public class PhoneBridge {
                             }
                             if (myGen != SITE_GEN.get()) return;
                             sent.add(nz(sb.getKey()));
-                            if (!silent) emit("site", spSiteEvt(mySeq, sb, r).toString());
-                        } catch (Throwable ignored) {
+                            if (!silent) {
+                                // emit 单独兜异常：以前是裸调用 + 外层 ignored，
+                                // 一旦 emit 抛异常，sent 已经把这条记成「发过了」，
+                                // finish 兜底会 continue 掉，页面永远等不到这条结果。
+                                try {
+                                    emit("site", spSiteEvt(mySeq, sb, r).toString());
+                                } catch (Throwable t2) {
+                                    android.util.Log.w("PigLive", "emit site fail " + sb.getKey(), t2);
+                                }
+                            }
+                        } catch (Throwable t) {
+                            android.util.Log.w("PigLive", "probe task fail " + sb.getKey(), t);
                         } finally {
                             latch.countDown();
                             if (left.decrementAndGet() <= 0) finish.run();
@@ -2878,25 +2897,23 @@ public class PhoneBridge {
     }
 
     private static JSONObject freshProbe(String key) {
+        // 退避期内一律摆「暂停」，而且必须排在读缓存前面。
+        // 不这么写的话，缓存里那条「失败」的 TTL 活到退避结束，把冻结分支整个盖住：
+        // 用户看到的是「失败」，其实这一轮压根没测 —— 分不清「刚测的不通」和
+        // 「很久没测、已知最近不通」，而这正是加「暂停」态想区分的东西。
+        if (FailBackoff.isFrozen(key)) return spFrozen();
         JSONObject r = SITE_PROBE.get(nz(key));
         Long at = SITE_PROBE_AT.get(nz(key));
         if (r == null || at == null) return null;
         int st = r.optInt("st", 0);
         if (st == 0) return null;                 // 「未测」不是结论，下次一定重测
+        if (st == 7) return null;                 // 走到这里说明冻结已过期，重测
         // 好结果留久一点（1 小时），坏结果只留 10 分钟 —— 误判要能自己恢复，
         // 否则一个能用的站会被一直按在列表最底下。
-        //
-        // 坏结果的真实 TTL 还要跟「失败退避」的剩余时间取大者：前两次失败仍按 10 分钟
-        // 重测，第三次起开始指数退避（8 分钟 → 16 → 32 …封顶 24 小时），越死越少测。
-        // 退避记录是落盘的，所以冷启动后钉子户也不会被重新白测一遍。
+        // 冻结由上面那段单独处理，这里不再跟退避剩余时间取大者。
         long ttl;
-        if (st == 7) {
-            // 「暂停」占位：只在还冻结着的时候算结论
-            return FailBackoff.isFrozen(key) ? r : null;
-        }
         if (st == 4) {
-            // 连不上：10 分钟打底，失败次数多了按退避拉长
-            ttl = Math.max(SITE_FRESH_BAD_MS, FailBackoff.remainMs(key));
+            ttl = SITE_FRESH_BAD_MS;
         } else if (st == 3) {
             // 无片：固定 10 分钟，不进退避 —— 内容是站方那边的事，随时会变，
             // 一个刚补完片的站不该被冻一天
