@@ -55,6 +55,7 @@ import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.HawkUtils;
 import com.github.tvbox.osc.util.JavaUtil;
+import com.github.tvbox.osc.util.live.LiveLineProbe;
 import com.github.tvbox.osc.util.live.TxtSubscribe;
 import com.google.gson.JsonArray;
 import com.lzy.okgo.OkGo;
@@ -1218,8 +1219,28 @@ public class LivePlayActivity extends BaseActivity {
     private final Runnable mConnectTimeoutChangeSourceRun = new Runnable() {
         @Override
         public void run() {
+            if (currentLiveChannelItem == null) return;
+
+            // ---- 线路择优 ----
+            // 原来是无脑 nextSource()：五条线里四条是死的，用户就得挨四次超时才换得走。
+            // 这里在<b>第一次</b>失败时把线路按「失败次数 + 上次测速分数」重排一次，
+            // 当前这条线跟着挪到它该在的位置，后面仍走原来的 nextSource()——
+            // 于是换线变成「按质量顺序往下走」，而不是「按源站给的顺序往下走」。
+            //
+            // 只在第一次失败时排：每次失败都重排的话，测速还没回来就白排，
+            // 而且线路号会连续跳动，看着像在乱切。
+            java.util.List<String> urls = currentLiveChannelItem.getChannelUrls();
+            int total = urls == null ? 0 : urls.size();
+            if (total > 1 && currentLiveChangeSourceTimes == 0) {
+                // 分不够就先在后台攒一轮，不挡这次换线；下次进这个台就用得上
+                if (!LiveLineProbe.hasFreshScores(urls)) {
+                    LiveLineProbe.probeAsync(urls, null);
+                }
+                currentLiveChannelItem.applyOrder(LiveLineProbe.rank(urls));
+            }
+
             currentLiveChangeSourceTimes++;
-            if (currentLiveChannelItem.getSourceNum() == currentLiveChangeSourceTimes) {
+            if (total == currentLiveChangeSourceTimes) {
                 currentLiveChangeSourceTimes = 0;
                 Integer[] groupChannelIndex = getNextChannel(Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false) ? -1 : 1);
                 playChannel(groupChannelIndex[0], groupChannelIndex[1], false);

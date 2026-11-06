@@ -2132,6 +2132,9 @@ function siteSpd(x){
   if (r.st === 3) return {t:'无片', c:'warn'};
   if (r.st === 5) return {t:'脚本源', c:'hide'};
   if (r.st === 0) return {t:'未测', c:'wait'};
+  /* st=7：连续失败过、还在退避期里，这一轮故意没测。
+     不能显示成「失败」（那是结论），也不能显示成「未测」（那像超时没轮到）—— */
+  if (r.st === 7) return {t:'暂停', c:'hide'};
   if (r.st === 4) return {t:'失败', c:'bad'};
   return {t:'', c:'hide'};
 }
@@ -2182,7 +2185,8 @@ function paintSitesFoot(){
   var ok = 0, bad = 0, untested = 0, supp = 0;
   for (var i = 0; i < SP.sites.length; i++){
     var r = SP.res[SP.sites[i].key];
-    if (!r || r.st === 0) untested++;
+    /* st=7（暂停）算「未测」不算「正常」—— 说它正常是撒谎，它这轮根本没验过 */
+    if (!r || r.st === 0 || r.st === 7) untested++;
     else if (r.st === 3 || r.st === 4) bad++;
     else ok++;
     if (SP.supp && SP.supp[SP.sites[i].key]) supp++;
@@ -2218,14 +2222,17 @@ function siteAgo(ts){
 }
 
 /* 排序权重：越小越靠前。未测的夹在「能用」和「没内容」之间 ——
-   它只是这轮没轮到，不该和有片的分在一起，也不该和无片的混为一谈。 */
+   它只是这轮没轮到，不该和有片的分在一起，也不该和无片的混为一谈。
+   暂停（st=7）排在脚本源之后、无片之前：它是「已知最近不行，这轮没验证」，
+   比「确认没内容」轻一档。 */
 function siteRank(r){
   if (!r) return 2;
   if (r.st === 2) return 0;
   if (r.st === 0) return 2;
   if (r.st === 5) return 3;
-  if (r.st === 3) return 4;
-  return 5;
+  if (r.st === 7) return 4;
+  if (r.st === 3) return 5;
+  return 6;
 }
 
 window.pickSite = function(i){

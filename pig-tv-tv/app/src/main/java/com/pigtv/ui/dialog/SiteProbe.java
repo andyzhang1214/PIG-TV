@@ -6,6 +6,7 @@ import com.pigtv.R;
 import com.pigtv.api.ApiConfig;
 import com.pigtv.bean.SourceBean;
 import com.pigtv.ui.adapter.SelectDialogAdapter;
+import com.pigtv.util.FailBackoff;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -59,6 +60,8 @@ public final class SiteProbe {
     public static final int ST_SKIP = 5;
     /** 这轮没轮到它（卡在看门狗外面）—— 既不算有内容也不算没内容，不能藏 */
     public static final int ST_PEND = 6;
+    /** 连续失败过几次、还在退避期里，这一轮故意没测（{@link FailBackoff}） */
+    public static final int ST_FROZEN = 7;
 
     private static final int C_OK = 0xFF2E9E5B;
     private static final int C_EMPTY = 0xFFD08A2C;
@@ -69,9 +72,13 @@ public final class SiteProbe {
     /** 「有内容」的结论留 1 小时：开机预热一次，一晚上不用再测 */
     private static final long FRESH_MS = 60 * 60 * 1000L;
     /**
-     * 「无片 / 失败」只留 10 分钟。
+     * 「无片 / 失败」的<b>下限</b> 10 分钟。
      * 这两类最容易误判（站临时抽风、spider 第一次 init 拉配置失败、弱网超时），
      * 留太久等于把一个能用的站一直按在列表最底下。
+     *
+     * <p>真正的 TTL 是「10 分钟」和「{@link FailBackoff} 给出的退避剩余时间」取大者：
+     * 头两次失败仍按 10 分钟重测，第三次起开始指数退避，越死越少测，
+     * 而且退避记录跨会话落盘——否则冷启动后钉子户又得从头白测一遍。
      */
     private static final long FRESH_BAD_MS = 10 * 60 * 1000L;
     /** 兜底看门狗：某个 spider 死死卡住时，别让弹窗永远停在「检测中」。
@@ -161,7 +168,9 @@ public final class SiteProbe {
 
             for (final SourceBean sb : all) {
                 if (sb == null || sb.getHide() == 1) continue;
-                if (isFresh(CACHE.get(sb.getKey()), System.currentTimeMillis())) continue;
+                if (isFresh(sb.getKey(), CACHE.get(sb.getKey()), System.currentTimeMillis())) continue;
+                // 退避期里的站，预热也别去碰——不然开机那几分钟又白烧一遍
+                if (FailBackoff.isFrozen(sb.getKey())) continue;
                 POOL.execute(() -> {
                     if (gen.get() != WARM_GEN.get()) return;
                     boolean acquired = false;
@@ -170,7 +179,7 @@ public final class SiteProbe {
                         acquired = true;
                         if (gen.get() != WARM_GEN.get()) return;
                         // 排队期间可能已经被弹窗那轮测完了，别重复打
-                        if (isFresh(CACHE.get(sb.getKey()), System.currentTimeMillis())) return;
+                        if (isFresh(sb.getKey(), CACHE.get(sb.getKey()), System.currentTimeMillis())) return;
                         CACHE.put(sb.getKey(), check(sb));
                     } catch (Throwable ignored) {
                     } finally {
@@ -262,8 +271,17 @@ public final class SiteProbe {
         final List<SourceBean> todo = new ArrayList<>();
         long now = System.currentTimeMillis();
         for (SourceBean sb : p.sites) {
-            Result r = CACHE.get(sb.getKey());
-            if (force || !isFresh(r, now)) todo.add(sb);
+            final String key = sb.getKey();
+            Result r = CACHE.get(key);
+            if (force || !isFresh(key, r, now)) {
+                // 冷启动后 CACHE 是空的，但上一轮会话已经把这个站判进退避期了。
+                // 这种情况摆一个「暂停」占位，别再白测一次——这也是退避必须落盘的原因。
+                if (!force && r == null && FailBackoff.isFrozen(key)) {
+                    CACHE.put(key, frozenResult());
+                    continue;
+                }
+                todo.add(sb);
+            }
         }
         // 全部命中缓存：直接按上次结果排好，别让人看到「先原始序、再跳一下」
         if (todo.isEmpty()) {
@@ -439,6 +457,27 @@ public final class SiteProbe {
             if (again.state != ST_FAIL) r = again;
         }
         r.ms = System.currentTimeMillis() - t0;
+        r.at = System.currentTimeMillis();
+
+        // 退避记账。只记「连不上」（ST_FAIL），不记「无片」（ST_EMPTY）：
+        //   · 无片是站方内容层面的判断，随时可能变——一个刚补完片的站不该被冻一天；
+        //   · 真正吃掉看门狗的是死站的连接超时，不是「调通了但列表为空」。
+        // 脚本源（ST_SKIP）同理不计：它是「测不了」不是「测失败」，
+        // 计进去会被一轮轮推向 24 小时冻结，等于从列表里消失。
+        final String key = sb == null ? null : sb.getKey();
+        if (r.state == ST_OK) {
+            FailBackoff.markGood(key);
+        } else if (r.state == ST_FAIL) {
+            FailBackoff.markBad(key);
+        }
+        return r;
+    }
+
+    /** 退避期里不测的站摆什么：明确说「暂停」，不能冒充「失败」，也不能冒充「结论」 */
+    private static Result frozenResult() {
+        Result r = new Result();
+        r.state = ST_FROZEN;
+        r.msg = "暂停";
         r.at = System.currentTimeMillis();
         return r;
     }
@@ -616,6 +655,8 @@ public final class SiteProbe {
                 return "脚本源";
             case ST_PEND:
                 return "未测";
+            case ST_FROZEN:
+                return "暂停";
             default:
                 return "";
         }
@@ -634,7 +675,10 @@ public final class SiteProbe {
         }
     }
 
-    /** 排序权重：越小越靠前。未测的夹在「能用」和「没内容」之间 —— 它只是这轮没轮到 */
+    /**
+     * 排序权重：越小越靠前。未测的夹在「能用」和「没内容」之间 —— 它只是这轮没轮到；
+     * 「暂停」排在脚本源之后、无片之前：它是「已知最近不行，这轮没验证」，比「确认没内容」轻。
+     */
     private static int rank(Result r) {
         if (r == null) return 2;
         switch (r.state) {
@@ -645,20 +689,39 @@ public final class SiteProbe {
                 return 2;
             case ST_SKIP:
                 return 3;
-            case ST_EMPTY:
+            case ST_FROZEN:
                 return 4;
-            case ST_FAIL:
+            case ST_EMPTY:
                 return 5;
+            case ST_FAIL:
+                return 6;
             default:
                 return 2;
         }
     }
 
-    /** 缓存里的结论还能不能用：好结果 1 小时，无片/失败只认 10 分钟 */
-    private static boolean isFresh(Result r, long now) {
+    /**
+     * 缓存里的结论还能不能用。
+     *
+     * <p>好结果 1 小时；失败 = max(10 分钟, 退避剩余时间)；无片固定 10 分钟（不进退避）；
+     * 「暂停」占位只在还冻结着的时候算数。
+     */
+    private static boolean isFresh(String key, Result r, long now) {
         if (r == null) return false;
         if (r.state == ST_IDLE || r.state == ST_PEND) return false;   // 不是结论
-        long ttl = (r.state == ST_EMPTY || r.state == ST_FAIL) ? FRESH_BAD_MS : FRESH_MS;
+        if (r.state == ST_FROZEN) return FailBackoff.isFrozen(key);
+        if (r.state == ST_OK) return r.at > 0 && now - r.at <= FRESH_MS;
+        long ttl;
+        if (r.state == ST_FAIL) {
+            // 连不上：10 分钟打底，失败次数多了按退避拉长
+            ttl = Math.max(FRESH_BAD_MS, FailBackoff.remainMs(key));
+        } else if (r.state == ST_EMPTY) {
+            // 无片：固定 10 分钟，不进退避
+            ttl = FRESH_BAD_MS;
+        } else {
+            // 脚本源这类「测不了」的：按好结果留，本来也不会真去测
+            ttl = FRESH_MS;
+        }
         return r.at > 0 && now - r.at <= ttl;
     }
 }

@@ -27,6 +27,7 @@ import com.github.tvbox.osc.cache.RoomDataManger;
 import com.github.tvbox.osc.cache.VodCollect;
 import com.github.tvbox.osc.ui.activity.PlayActivity;
 import com.github.tvbox.osc.ui.activity.SettingActivity;
+import com.github.tvbox.osc.util.FailBackoff;
 import com.github.tvbox.osc.util.HawkConfig;
 import com.github.tvbox.osc.util.OkGoHelper;
 import com.github.tvbox.osc.viewmodel.SourceViewModel;
@@ -2488,6 +2489,8 @@ public class PhoneBridge {
         }
         SITE_PROBE.put(k, o);
         SITE_PROBE_AT.put(k, System.currentTimeMillis());
+        // 用户实际点进去能用 = 硬证据，退避记录一起清掉，下次不会再被「暂停」
+        FailBackoff.markGood(k);
         cb(cbId, "{\"ok\":1}");
     }
 
@@ -2583,6 +2586,13 @@ public class PhoneBridge {
                             if (r == null) {
                                 if (System.currentTimeMillis() > deadline) {
                                     r = spUntested();
+                                } else if (!forced && FailBackoff.isFrozen(sb.getKey())) {
+                                    // 冷启动后 SITE_PROBE 是空的（这份缓存只活在内存里），
+                                    // 但退避记录落了盘：上一次会话已经把这个站判死在退避期里了。
+                                    // 这一轮直接摆「暂停」，别再白测一次 —— 这正是退避要落盘的原因。
+                                    r = spFrozen();
+                                    SITE_PROBE.put(nz(sb.getKey()), r);
+                                    SITE_PROBE_AT.put(nz(sb.getKey()), System.currentTimeMillis());
                                 } else {
                                     r = probeOneSite(sb, deadline);
                                     // 只有真正测出结论的才进缓存：「未测」不是结论
@@ -2658,6 +2668,24 @@ public class PhoneBridge {
     }
 
     /**
+     * st=7：连续失败过、还在退避期里，这一轮故意没测。
+     *
+     * <p>必须和「未测」分开：未测是「没轮到」，「暂停」是「已知最近不行」。
+     * 也不能写成「失败」——那是一个结论，而这一轮根本没用请求验证过。
+     */
+    private static JSONObject spFrozen() {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("st", 7);
+            o.put("n", 0);
+            o.put("msg", "暂停");
+            o.put("ms", 0);
+        } catch (Throwable ignored) {
+        }
+        return o;
+    }
+
+    /**
      * 单站体检：state 和 TV 版 SiteProbe 对齐（2 有内容 / 3 无片 / 4 失败 / 5 脚本源 / 0 未测）
      *
      * <p>数量怎么来的：首页 {@code homeContent} 的 list 只是**推荐位**，很多源只给十几条，
@@ -2683,6 +2711,18 @@ public class PhoneBridge {
         try {
             r.put("ms", System.currentTimeMillis() - t0);
         } catch (Throwable ignored) {
+        }
+
+        // 退避记账。只记「连不上」（st=4），不记「无片」（st=3）：
+        //   · 无片是站方内容层面的判断，随时可能变——一个刚补完片的站不该被冻一天；
+        //   · 真正吃掉检测预算的是死站的连接超时，不是「调通了但列表为空」。
+        // 脚本源（st=5）同理不计：它是「测不了」不是「测失败」。
+        final String key = sb == null ? null : sb.getKey();
+        final int st = r.optInt("st", 0);
+        if (st == 2) {
+            FailBackoff.markGood(key);
+        } else if (st == 4) {
+            FailBackoff.markBad(key);
         }
         return r;
     }
@@ -2845,7 +2885,25 @@ public class PhoneBridge {
         if (st == 0) return null;                 // 「未测」不是结论，下次一定重测
         // 好结果留久一点（1 小时），坏结果只留 10 分钟 —— 误判要能自己恢复，
         // 否则一个能用的站会被一直按在列表最底下。
-        long ttl = (st == 3 || st == 4) ? SITE_FRESH_BAD_MS : SITE_FRESH_MS;
+        //
+        // 坏结果的真实 TTL 还要跟「失败退避」的剩余时间取大者：前两次失败仍按 10 分钟
+        // 重测，第三次起开始指数退避（8 分钟 → 16 → 32 …封顶 24 小时），越死越少测。
+        // 退避记录是落盘的，所以冷启动后钉子户也不会被重新白测一遍。
+        long ttl;
+        if (st == 7) {
+            // 「暂停」占位：只在还冻结着的时候算结论
+            return FailBackoff.isFrozen(key) ? r : null;
+        }
+        if (st == 4) {
+            // 连不上：10 分钟打底，失败次数多了按退避拉长
+            ttl = Math.max(SITE_FRESH_BAD_MS, FailBackoff.remainMs(key));
+        } else if (st == 3) {
+            // 无片：固定 10 分钟，不进退避 —— 内容是站方那边的事，随时会变，
+            // 一个刚补完片的站不该被冻一天
+            ttl = SITE_FRESH_BAD_MS;
+        } else {
+            ttl = SITE_FRESH_MS;
+        }
         return System.currentTimeMillis() - at > ttl ? null : r;
     }
 
