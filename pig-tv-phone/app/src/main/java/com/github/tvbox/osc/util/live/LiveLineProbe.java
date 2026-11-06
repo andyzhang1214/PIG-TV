@@ -175,21 +175,6 @@ public final class LiveLineProbe {
         return scoreOf(url) - FailBackoff.failsOf(url) * 25.0;
     }
 
-    /**
-     * 自动换线时该跳到第几条（在原始列表里的下标）。
-     *
-     * @return -1 表示「没有更好的选择」——调用方按原逻辑继续
-     */
-    public static int bestIndexAfter(@Nullable List<String> urls, int currentIndex) {
-        if (urls == null || urls.size() <= 1) return -1;
-        List<String> ranked = rank(urls);
-        String best = ranked.get(0);
-        int idx = urls.indexOf(best);
-        if (idx < 0) return -1;
-        // 最优线就是当前这条且它是真死过 → 说明这频道整体没救，交给调用方换台
-        return idx == currentIndex ? -1 : idx;
-    }
-
     /** 这个频道有没有值得信任的测速结果（决定要不要在后台再测一轮） */
     public static boolean hasFreshScores(@Nullable List<String> urls) {
         if (urls == null || urls.isEmpty()) return false;
@@ -322,6 +307,12 @@ public final class LiveLineProbe {
                 if (System.currentTimeMillis() - readStart >= SAMPLE_MS) break;
             }
             long elapsed = System.currentTimeMillis() - (readStart == 0 ? t0 : readStart);
+            if (total <= 0) {
+                // 状态 200 但一个字节都没吐：这不是「慢」，是死了。
+                // 不判死的话它会拿到「测不出速度」的保底分，排在真能看的线前面。
+                s.dead = true;
+                return s;
+            }
             if (elapsed >= MIN_MEASURE_MS && total >= MIN_MEASURE_BYTES) {
                 s.speed = total / (elapsed / 1000.0) / 1024.0 / 1024.0;
             }
