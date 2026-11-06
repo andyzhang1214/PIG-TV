@@ -1185,3 +1185,227 @@ html[data-theme="light"] .logo.g{color:#1F8E63}
   margin:22px var(--pad) 0;padding:14px;text-align:center;font-size:15px;
   color:var(--err);background:var(--card);border:1px solid var(--line);border-radius:14px;
 }
+
+/* =====================================================================
+   v12 · 会员体系 + 我的/账号页视觉（2026-10-30）
+   ---------------------------------------------------------------------
+   这一块是**纯增量**：除了末尾「微调」小节对少数既有元素做覆盖，
+   其余全是新类。整段删掉不会影响 v11 的任何行为。
+
+   两条铁律（和 v11 一脉相承）：
+     1) .vipCard = 一张卡，**跟着主题走**：深色主题深卡、浅色主题暖白卡。
+        卡内所有颜色一律走 --vip* token，不许混用 --tx / --card ——
+        这两套变量是按页面底色调的，套到卡面上必有一边糊。
+     2) 卡以外的组件（统计行 / 设备 / 账号页）只能走页面变量，
+        否则浅色下白底白字看不见。
+
+   兼容：不用 aspect-ratio、不用 clamp()/min()、不用 flex gap 之外的
+   现代布局糖；权益用 flex-wrap + calc 而不是 grid（老 WebView 的
+   grid 支持比 flex 晚很多）。
+   ===================================================================== */
+
+/* 卡面配色。这几个 token 只服务会员卡，放这里而不是塞进 :root 顶部，
+   以后要换金色系（比如上线后改成冷银）只改这一处。
+
+   卡面和页面**同一主题**：深色主题下一块深卡、浅色主题下一块浅卡。
+   （v12 第一版是「卡面恒深」，结果浅色主题里一张黑白对比过头的卡
+   压在浅色背景上，和下面的统计格不像同一个界面 —— 已改。）
+
+   规矩换成：卡内每一处颜色都必须走 --vip*，**不许混用 --tx / --card**，
+   否则两套主题里必有一边糊。 */
+:root{
+  /* ---- 深色主题（默认） ---- */
+  --vipSolid:#FFFFFF;                        /* 名字：纯度最高的那一档 */
+  --vipInk:#FFF6EA;                          /* 卡面默认字色 */
+  --vipInk2:rgba(255,246,234,.74);           /* 身份副标题 */
+  --vipInk3:rgba(255,246,234,.46);           /* 数字下面那行小字 */
+  --vipGold:#FFD9A0;                         /* 数字 */
+  /* .26 而不是 .22：深色主题下卡面几乎融进页底，这条描边是唯一的分界 */
+  --vipLine:rgba(255,214,160,.26);
+  --vipSep:rgba(255,246,234,.10);            /* 卡内分隔线 */
+  --vipGoBg:rgba(255,246,234,.10);           /* 右侧箭头的小底 */
+  --vipCardBg:linear-gradient(142deg,#42291B 0%,#261A23 48%,#150F14 100%);
+  --vipShadow:inset 0 1px 0 rgba(255,232,196,.16),0 18px 40px -20px rgba(176,104,36,.62),0 2px 10px rgba(0,0,0,.38);
+}
+
+/* 浅色主题：卡面走「暖白」，比统计格的白暖一点点，层次靠描边和阴影。
+   两处都要写 —— 老 WebView 没有 prefers-color-scheme，只能靠 data-theme。
+   media 这条必须写 :root:not([data-theme])：原生会带 ?theme=dark 注入 data-theme，
+   此时系统即使是浅色，prefers-color-scheme 仍然是 light —— 用裸 :root 的话，
+   卡面继续走深色渐变、字色却被换成深色，整张卡的副标题和标签直接看不见
+   （2026-11-06 在模拟器上实测到：系统浅色 + App 深色）。 */
+@media (prefers-color-scheme:light){
+  :root:not([data-theme]){
+    --vipSolid:#141014;
+    --vipInk:#20180F;
+    --vipInk2:rgba(32,24,15,.62);
+    --vipInk3:rgba(32,24,15,.46);
+    /* 浅底上 #FFD9A0 几乎看不见，换成焦糖金 */
+    --vipGold:#B96518;
+    /* 卡面和页面里的统计格 / 列表**用同一套材质**：同一层半透明白 + 同一根描边
+       + 同一个投影。自己另调一个「暖白」的话，和旁边那些白放一起就是两个白，
+       用户一眼就能看出来（v12 第二版就错在这）。 */
+    --vipLine:var(--line);
+    --vipSep:var(--line);
+    --vipGoBg:rgba(24,16,8,.05);
+    --vipCardBg:var(--card);
+    --vipShadow:var(--shadowCard);
+  }
+}
+html[data-theme="light"]{
+  --vipSolid:#141014;
+  --vipInk:#20180F;
+  --vipInk2:rgba(32,24,15,.62);
+  --vipInk3:rgba(32,24,15,.46);
+  --vipGold:#B96518;
+  --vipLine:var(--line);
+  --vipSep:var(--line);
+  --vipGoBg:rgba(24,16,8,.05);
+  --vipCardBg:var(--card);
+  --vipShadow:var(--shadowCard);
+}
+
+/* ---------- 会员卡 ---------- */
+.vipCard{
+  position:relative;overflow:hidden;isolation:isolate;
+  margin:6px var(--pad) 0;padding:16px;
+  border-radius:20px;border:1px solid var(--vipLine);
+  color:var(--vipInk);background:var(--vipCardBg);
+  box-shadow:var(--vipShadow);
+}
+/* 卡面保持一块干净的深色渐变：水印和扫光都去掉了 ——
+   这一页要的是「一眼看清我是谁、几台设备」，装饰越少越像一张卡。 */
+
+.vipMain{position:relative;z-index:1;display:flex;align-items:center;
+  gap:12px}
+.vipAv{width:46px;height:46px;border-radius:15px;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:800;color:#2A1405;
+  background:linear-gradient(135deg,#FFE2B8,#FFA85C);
+  box-shadow:0 6px 16px rgba(255,160,70,.26)}
+.vipWho{flex:1;min-width:0}
+.vipName{font-size:17px;font-weight:800;letter-spacing:-.2px;color:var(--vipSolid);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vipSub{margin-top:4px;font-size:11.5px;color:var(--vipInk2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vipGo{width:22px;height:22px;border-radius:11px;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--vipGold);background:var(--vipGoBg)}
+.vipGo .ic{width:13px;height:13px;stroke-width:2.4}
+
+.vipFoot{position:relative;z-index:1;display:flex;
+  margin-top:14px;padding-top:12px;
+  border-top:1px solid var(--vipSep)}
+.vipKv{flex:1;min-width:0}
+.vipKv b{display:block;font-size:13px;font-weight:800;color:var(--vipGold);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vipKv span{display:block;margin-top:3px;font-size:10px;color:var(--vipInk3);
+  letter-spacing:.04em;white-space:nowrap}
+
+/* 会员中心页那张卡：比列表页大一号，头像也放大 */
+.vipCard.big{padding:18px}
+.vipCard.big .vipAv{width:54px;height:54px;border-radius:18px;font-size:21px}
+.vipCard.big .vipName{font-size:19px}
+.vipCard.big .vipFoot{margin-top:16px}
+
+/* ---------- 三格统计（收藏 / 历史 / 设备） ---------- */
+.statRow{display:flex;gap:8px;margin:10px var(--pad) 0}
+.statCell{flex:1;min-width:0;padding:11px 8px;border-radius:15px;
+  text-align:center;cursor:pointer;
+  background:var(--card);border:1px solid var(--line)}
+.statCell:active{background:var(--card2)}
+.statN{font-size:17px;font-weight:800;line-height:1.1;color:var(--tx);
+  font-variant-numeric:tabular-nums}
+.statL{margin-top:4px;font-size:10.5px;color:var(--tx3);letter-spacing:.03em}
+
+
+/* ---------- 登录设备 ---------- */
+.devList{margin:4px var(--pad) 0;border-radius:18px;overflow:hidden;
+  background:var(--card);border:1px solid var(--line)}
+.devRow{display:flex;align-items:center;gap:11px;padding:13px 14px;
+  border-bottom:1px solid var(--divider)}
+.devRow:last-child{border-bottom:0}
+.devIc{width:34px;height:34px;border-radius:11px;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--tx2);background:var(--card2)}
+.devIc .ic{width:17px;height:17px}
+.devBody{flex:1;min-width:0}
+.devN{font-size:13.5px;font-weight:600;color:var(--tx);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.devS{margin-top:3px;font-size:11px;color:var(--tx3)}
+.devTag{flex:0 0 auto;padding:3px 8px;border-radius:9px;
+  font-size:10px;font-weight:700;color:var(--ac);
+  background:rgba(var(--tint),.12)}
+.devEmpty{padding:20px 14px;text-align:center;font-size:12px;color:var(--tx3)}
+
+/* ---------- 账号页：品牌区 + 分段 + 大输入 ---------- */
+.accBrand{display:flex;flex-direction:column;align-items:center;
+  margin:20px var(--pad) 0;text-align:center}
+.accMark{width:62px;height:62px;border-radius:20px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:25px;font-weight:800;color:var(--acInk);
+  background:linear-gradient(140deg,var(--ac),var(--ac2));
+  box-shadow:0 14px 30px -14px rgba(var(--tint),.85)}
+.accBrandT{margin-top:12px;font-size:19px;font-weight:800;
+  letter-spacing:-.3px;color:var(--tx)}
+.accBrandS{margin-top:6px;font-size:12px;line-height:1.55;
+  color:var(--tx3);max-width:250px}
+
+/* 药丸分段：选中项用「白底深字」而不是橙底，
+   橙底在这个灰度背景上太吵，且和下面的主按钮撞色 */
+.accTabs{margin-top:20px;padding:3px;border-radius:14px;
+  background:var(--card);border:1px solid var(--line)}
+.accTab{padding:9px 0;border-radius:11px;font-size:13.5px;
+  color:var(--tx3);background:transparent;border:1px solid transparent}
+.accTab.on{color:var(--tx);font-weight:700;
+  background:var(--card2);border-color:var(--line);
+  box-shadow:0 2px 8px -4px rgba(0,0,0,.4)}
+
+.accField{margin:0 var(--pad) 12px}
+.accField label{margin:0 0 7px 3px;font-size:11.5px;color:var(--tx3);
+  letter-spacing:.03em}
+/* 字号 16px 是硬要求：小于 16px 时 WebView 会在聚焦的瞬间把整页放大 */
+.accField input{height:52px;padding:0 15px;font-size:16px;border-radius:15px}
+.accBtn{margin-top:18px;padding:15px;border-radius:15px;font-size:15.5px;
+  letter-spacing:.02em}
+.accErr{margin-top:11px;font-size:12.5px}
+.accTip{margin-top:11px;font-size:11.5px;line-height:1.65}
+
+/* 「先随便看看」：透明底 + 描边。做成实心灰底会被当成禁用按钮 */
+.accSkip{margin:14px var(--pad) 0;padding:13px;text-align:center;
+  font-size:13.5px;color:var(--tx2);cursor:pointer;
+  border:1px solid var(--line);border-radius:15px;background:transparent}
+.accSkip:active{background:var(--card)}
+
+.accAdv{margin-top:22px;font-size:11.5px}
+
+/* 已登录态：一张小卡片 + 一个主按钮，不再堆 info 行（详情在会员中心） */
+.accMark.lg{width:74px;height:74px;border-radius:24px;font-size:30px}
+.accGoBtn{margin:18px var(--pad) 0;padding:15px;text-align:center;
+  font-size:15px;font-weight:700;color:var(--acInk);border-radius:15px;
+  background:linear-gradient(135deg,var(--ac),var(--ac2))}
+
+/* =====================================================================
+   微调：对既有元素做覆盖。全部限定作用域，不影响别的页面。
+   ===================================================================== */
+/* 「我的」页的分组标题加一条渐变小竖条，和信息密度更高的会员卡呼应 */
+#pM .meSec,#pVip .meSec{position:relative;padding-left:9px}
+#pM .meSec::before,#pVip .meSec::before{
+  content:"";position:absolute;left:0;top:50%;width:3px;height:12px;
+  border-radius:2px;transform:translateY(-50%);
+  background:linear-gradient(180deg,var(--ac),var(--ac2))}
+
+/* 首页右上角的海报计数：原来是裸数字，改成小药丸，
+   压在最亮的画面上也不会丢 */
+.heroNum{padding:4px 9px;border-radius:11px;
+  background:rgba(14,14,18,.46);border:1px solid rgba(255,255,255,.12);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  color:rgba(255,255,255,.76)}
+
+/* 会员中心里替身用的信息行，间距比账号页略松 */
+#pVip .accInfo{margin-top:0}
+
+/* ---------- v12 走查后的小修（追加，覆盖上面同名规则） ---------- */
+/* 登录页副标题：250px 会把「重新找片」挤到第二行，孤零零两个字很难看 */
+.accBrandS{max-width:300px}

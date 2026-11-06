@@ -79,6 +79,13 @@ public class HawkConfig {
     public static final String LIVE_SKIP_PASSWORD = "live_skip_password";
     public static final String LIVE_PLAYER_TYPE = "live_player_type"; // 0 系统 1 ijk 2 exo
 
+    // 账号 / 会员
+    public static final String USER_TOKEN = "user_token";     // 空 = 游客
+    public static final String USER_ID = "user_id";
+    public static final String USER_NAME = "user_name";
+    public static final String ACCOUNT_BASE = "account_base"; // 服务端地址，空则用默认
+    public static final String DEVICE_ID = "device_id";       // 首次生成后固化，换 ID 会被判新设备
+
     public static boolean isDebug() {
         return Hawk.get(DEBUG_OPEN, false);
     }

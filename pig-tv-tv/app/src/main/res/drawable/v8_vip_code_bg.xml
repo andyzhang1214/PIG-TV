@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 数字码底板：比卡面更暗、描边更亮，把 6 个数字托起来 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#14FFFFFF" />
+    <stroke android:width="0.6mm" android:color="#33FFFFFF" />
+    <corners android:radius="12mm" />
+</shape>

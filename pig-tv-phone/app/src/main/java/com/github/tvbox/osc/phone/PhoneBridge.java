@@ -73,6 +73,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class PhoneBridge {
 
+    /**
+     * 一个账号可绑的设备上限。服务端没下发 maxDevices 时用这个值兜底。
+     * 它只影响界面上的「x / 3 台」，判定放在服务端 —— 客户端说了不算。
+     */
+    private static final int DEFAULT_DEVICE_LIMIT = 3;
+
     /** 全站搜索的总预算：超过这个时间就收工（结果早就流式推给前端了，用户不用干等） */
     private static final long SEARCH_BUDGET_MS = 30000L;
     /** 单站搜索超时（秒）：取组件 + 搜索 + 解析都算在里面。
@@ -3529,6 +3535,127 @@ public class PhoneBridge {
         } catch (Throwable th) {
             cbErr(cbId, th);
         }
+    }
+
+    /* ------------------------------------------------ 会员中心（v12） */
+
+    /**
+     * 会员中心要的那份档案。
+     *
+     * <p>先回本地登录态（秒回，断网也照样有内容），再尽力补
+     * {@code /api/user/profile}：真正需要走网络的只有「设备数」和
+     * 「注册时间」，拿不到就维持 0 / 空，前端显示成「—」。
+     * 会员中心不能因为没网就变成一块白屏。</p>
+     */
+    @JavascriptInterface
+    public void vipInfo(String cbId) {
+        final boolean logged = AccountStore.logged();
+        final JSONObject base = new JSONObject();
+        try {
+            base.put("ok", 1);
+            base.put("logged", logged ? 1 : 0);
+            base.put("name", AccountStore.name());
+            base.put("uid", AccountStore.uid());
+            base.put("base", AccountApi.base());
+            base.put("deviceLimit", DEFAULT_DEVICE_LIMIT);
+            base.put("deviceCount", 0);
+            base.put("joinedAt", "");
+            base.put("net", 0);
+        } catch (Throwable ignored) {
+        }
+        if (!logged) {
+            cb(cbId, base.toString());
+            return;
+        }
+        pool.execute(() -> {
+            JSONObject o = base;
+            try {
+                AccountApi.Res r = AccountApi.profile();
+                if (r.ok && r.data != null) {
+                    o.put("deviceCount", r.num("deviceCount", 0));
+                    o.put("deviceLimit", r.num("maxDevices", DEFAULT_DEVICE_LIMIT));
+                    o.put("joinedAt", dateOnly(r.str("createdAt")));
+                    /* 不再下发 vipActive / vipExpired / vipDaysLeft / vipExpireAt：
+                       本项目只做账号登录，没有会员分级。服务端 /profile 仍会带这几个
+                       字段，但前端不显示，这里也就不必转发。 */
+                    o.put("net", 1);
+                }
+            } catch (Throwable ignored) {
+            }
+            cb(cbId, o.toString());
+        });
+    }
+
+    /**
+     * 改密码。成功后本地也清登录态：服务端会把所有会话作废，
+     * 留着旧 token 只会让下一个请求收到 401 —— 用户看到的是
+     * 「刚改完密码，App 就到处报错」。
+     */
+    @JavascriptInterface
+    public void accChangePwd(final String oldPwd, final String newPwd, final String cbId) {
+        final String o = nz(oldPwd);
+        final String n = nz(newPwd);
+        if (o.isEmpty() || n.isEmpty()) {
+            cbErrMsg(cbId, "请填写原密码和新密码");
+            return;
+        }
+        pool.execute(() -> {
+            try {
+                AccountApi.Res r = AccountApi.changePassword(o, n);
+                JSONObject out = new JSONObject();
+                if (r.ok) {
+                    AccountStore.clear();
+                    out.put("ok", 1);
+                } else {
+                    out.put("ok", 0);
+                    out.put("msg", r.message.isEmpty() ? "修改失败，请稍后重试" : r.message);
+                }
+                cb(cbId, out.toString());
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /**
+     * 绑定电视：把电视上显示的那串 6 位数字认领到当前账号。
+     *
+     * <p>电视那边每 2 秒轮询一次，绑定成功后它自己就登上了，手机不用再做什么 ——
+     * 所以这里只回成功/失败，前端拿到 ok 后重拉一次账号信息（设备数会 +1）。</p>
+     */
+    @JavascriptInterface
+    public void bindTv(final String code, final String cbId) {
+        if (!AccountStore.logged()) {
+            cbErrMsg(cbId, "请先登录");
+            return;
+        }
+        final String c = nz(code).replace(" ", "").trim();
+        if (c.length() != 6) {
+            cbErrMsg(cbId, "请输入电视上显示的 6 位数字");
+            return;
+        }
+        pool.execute(() -> {
+            try {
+                AccountApi.Res r = AccountApi.bindDeviceCode(c);
+                JSONObject out = new JSONObject();
+                if (r.ok) {
+                    out.put("ok", 1);
+                } else {
+                    out.put("ok", 0);
+                    out.put("msg", r.message == null || r.message.isEmpty()
+                            ? "绑定失败，数字可能已过期" : r.message);
+                }
+                cb(cbId, out.toString());
+            } catch (Throwable th) {
+                cbErr(cbId, th);
+            }
+        });
+    }
+
+    /** 只取日期部分：卡上写「注册时间 2026-10-30」就够，带时分秒像日志 */
+    private static String dateOnly(String iso) {
+        String v = nz(iso).replace('T', ' ');
+        return v.length() >= 10 ? v.substring(0, 10) : v;
     }
 
     /**

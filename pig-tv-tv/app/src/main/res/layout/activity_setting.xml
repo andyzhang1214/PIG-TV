@@ -4,6 +4,12 @@
     左侧 4 个分组当索引，右侧仍是原来那一整页设置（数据、次序、默认值全不动）。
     点左侧分组 = 把焦点送到对应设置项，FocusScroll 会自己把那一行滚进来——
     比另做一套分页 Fragment 稳，也不会跟 ModelSettingFragment 的 800 行逻辑打架。
+
+    v14：账号入口最终落在左侧索引的第一项「我的」。
+    之前那版把一张 900mm 的会员卡横在页顶，右端离内容区右边缘差 400 多 mm，
+    跟下面列表怎么都对齐不了（用户原话「好丑啊，对齐啊」）。
+    现在左列 5 项：我的 / 接口 / 播放 / 显示 / 高级，
+    前三项之外的四项仍然只是索引，点一下把焦点送到右侧对应设置项。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -16,7 +22,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="@dimen/h_edge"
         android:layout_marginTop="@dimen/v8_cat_top"
-        android:layout_marginBottom="9mm"
+        android:layout_marginBottom="18mm"
         android:includeFontPadding="false"
         android:text="@string/v8_setting_title"
         android:textColor="#FFFFFFFF"

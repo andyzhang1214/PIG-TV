@@ -364,7 +364,10 @@
 
         <!-- ============ 二级菜单（影视 → 电影/电视剧/综艺/…） ============
              只在「影视」页出现，贴在顶栏正下方。内容由 HomeActivity.inflateSubNav()
-             按站点实际分类铺出来，这里不放任何静态子 View。 -->
+             按站点实际分类铺出来，这里不放任何静态子 View。
+
+             v13 起账号入口移到设置页，顶栏恢复成从版心左边缘起排，
+             二级菜单与顶栏标签共用同一条竖轴。 -->
         <LinearLayout
             android:id="@+id/subNavBox"
             android:layout_width="wrap_content"
@@ -507,6 +510,7 @@
 
             </LinearLayout>
 
+        
         </LinearLayout>
 
         <!-- ============ 底部按键提示 ============ -->

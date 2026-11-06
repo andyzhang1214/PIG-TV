@@ -149,6 +149,20 @@ public class ApiConfig {
         return "".getBytes();
     }
 
+    /**
+     * 重试时要不要换成浏览器 UA。
+     *
+     * <p>以前写成「第一次 okhttp UA、重试一律换浏览器 UA」，这是反的：
+     * 盒子迷这类站按 UA 分流，浏览器 UA 拿到的是 HTML 导航页（7.8KB），
+     * 换过去等于把重试这条路堵死 —— 首次因为网络抖动失败一次，
+     * 第二次就必然「解析配置失败」，用户看到的就是「有时候能进、有时候一直转圈」。
+     *
+     * <p>现在只有一种情况才换浏览器 UA：**拿到响应但解析不出配置**
+     * （站点对客户端 UA 返回了网页）。连接超时/域名解析失败换 UA 毫无意义，
+     * 重试继续用 {@link #UA_CLIENT}。
+     */
+    private static boolean retryAsBrowser = false;
+
     public void loadConfig(boolean useCache, LoadConfigCallback callback, Activity activity) {
         loadConfig(useCache, callback, activity, 0);
     }
@@ -204,7 +218,7 @@ public class ApiConfig {
         // 运营商 DNS 会间歇性劫持配置域名（返回 200 + HTML 拦截页），重试一次
         // 大概率换到未污染的解析结果。解析失败和拉取失败都走重试，只重试一次。
         OkGo.<String>get(configUrl)
-                .headers("User-Agent", attempt == 0 ? UA_CLIENT : UA_BROWSER)
+                .headers("User-Agent", retryAsBrowser ? UA_BROWSER : UA_CLIENT)
                 .headers("Accept", requestAccept)
                 .execute(new AbsCallback<String>() {
                     @Override
@@ -212,6 +226,9 @@ public class ApiConfig {
                         try {
                             String json = response.body();
                             parseJson(apiUrl, json);
+                            // 加载成功 → 重置兜底标记，下次换源仍然可以自救
+                            serverSourceTried = false;
+                            retryAsBrowser = false;
                             try {
                                 File cacheDir = cache.getParentFile();
                                 if (!cacheDir.exists())
@@ -229,7 +246,10 @@ public class ApiConfig {
                         } catch (Throwable th) {
                             th.printStackTrace();
                             if (attempt < 1) {
-                                LOG.i("echo---解析配置失败，自动重试一次");
+                                // 拿到响应但不是配置（HTML 导航页 / 拦截页）→ 换浏览器 UA 再试，
+                                // 有些站只对浏览器输出网页版配置
+                                retryAsBrowser = true;
+                                LOG.i("echo---解析配置失败，换浏览器 UA 重试一次");
                                 loadConfig(useCache, callback, activity, attempt + 1);
                                 return;
                             }
@@ -246,6 +266,9 @@ public class ApiConfig {
                                 } catch (Throwable th2) {
                                     th2.printStackTrace();
                                 }
+                            }
+                            if (tryServerSource(apiUrl, callback, activity, "解析配置失败")) {
+                                return;
                             }
                             callback.error("解析配置失败");
                         }
@@ -264,8 +287,15 @@ public class ApiConfig {
                             }
                         }
                         if (attempt < 1) {
+                            // 连接层失败（超时 / DNS / TLS）换 UA 没有用，继续用客户端 UA
+                            retryAsBrowser = false;
                             LOG.i("echo---拉取配置失败，自动重试一次");
                             loadConfig(useCache, callback, activity, attempt + 1);
+                            return;
+                        }
+                        // 两次都不通 + 没有缓存 = 用户面前是空白首页。
+                        // 最后再问一次服务端有没有备用源，这是「默认接口挂掉」的唯一自救路径。
+                        if (tryServerSource(apiUrl, callback, activity, "拉取配置失败")) {
                             return;
                         }
                         callback.error("拉取配置失败\n" + (response.getException() != null ? response.getException().getMessage() : ""));
@@ -285,6 +315,109 @@ public class ApiConfig {
                         return result;
                     }
                 });
+    }
+
+    // ------------------------------------------------------------ 服务端换源兜底
+
+    /**
+     * 同一次加载里只允许兜底一次，否则「服务端给的源也是坏的」会来回递归。
+     * 加载成功时清回 false，用户下次手动换源仍然享受兜底。
+     */
+    private static boolean serverSourceTried = false;
+
+    /**
+     * 默认接口彻底拉不到（两次网络失败 / 拿回来的不是配置且无缓存），
+     * 最后问一次服务端有没有启用的备用源，有就换上去重来一遍。
+     *
+     * <p>为什么值得做：客户端的接口地址是烧在包里的，源站哪天挂了，全网所有装机用户
+     * 都会停在空白首页 —— 除了重发一个 APK 没有任何补救手段。有了这条，
+     * 只要运营在后台加一条可用源，用户重启 App 就能恢复，不必等新版本。
+     *
+     * <p>返回 true 表示「兜底请求已经发出去了」，调用方不要再报错，等回调。
+     *
+     * @param failedUrl 刚刚失败的地址，用来避免把同一个地址再试一遍
+     */
+    private boolean tryServerSource(String failedUrl, LoadConfigCallback callback, Activity activity, String reason) {
+        if (serverSourceTried) {
+            return false;
+        }
+        serverSourceTried = true;
+        String api = com.pigtv.account.AccountApi.base() + "/api/sources";
+        LOG.i("echo---" + reason + "，尝试服务端下发源 " + api);
+        OkGo.<String>get(api)
+                .headers("User-Agent", UA_CLIENT)
+                .execute(new AbsCallback<String>() {
+                    @Override
+                    public String convertResponse(okhttp3.Response response) throws Throwable {
+                        return response.body() == null ? "" : response.body().string();
+                    }
+
+                    @Override
+                    public void onSuccess(Response<String> response) {
+                        String picked = pickServerSource(response.body(), failedUrl);
+                        if (picked.isEmpty()) {
+                            LOG.i("echo---服务端没有可用备用源");
+                            callback.error(reason + "\n默认接口不可用，服务端也没有备用源");
+                            return;
+                        }
+                        LOG.i("echo---已切换到服务端下发源 " + picked);
+                        // 写回 Hawk：否则用户每次冷启动都要先失败两次、再兜底，
+                        // 首页要多转十几秒。
+                        Hawk.put(HawkConfig.API_URL, picked);
+                        // 换了一条源，UA 也从头来过（别带着上一轮的浏览器 UA 进去）
+                        retryAsBrowser = false;
+                        loadConfig(false, callback, activity, 0);
+                    }
+
+                    @Override
+                    public void onError(Response<String> response) {
+                        super.onError(response);
+                        LOG.i("echo---服务端备用源也拉不到：" + api);
+                        callback.error(reason + "\n" + (response.getException() != null
+                                ? response.getException().getMessage() : ""));
+                    }
+                });
+        return true;
+    }
+
+    /**
+     * 从 {@code {code,message,data:[{name,url,isDefault,weight}]}} 里挑一条。
+     * 优先 isDefault，其次第一条；跳过与失败地址相同的，否则等于原样重试。
+     */
+    private static String pickServerSource(String body, String failedUrl) {
+        if (body == null || body.trim().isEmpty()) {
+            return "";
+        }
+        try {
+            JsonObject root = new Gson().fromJson(body, JsonObject.class);
+            if (root == null || !root.has("data") || !root.get("data").isJsonArray()) {
+                return "";
+            }
+            JsonArray arr = root.getAsJsonArray("data");
+            String first = "";
+            for (JsonElement e : arr) {
+                if (!e.isJsonObject()) {
+                    continue;
+                }
+                JsonObject o = e.getAsJsonObject();
+                String url = o.has("url") && !o.get("url").isJsonNull() ? o.get("url").getAsString().trim() : "";
+                if (url.isEmpty() || url.equals(failedUrl)) {
+                    continue;
+                }
+                boolean isDefault = o.has("isDefault") && !o.get("isDefault").isJsonNull()
+                        && o.get("isDefault").getAsBoolean();
+                if (isDefault) {
+                    return url;
+                }
+                if (first.isEmpty()) {
+                    first = url;
+                }
+            }
+            return first;
+        } catch (Throwable th) {
+            LOG.i("echo---服务端源解析失败 " + th.getMessage());
+            return "";
+        }
     }
 
     /** 最近一次 jar 下载的技术细节（给首页空态展示「为什么没内容」） */

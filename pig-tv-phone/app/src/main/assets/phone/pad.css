@@ -339,3 +339,69 @@
   .sec{margin-top:20px}
   .tab{height:64px}
 }
+
+/* =====================================================================
+   六、会员体系（v12）
+   ---------------------------------------------------------------------
+   手机上的会员卡是「一张卡」。平板不能等比放大 —— 拉成一条扁带就没有
+   卡片感了，所以这里的内尺寸最多放到 1.35 倍，然后靠留白撑开。
+     · 权益在 600dp 起仍是 3 列，900dp 起改成一行六枚
+     · 大平板横屏整页限宽 820px 居中：一块 1000px 宽的会员卡，
+       眼睛要横着扫，反而看不出层级
+   ===================================================================== */
+@media (min-width:600px){
+
+  .vipCard{padding:20px;border-radius:24px}
+  .vipCard.big{padding:24px;border-radius:26px}
+
+  .vipCard .vipAv{width:54px;height:54px;border-radius:18px;font-size:20px}
+  .vipCard.big .vipAv{width:64px;height:64px;border-radius:20px;font-size:24px}
+  .vipCard .vipName{font-size:20px}
+  .vipCard.big .vipName{font-size:23px}
+  .vipCard .vipSub{font-size:12.5px}
+  .vipCard .vipKv b{font-size:15px}
+  .vipCard .vipKv span{font-size:11px}
+  .vipCard .vipGo{width:26px;height:26px;border-radius:13px}
+  .vipCard .vipGo .ic{width:15px;height:15px}
+
+  .statRow{gap:12px;margin-top:12px}
+  .statCell{padding:14px 10px;border-radius:17px}
+  .statN{font-size:20px}
+  .statL{font-size:11.5px}
+
+  .devRow{padding:15px 16px}
+  .devIc{width:38px;height:38px;border-radius:12px}
+  .devN{font-size:14.5px}
+  .devS{font-size:11.5px}
+
+  .accBrand{margin-top:26px}
+  .accMark{width:70px;height:70px;border-radius:22px;font-size:28px}
+  .accMark.lg{width:84px;height:84px;border-radius:26px;font-size:34px}
+  .accBrandT{font-size:22px}
+  .accBrandS{font-size:13px;max-width:340px}
+  .accTabs{margin-top:24px;border-radius:16px}
+  .accTab{padding:11px 0;font-size:14.5px;border-radius:13px}
+  .accField input{height:56px;border-radius:17px}
+  .accBtn{padding:16px;font-size:16px;border-radius:17px}
+  .accSkip{padding:15px;font-size:14.5px;border-radius:17px}
+  .accGoBtn{padding:16px;font-size:16px;border-radius:17px}
+}
+
+/* 大横屏限宽。只框这几个类的**直接子级**，不动 .hdr ——
+   标题跟着内容居中会显得页面没对齐。 */
+/* 去掉 orientation 条件：竖屏 1024 平板同样需要限宽，
+   而且分屏 / 自由窗口下 orientation 不一定跟着变，
+   只按 min-width 判断更稳。 */
+@media (min-width:1000px){
+  #pM > .vipCard,#pVip > .vipCard,#pAcc > .accBrand,
+  #pM > .statRow,#pM > .melist,#pM > .meSec,
+  #pVip > .devList,
+  #pVip > .accInfo,#pVip > .melist,#pVip > .meSec,
+  #pAcc > .accTabs,#pAcc > .accField,#pAcc > .accBtn,
+  #pAcc > .accErr,#pAcc > .accTip,#pAcc > .accSkip,
+  #pAcc > .accAdv,#pAcc > .accAdvBox,#pAcc > .accGoBtn,
+  #pAcc > .accOut{
+    max-width:820px;
+    margin-left:auto;margin-right:auto;
+  }
+}

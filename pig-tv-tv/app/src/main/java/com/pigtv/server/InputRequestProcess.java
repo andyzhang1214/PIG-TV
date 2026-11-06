@@ -1,5 +1,8 @@
 package com.pigtv.server;
 
+import com.pigtv.account.AccountApi;
+import com.pigtv.account.AccountStore;
+
 import java.util.Map;
 
 import fi.iki.elonen.NanoHTTPD;
@@ -34,11 +37,60 @@ public class InputRequestProcess implements RequestProcess {
         return params.containsKey("name") && n != null ? n.trim() : null;
     }
 
+    /**
+     * 手机扫码页提交的账号密码，直接在电视上换 token。
+     *
+     * <p>返回纯文本给网页：{@code ok} 或 {@code err:原因}。网页按前缀分支，
+     * 所以原因里不能出现换行。另外这里必须显式声明 {@code charset=utf-8} ——
+     * NanoHTTPD 的 MIME_PLAINTEXT 不带 charset，中文错误提示到浏览器就是乱码。</p>
+     */
+    private NanoHTTPD.Response doLogin(Map<String, String> params) {
+        String u = params.get("u");
+        String p = params.get("p");
+        if (u == null || p == null || u.trim().isEmpty() || p.isEmpty()) {
+            return plain("err:账号和密码都要填");
+        }
+        AccountApi.Res r;
+        try {
+            r = AccountApi.login(u.trim(), p, AccountStore.deviceId(),
+                    android.os.Build.MODEL, "tv", 0);
+        } catch (Throwable th) {
+            return plain("err:连不上会员服务，检查电视的网络");
+        }
+        if (!r.ok || r.data == null) {
+            String m = r.message == null ? "" : r.message.trim();
+            /* 底层异常是「连不上服务器：Failed to connect to /10.0.0.5:18088」，
+               给在手机上输密码的人看这个没有意义，统一换成人话；
+               服务端自己给的中文原因（密码错、被封）原样透传。 */
+            if (m.isEmpty() || m.startsWith("连不上服务器")) {
+                m = "连不上会员服务，检查电视的网络";
+            }
+            return plain("err:" + m.replace('\n', ' '));
+        }
+        String token = r.str("token");
+        if (token == null || token.isEmpty()) {
+            return plain("err:登录成功但没拿到凭证，稍后再试");
+        }
+        AccountStore.save(token, r.num("userId", 0), r.str("username"));
+        return plain("ok");
+    }
+
+    private static NanoHTTPD.Response plain(String text) {
+        return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.OK,
+                "text/plain; charset=utf-8", text);
+    }
+
     @Override
     public NanoHTTPD.Response doResponse(NanoHTTPD.IHTTPSession session, String fileName, Map<String, String> params, Map<String, String> files) {
         DataReceiver mDataReceiver = remoteServer.getDataReceiver();
         switch (fileName) {
             case "/action":
+                /* 登录单独走一条：它不经过 DataReceiver ——
+                   DataReceiver 那套是「把地址/文本推给播放器」的回调，
+                   登录要的是把 token 落库，两件事不该共用一个出口。 */
+                if ("login".equals(params.get("do"))) {
+                    return doLogin(params);
+                }
                 if (params.get("do") != null && mDataReceiver != null) {
                     String action = params.get("do");
 

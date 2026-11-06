@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 会员中心整页底：比首页更暗一档，让会员卡自己发光 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="90"
+        android:startColor="#FF120C10"
+        android:centerColor="#FF0A080B"
+        android:endColor="#FF050506" />
+</shape>

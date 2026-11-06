@@ -9,6 +9,7 @@ import android.widget.Toast;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.pigtv.R;
+import com.pigtv.account.AccountStore;
 import com.pigtv.api.ApiConfig;
 import com.pigtv.base.BaseLazyFragment;
 import com.pigtv.bean.Movie;
@@ -50,6 +51,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
     private LinearLayout tvLive;
     private LinearLayout tvSearch;
     private LinearLayout tvSetting;
+    private LinearLayout tvVip;
+    private android.widget.TextView hmVipText;
     private LinearLayout tvHistory;
     private LinearLayout tvCollect;
     private LinearLayout tvPush;
@@ -85,6 +88,12 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         } else {
             tvSetting.setVisibility(View.GONE);
         }
+        /* 会员入口直接写当前身份：未登录是「会员中心」，已登录换成用户名。
+           电视端没有第二个地方能看出这台机器登的是谁，藏进会员页等于没有。 */
+        if (hmVipText != null) {
+            String nm = AccountStore.logged() ? AccountStore.name() : "";
+            hmVipText.setText(nm.isEmpty() ? getString(R.string.hm_vip) : nm);
+        }
 
         super.onFragmentResume();
         if (Hawk.get(HawkConfig.HOME_REC, 0) == 2) {
@@ -116,6 +125,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         tvLive = findViewById(R.id.tvLive);
         tvSearch = findViewById(R.id.tvSearch);
         tvSetting = findViewById(R.id.tvSetting);
+        tvVip = findViewById(R.id.tvVip);
         tvCollect = findViewById(R.id.tvFavorite);
         tvHistory = findViewById(R.id.tvHistory);
         tvPush = findViewById(R.id.tvPush);
@@ -123,6 +133,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         tvLive.setOnClickListener(this);
         tvSearch.setOnClickListener(this);
         tvSetting.setOnClickListener(this);
+        tvVip.setOnClickListener(this);
+        hmVipText = findViewById(R.id.hmVipText);
         tvHistory.setOnClickListener(this);
         tvPush.setOnClickListener(this);
         tvCollect.setOnClickListener(this);
@@ -130,6 +142,7 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
         tvLive.setOnFocusChangeListener(focusChangeListener);
         tvSearch.setOnFocusChangeListener(focusChangeListener);
         tvSetting.setOnFocusChangeListener(focusChangeListener);
+        tvVip.setOnFocusChangeListener(focusChangeListener);
         tvHistory.setOnFocusChangeListener(focusChangeListener);
         tvPush.setOnFocusChangeListener(focusChangeListener);
         tvCollect.setOnFocusChangeListener(focusChangeListener);
@@ -364,6 +377,8 @@ public class UserFragment extends BaseLazyFragment implements View.OnClickListen
             jumpActivity(CollectActivity.class);
         } else if (v.getId() == R.id.tvDrive) {
             jumpActivity(DriveActivity.class);
+        } else if (v.getId() == R.id.tvVip) {
+            jumpActivity(VipActivity.class);
         }
     }
 

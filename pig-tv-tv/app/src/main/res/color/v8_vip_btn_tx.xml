@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 会员中心按钮的文字色。
+     必须跟 v8_vip_btn 的焦点态配套：那个背景聚焦时是纯白，
+     文字如果还是固定白色，反白之后整颗按钮上一个字都看不见 ——
+     而电视上「反白」是用户判断自己选中了什么的唯一信号。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FF141014" />
+    <item android:color="#F2FFFFFF" />
+</selector>

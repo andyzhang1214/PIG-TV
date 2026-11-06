@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B0A0C">
+<title>登录电视</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:#0B0A0C;color:#FFF4E6;
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif}
+.card{width:100%;max-width:400px;padding:28px 24px 22px;border-radius:18px;
+  background:linear-gradient(142deg,#241A20 0%,#171114 60%,#120E11 100%);
+  border:1px solid rgba(255,206,152,.18)}
+h1{margin:0 0 6px;font-size:22px;font-weight:700;letter-spacing:.5px}
+.sub{margin:0 0 22px;font-size:13px;color:rgba(255,244,230,.55)}
+label{display:block;margin:0 0 7px;font-size:13px;color:rgba(255,244,230,.7)}
+input{width:100%;height:48px;margin:0 0 16px;padding:0 14px;border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);
+  color:#FFF4E6;font-size:16px;outline:none}
+input:focus{border-color:rgba(255,209,140,.6);background:rgba(255,255,255,.09)}
+button{width:100%;height:50px;margin-top:6px;border:0;border-radius:12px;
+  background:linear-gradient(135deg,#FFE2B8,#FFA85C);color:#2A1405;
+  font-size:17px;font-weight:700;letter-spacing:1px}
+button:disabled{opacity:.55}
+.msg{min-height:20px;margin:14px 0 0;font-size:13px;text-align:center;color:rgba(255,244,230,.6)}
+.msg.err{color:#FF8E7A}
+.msg.ok{color:#7BD8A8}
+.foot{margin:18px 0 0;font-size:12px;line-height:1.6;text-align:center;color:rgba(255,244,230,.34)}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>登录电视</h1>
+  <p class="sub">登录后这台电视自动同步收藏和历史</p>
+  <form id="f" autocomplete="on">
+    <label for="u">账号</label>
+    <input id="u" name="u" autocomplete="username" autocapitalize="off" placeholder="用户名">
+    <label for="p">密码</label>
+    <input id="p" name="p" type="password" autocomplete="current-password" placeholder="密码">
+    <button id="btn" type="submit">登录</button>
+  </form>
+  <p id="msg" class="msg"></p>
+  <p class="foot">账号密码只在这台电视和你的手机之间传输<br>不经过第三方服务器</p>
+</div>
+<script>
+(function () {
+  var f = document.getElementById('f');
+  var u = document.getElementById('u');
+  var p = document.getElementById('p');
+  var btn = document.getElementById('btn');
+  var msg = document.getElementById('msg');
+
+  function say(text, cls) {
+    msg.textContent = text;
+    msg.className = 'msg' + (cls ? ' ' + cls : '');
+  }
+
+  f.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var user = u.value.trim();
+    var pass = p.value;
+    if (!user || !pass) { say('账号和密码都要填', 'err'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '登录中…';
+    say('');
+
+    fetch('/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8' },
+      body: 'do=login&u=' + encodeURIComponent(user) + '&p=' + encodeURIComponent(pass)
+    }).then(function (r) {
+      return r.text();
+    }).then(function (t) {
+      t = (t || '').trim();
+      if (t === 'ok') {
+        btn.textContent = '已登录';
+        say('这台电视已登录，可以放下手机了', 'ok');
+        u.disabled = true;
+        p.disabled = true;
+        return;
+      }
+      btn.disabled = false;
+      btn.textContent = '登录';
+      say(t.indexOf('err:') === 0 ? t.slice(4) : (t || '登录失败，稍后再试'), 'err');
+    }).catch(function () {
+      btn.disabled = false;
+      btn.textContent = '登录';
+      say('连不上电视，确认手机和电视在同一个 WiFi', 'err');
+    });
+  });
+})();
+</script>
+</body>
+</html>

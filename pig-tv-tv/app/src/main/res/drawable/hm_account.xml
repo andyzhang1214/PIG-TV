@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- 账号（人像）：和 hm_settings 等同一套纯白填充，靠 tint/alpha 控制观感。
+         原来是皇冠（会员）—— 本 App 不做会员分级，2026-11-05 换掉。 -->
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M256,104 A86,86 0 1 0 256,276 A86,86 0 1 0 256,104 Z" />
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M96,440 C96,338 168,292 256,292 C344,292 416,338 416,440 L416,456 L96,456 Z" />
+</vector>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- =====================================================================
+     会员中心（电视端）
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     两栏横排：左栏会员卡，右栏数字码 / 账号信息 + 按钮。
+
+     为什么是两栏：电视是 16:9 横屏，竖直堆叠放不下。按本项目基准
+     （55 寸 = 1217.6mm x 685mm）逐项累加，单栏排到 792mm，超出 107mm，
+     底部页脚整块被裁、刷新按钮下半截也被切。横向分栏之后纵向只占约 486mm，
+     还剩近 200mm 余量 —— 电视上最缺的是纵向空间，横向一直很富裕。
+
+     三条 TV 上的硬约束：
+       1) 竖直 LinearLayout 里「占剩余」一律 0dp + weight，永不 match_parent。
+       2) 可聚焦的只有右栏底部那排按钮；卡片和文字一律不可聚焦。
+          让焦点落进一个进得去出不来的区域，用户就只能拔电源。
+       3) 字号/圆角/间距全部走 dimens_v8 的 v8_vip_*，3 米外看不清只改那一处。
+     ===================================================================== -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/v8_vip_bg"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/v8_vip_pad"
+    android:paddingTop="@dimen/v8_nav_top"
+    android:paddingEnd="@dimen/v8_vip_pad"
+    android:paddingBottom="@dimen/vs_40">
+
+    <TextView
+        android:id="@+id/vipTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:includeFontPadding="false"
+        android:text="@string/vip_title"
+        android:textColor="#FFFFFFFF"
+        android:textSize="@dimen/v8_vip_title" />
+
+    <!-- 两栏主体抽到 view_vip_body.xml：设置页左侧「我的」那一页嵌的是同一份，
+         两处共用一套 id，会员卡和登录码不用写两遍。 -->
+    <include
+        layout="@layout/view_vip_body"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/vipFoot"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:includeFontPadding="false"
+        android:text="@string/vip_foot"
+        android:textColor="#66FFFFFF"
+        android:textSize="@dimen/v8_vip_sub" />
+
+</LinearLayout>

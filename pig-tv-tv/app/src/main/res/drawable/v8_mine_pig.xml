@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 猪头线稿（未登录头像 / 会员卡徽标共用这一份几何）。
+
+     造型参考 PigDrop 的线条小猪：一个圆脑门 + 两只短三角耳 + 一个鼻子两个鼻孔，
+     **只有描边没有填充**。为什么不做彩色插画版：顶栏是纯黑白体系（白色药丸
+     + 灰色标签字），塞一颗高饱和的彩色猪进去，色彩的「分量」压过了当前选中项，
+     整条顶栏的重心会被拉到最左边。
+
+     路径是一条闭合线，耳朵不是叠在圆上的两个三角形 —— 那样圆的描边会横穿
+     耳朵内部，出现一道多余的横线。这里把「头顶两段圆弧」直接换成「耳尖折角」：
+     从右耳内侧基点 (58,26.9) 起笔 → 右耳尖 (79,20) → 右耳外侧基点 (80,42.9)
+     → 绕脑袋下半圈（大弧）→ 左耳外侧基点 (20,42.9) → 左耳尖 (21,20)
+     → 左耳内侧基点 (42,26.9) → 沿头顶短弧回到起点。
+
+     三个细节决定它像猪不像猫：
+     1. 耳尖只比头顶高 7 个像素（20 vs 26.9），再高就变成猫耳；
+     2. 耳根跨度大（42→20），耳形宽扁；
+     3. 鼻子压在脸的下半部（cy=68），占脸宽的 53%。
+
+     ===== 画布就是图形的外框（别再留白边） =====
+     图形的真实外框（**含描边**）是 x 17~83 / y 17~83，一个 66×66 的方块：
+     头 20~80 宽，最下沿是弧底 74.9，鼻子椭圆到 80，描边再各外扩 3。
+     以前 viewport 是 100×100，四周空着一大圈，fitCenter 进 ImageView 时
+     白丢三成尺寸 ——「头像明明放大了，猪还是小小一颗」就是这个白边造成的。
+     现在 viewport = 外框 66×66，translate(-17,-17) 把图形挪到原点，
+     **ImageView 的边长就等于屏幕上猪头的尺寸**，改 dimens 的
+     v8_mine_logo 一处即可，不用再猜 0.7 的系数。
+     （只按 60 宽设画布会把左右脸颊切出两条平直的边 —— 描边也算进外框。）
+
+     注意：别用 `<group scaleX="1.4">` 去放大 —— VectorDrawable 的 group 缩放
+     是在最终画布空间里再乘一次，图形会溢出 ImageView 被父容器裁掉，
+     描边也跟着变成一坨（6 → 8.6 个 viewport 单位）。
+     要改大小就改 viewport，或者改 ImageView 尺寸。 -->
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="66dp"
+    android:height="66dp"
+    android:viewportWidth="66"
+    android:viewportHeight="66">
+
+    <!-- 描边色写死为白，实际颜色由 ImageView 的 android:tint 决定
+         （顶栏：低调香槟金 / 聚焦纯白；会员卡：深棕）。
+         所以**不要**在这个文件里改颜色，改 tint。 -->
+    <!-- translate(-17,-17)：把 x17~83 / y17~83 的外框挪到 0~66。
+         垂直方向原来还有 -5 的光学居中补偿（图形上留 20 下留 10，看着偏下），
+         现在外框本身就是画布，上下各 0，补偿不再需要。 -->
+    <group android:translateX="-17" android:translateY="-17">
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M42,26.9 L21,20 L20,42.9 A34,32 0 1 0 80,42.9 L79,20 L58,26.9 A34,32 0 0 0 42,26.9 Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6" />
+
+    <!-- 鼻子：横椭圆。宽 36、高 24（含描边），在 66 宽的外框里占 55%。 -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M32,68 A18,12 0 1 0 68,68 A18,12 0 1 0 32,68 Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6" />
+
+    <!-- 两个鼻孔：实心小竖椭圆 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M41.5,68 A3,4 0 1 0 47.5,68 A3,4 0 1 0 41.5,68 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M52.5,68 A3,4 0 1 0 58.5,68 A3,4 0 1 0 52.5,68 Z" />
+
+    <!-- 两只眼睛：小圆点。没有它就是个商标，有了它才是「一张脸」。 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M33.6,47 A3.4,3.4 0 1 0 40.4,47 A3.4,3.4 0 1 0 33.6,47 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M59.6,47 A3.4,3.4 0 1 0 66.4,47 A3.4,3.4 0 1 0 59.6,47 Z" />
+
+    </group>
+
+</vector>

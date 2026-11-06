@@ -280,6 +280,8 @@ public class ApiConfig {
                         try {
                             String json = response.body();
                             parseJson(apiUrl, json);
+                            // 加载成功 → 重置兜底标记，下次换源仍可自救
+                            serverSourceTried = false;
                             try {
                                 File cacheDir = cache.getParentFile();
                                 if (!cacheDir.exists())
@@ -296,6 +298,9 @@ public class ApiConfig {
                             callback.success();
                         } catch (Throwable th) {
                             th.printStackTrace();
+                            if (tryServerSource(apiUrl, callback, activity, "解析配置失败")) {
+                                return;
+                            }
                             callback.error("解析配置失败");
                         }
                     }
@@ -322,6 +327,11 @@ public class ApiConfig {
                                     .execute(this);
                             return;
                         }
+                        // 两次都不通又没有缓存：问服务端要备用源再试一次。
+                        // 接口地址是烧在包里的，源站挂掉后没有这条路径就只能等新版 APK。
+                        if (tryServerSource(apiUrl, callback, activity, "拉取配置失败")) {
+                            return;
+                        }
                         callback.error("拉取配置失败\n" + (response.getException() != null ? response.getException().getMessage() : ("HTTP " + response.code())));
                     }
 
@@ -339,6 +349,92 @@ public class ApiConfig {
                         return result;
                     }
                 });
+    }
+
+    // ------------------------------------------------------------ 服务端换源兜底
+
+    /** 同一次加载只兜底一次，防止「服务端给的源也坏」时来回递归 */
+    private static boolean serverSourceTried = false;
+
+    /**
+     * 默认接口彻底拉不到时，问服务端要一条启用的备用源换上去重来一遍。
+     *
+     * @return true = 兜底请求已发出，调用方不要立刻报错，等回调
+     */
+    private boolean tryServerSource(String failedUrl, LoadConfigCallback callback, Activity activity, String reason) {
+        if (serverSourceTried) {
+            return false;
+        }
+        serverSourceTried = true;
+        String api = com.github.tvbox.osc.account.AccountApi.base() + "/api/sources";
+        LOG.i("echo---" + reason + "，尝试服务端下发源 " + api);
+        OkGo.<String>get(api)
+                .headers("User-Agent", userAgent)
+                .execute(new AbsCallback<String>() {
+                    @Override
+                    public String convertResponse(okhttp3.Response response) throws Throwable {
+                        return response.body() == null ? "" : response.body().string();
+                    }
+
+                    @Override
+                    public void onSuccess(Response<String> response) {
+                        String picked = pickServerSource(response.body(), failedUrl);
+                        if (picked.isEmpty()) {
+                            LOG.i("echo---服务端没有可用备用源");
+                            callback.error(reason + "\n默认接口不可用，服务端也没有备用源");
+                            return;
+                        }
+                        LOG.i("echo---已切换到服务端下发源 " + picked);
+                        Hawk.put(HawkConfig.API_URL, picked);
+                        loadConfig(false, callback, activity);
+                    }
+
+                    @Override
+                    public void onError(Response<String> response) {
+                        super.onError(response);
+                        LOG.i("echo---服务端备用源也拉不到：" + api);
+                        callback.error(reason + "\n" + (response.getException() != null
+                                ? response.getException().getMessage() : ""));
+                    }
+                });
+        return true;
+    }
+
+    /** 优先 isDefault，其次第一条；跳过与失败地址相同的（否则等于原样重试） */
+    private static String pickServerSource(String body, String failedUrl) {
+        if (body == null || body.trim().isEmpty()) {
+            return "";
+        }
+        try {
+            JsonObject root = new Gson().fromJson(body, JsonObject.class);
+            if (root == null || !root.has("data") || !root.get("data").isJsonArray()) {
+                return "";
+            }
+            JsonArray arr = root.getAsJsonArray("data");
+            String first = "";
+            for (JsonElement e : arr) {
+                if (!e.isJsonObject()) {
+                    continue;
+                }
+                JsonObject o = e.getAsJsonObject();
+                String url = o.has("url") && !o.get("url").isJsonNull() ? o.get("url").getAsString().trim() : "";
+                if (url.isEmpty() || url.equals(failedUrl)) {
+                    continue;
+                }
+                boolean isDefault = o.has("isDefault") && !o.get("isDefault").isJsonNull()
+                        && o.get("isDefault").getAsBoolean();
+                if (isDefault) {
+                    return url;
+                }
+                if (first.isEmpty()) {
+                    first = url;
+                }
+            }
+            return first;
+        } catch (Throwable th) {
+            LOG.i("echo---服务端源解析失败 " + th.getMessage());
+            return "";
+        }
     }
 
     /** 最近一次 jar 下载的技术细节（给首页空态展示「为什么没内容」） */

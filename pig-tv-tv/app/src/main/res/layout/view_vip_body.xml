@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- =====================================================================
+     会员中心主体（会员卡 + 登录 / 账号）
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     这一个文件被两处复用：
+       - activity_vip.xml      独立会员中心页（「我的」tab 里的旧入口还在用）
+       - fragment_setting_me.xml  设置页左侧「我的」那一页
+     尺寸由使用方给（include 时指定 width/height），这里只管内容。
+
+     两栏横排的原因见 activity_vip.xml：电视 16:9 竖着堆会超屏，
+     横排之后纵向只占约 486mm。
+
+     三条硬约束照旧：
+       1) 竖直 LinearLayout 里「占剩余」一律 0dp + weight。
+       2) 可聚焦的只有底部那排按钮，卡片和文字一律不可聚焦。
+       3) 字号/圆角/间距走 dimens_v8 的 v8_vip_*。
+     ===================================================================== -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:baselineAligned="false"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <!-- ================= 左栏：会员卡 =================
+         卡上只有四样：头像、名字、身份、两个数字（登录设备 / 可绑上限）。
+         高度交给内容自己撑，固定高度在换字号时会露出底部空白。 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="43"
+        android:background="@drawable/v8_vip_card"
+        android:orientation="vertical"
+        android:padding="@dimen/v8_vip_card_pad">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- 头像位：游客态放线稿猪头，登录后放用户名首字。
+                 底下的金色圆角方块一直在（两个状态形状一致，不跳），
+                 线稿嵌在里面 —— 读起来是「品牌徽章」而不是一块方图
+                 硬塞进圆角卡片。
+                 tint 用深棕（#2A1405），跟卡片上的深色文字同一族；
+                 线稿本身是白色的，颜色全靠这里给。 -->
+            <FrameLayout
+                android:layout_width="@dimen/v8_vip_avatar"
+                android:layout_height="@dimen/v8_vip_avatar"
+                android:background="@drawable/v8_vip_avatar">
+
+                <ImageView
+                    android:id="@+id/vipLogo"
+                    android:layout_width="@dimen/v8_vip_logo"
+                    android:layout_height="@dimen/v8_vip_logo"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/vip_avatar_guest"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/v8_mine_pig"
+                    android:tint="#FF2A1405" />
+
+                <TextView
+                    android:id="@+id/vipAvatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fontFamily="sans-serif-black"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:text="@string/vip_avatar_guest"
+                    android:textColor="#FF2A1405"
+                    android:textSize="@dimen/v8_vip_name"
+                    android:visibility="gone" />
+
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/vs_30"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/vipName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-black"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
+                    android:text="@string/vip_name_guest"
+                    android:textColor="#FFFFF4E6"
+                    android:textSize="@dimen/v8_vip_name" />
+
+                <TextView
+                    android:id="@+id/vipSub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/vs_6"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
+                    android:text="@string/vip_sub_guest"
+                    android:textColor="#A6FFF0E4"
+                    android:textSize="@dimen/v8_vip_sub" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="@dimen/vs_20"
+            android:background="#1CFFF0E4" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_20"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/vipDevNum"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="@string/vip_num_dash"
+                    android:textColor="#FFFFD18C"
+                    android:textSize="@dimen/v8_vip_body" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/vs_6"
+                    android:includeFontPadding="false"
+                    android:text="@string/vip_kv_dev"
+                    android:textColor="#8CFFF0E4"
+                    android:textSize="@dimen/v8_vip_sub" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/vipLimitNum"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:text="@string/vip_limit_default"
+                    android:textColor="#FFFFD18C"
+                    android:textSize="@dimen/v8_vip_body" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/vs_6"
+                    android:includeFontPadding="false"
+                    android:text="@string/vip_kv_limit"
+                    android:textColor="#8CFFF0E4"
+                    android:textSize="@dimen/v8_vip_sub" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ================= 右栏：登录 / 账号 ================= -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/v8_vip_col_gap"
+        android:layout_weight="57"
+        android:orientation="vertical">
+
+        <!-- 未登录：扫码为主。电视没有输入法，手机扫码后在网页里输账号密码。
+             数字码留作备用 —— 手机和电视不在同一个网段、或者本地服务没起来时，
+             网页根本打不开，这时候还能回到「App 里输 6 位码」这条老路。 -->
+        <LinearLayout
+            android:id="@+id/vipCodeBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/vipCodeTip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="@string/vip_code_tip"
+                android:textColor="#B3FFFFFF"
+                android:textSize="@dimen/v8_vip_body" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_20"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/vipQr"
+                    android:layout_width="@dimen/v8_vip_qr"
+                    android:layout_height="@dimen/v8_vip_qr"
+                    android:background="@drawable/v8_qr_bg"
+                    android:contentDescription="@string/vip_qr_desc"
+                    android:padding="@dimen/vs_10"
+                    android:scaleType="fitCenter" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/vs_30"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:text="@string/vip_code_or"
+                        android:textColor="#8CFFFFFF"
+                        android:textSize="@dimen/v8_vip_sub" />
+
+                    <TextView
+                        android:id="@+id/vipCode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/vs_10"
+                        android:fontFamily="sans-serif-black"
+                        android:includeFontPadding="false"
+                        android:letterSpacing="0.18"
+                        android:text="@string/vip_code_wait"
+                        android:textColor="#FFFFD18C"
+                        android:textSize="@dimen/v8_vip_code_tx" />
+
+                    <TextView
+                        android:id="@+id/vipCodeHint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/vs_10"
+                        android:includeFontPadding="false"
+                        android:text="@string/vip_code_hint"
+                        android:textColor="#80FFFFFF"
+                        android:textSize="@dimen/v8_vip_sub" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 已登录：账号信息（和数字码互斥显示） -->
+        <LinearLayout
+            android:id="@+id/vipInfoBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/vipInfoLine1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:singleLine="true"
+                android:text="@string/vip_account_dash"
+                android:textColor="#FFFFF4E6"
+                android:textSize="@dimen/v8_vip_body" />
+
+            <TextView
+                android:id="@+id/vipInfoLine2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/vs_10"
+                android:includeFontPadding="false"
+                android:text="@string/vip_joined_dash"
+                android:textColor="#80FFFFFF"
+                android:textSize="@dimen/v8_vip_sub" />
+
+        </LinearLayout>
+
+        <!-- 按钮：必须装在横向 LinearLayout 里（本项目踩过 ConstraintLayout 里塌成 0x0 的坑）。
+             文字色走 v8_vip_btn_tx 选择器，聚焦反白之后字会转深色。 -->
+        <LinearLayout
+            android:id="@+id/vipBtnRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/vs_30"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/vipBtnRefresh"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/v8_vip_btn_h"
+                android:background="@drawable/v8_vip_btn"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:fontFamily="sans-serif-black"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/v8_vip_btn_pad"
+                android:paddingEnd="@dimen/v8_vip_btn_pad"
+                android:text="@string/vip_btn_refresh"
+                android:textColor="@color/v8_vip_btn_tx"
+                android:textSize="@dimen/v8_vip_btn_tx" />
+
+            <TextView
+                android:id="@+id/vipBtnLogout"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/v8_vip_btn_h"
+                android:layout_marginStart="@dimen/vs_20"
+                android:background="@drawable/v8_vip_btn"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:fontFamily="sans-serif-black"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/v8_vip_btn_pad"
+                android:paddingEnd="@dimen/v8_vip_btn_pad"
+                android:text="@string/vip_btn_logout"
+                android:textColor="@color/v8_vip_btn_tx"
+                android:textSize="@dimen/v8_vip_btn_tx"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

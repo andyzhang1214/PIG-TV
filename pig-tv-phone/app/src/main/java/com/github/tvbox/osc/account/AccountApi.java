@@ -115,6 +115,26 @@ public final class AccountApi {
             }
         }
 
+        /** 取布尔值：服务端下发的 vipActive 是 JSON true/false，用 num() 读会拿不到 */
+        public boolean bool(String key) {
+            if (data == null) {
+                return false;
+            }
+            JsonElement e = data.get(key);
+            if (e == null || e.isJsonNull()) {
+                return false;
+            }
+            try {
+                return e.getAsBoolean();
+            } catch (Throwable ignored) {
+                try {
+                    return e.getAsInt() == 1;
+                } catch (Throwable ignored2) {
+                    return false;
+                }
+            }
+        }
+
         /**
          * 被封禁时的可读原因。
          * 服务端在 403 的 data 里给了 banUntil / reason / banType，
@@ -252,6 +272,21 @@ public final class AccountApi {
 
     public static Res profile() {
         return call("GET", "/api/user/profile", null, true);
+    }
+
+    /**
+     * 手机输码绑定电视：把「电视上那串 6 位数字」认领到当前账号。
+     *
+     * <p>服务端会顺手给这台电视发一个 token，电视那边的轮询（{@code /api/device/poll}）
+     * 下一次就能拿到 —— 手机这边只关心绑定成功没有，不需要那个 token。</p>
+     *
+     * <p>码 5 分钟过期、一次性，所以用户报「码无效」时先问是不是超时了，
+     * 不要直接怀疑账号。</p>
+     */
+    public static Res bindDeviceCode(String code) {
+        JsonObject o = new JsonObject();
+        o.addProperty("code", code);
+        return call("POST", "/api/device/bind", o.toString(), true);
     }
 
     public static Res changePassword(String oldPwd, String newPwd) {

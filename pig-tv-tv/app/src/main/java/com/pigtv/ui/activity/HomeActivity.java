@@ -29,6 +29,7 @@ import androidx.viewpager.widget.ViewPager;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.pigtv.R;
+import com.pigtv.account.AccountStore;
 import com.pigtv.api.ApiConfig;
 import com.pigtv.base.App;
 import com.pigtv.base.BaseActivity;
@@ -108,8 +109,8 @@ import me.jessyan.autosize.utils.AutoSizeUtils;
  * 的 focusSearch —— 那个在「下一行只露半截」时经常返回 null，焦点就卡住不动。
  *
  * 首屏 / 浏览态：
- *   推荐、历史：屏上有 hero，墙从 240mm 起；焦点进墙 → hero 淡出、墙推到 96mm
- *   影视：没有 hero，墙固定从 114mm（二级菜单下沿）起，焦点进出都不动
+ *   推荐、历史：屏上有 hero，墙从 276mm 起；焦点进墙 → hero 淡出、墙推到 110mm
+ *   影视：没有 hero，墙固定从 118mm（二级菜单下沿）起，焦点进出都不动
  */
 public class HomeActivity extends BaseActivity {
 
@@ -117,19 +118,21 @@ public class HomeActivity extends BaseActivity {
     //  常量
     // ------------------------------------------------------------------
     /** 首屏墙起点（mm，物理毫米，与 dimens_v8 同一套换算） */
-    private static final float MM_LINE_TOP_FIRST = 240f;
+    private static final float MM_LINE_TOP_FIRST = 276f;
     /**
      * 浏览态（焦点进墙）的墙起点。
      * 顶栏放大到 38mm 之后底边到了 64mm，这个值还停在 66 → 浏览态海报墙直接顶到标签底下，
      * 卡片顶部的角标被压掉一截。留出约 20mm 的呼吸位（实测 78 还是只差 4px）。
+     * 左上角头像现在跨两行、下沿到 102mm，所以再往下让一档到 110 ——
+     * 否则第一格海报的左上角会被圆盘压住一块。
      */
-    private static final float MM_LINE_TOP_MIN = 96f;
+    private static final float MM_LINE_TOP_MIN = 110f;
     /**
      * 影视页的墙起点（mm）：那一页没有 hero，二级菜单下面直接就是封面。
-     * 顶栏 26+38=64 到底，二级菜单 72~102mm，再留 12mm 呼吸位 = 114mm。
-     * 改顶栏或二级菜单的高度，这个数要跟着改。
+     * 顶栏 26+38=64 到底，二级菜单 76~106mm，头像下沿 102mm，
+     * 再留 12mm 呼吸位 = 118mm。改顶栏或二级菜单的高度，这个数要跟着改。
      */
-    private static final float MM_WALL_TOP_CAT = 114f;
+    private static final float MM_WALL_TOP_CAT = 118f;
     /** 推荐/影视/历史三面墙的列数（同一套卡：215×322mm，5 列正好铺满版心） */
     private static final int WALL_SPAN = 5;
     /**
@@ -169,6 +172,8 @@ public class HomeActivity extends BaseActivity {
     private static final int NT_MORE = 6;
     /** 影视：电影/电视剧/综艺/… 全部收进这一个标签，选中后下面才展开二级菜单 */
     private static final int NT_FILM = 7;
+    /** 会员：独立页面，焦点路过不跳（和搜索/收藏同一类） */
+    private static final int NT_VIP = 8;
 
     /**
      * 顶栏一项。
@@ -502,6 +507,8 @@ public class HomeActivity extends BaseActivity {
         navItems.add(new NavItem(NT_FILM));
         navItems.add(new NavItem(NT_LIVE));
         navItems.add(new NavItem(NT_FAV));
+        // 账号入口不放顶栏（v13）：顶栏是「看什么」，账号是「我是谁」。
+        // 账号卡现在在设置页最上面，顶栏回到纯内容导航。
         inflateNav();
         inflateSubNav();
     }
@@ -509,7 +516,7 @@ public class HomeActivity extends BaseActivity {
     /** 顶栏分三组：常用入口 ‖ 影视 ‖ 工具，组间加一条竖线 */
     private int groupOf(NavItem it) {
         if (it.type == NT_FILM || it.type == NT_CAT || it.type == NT_MORE) return 1;
-        if (it.type == NT_LIVE || it.type == NT_FAV) return 2;
+        if (it.type == NT_LIVE || it.type == NT_FAV || it.type == NT_VIP) return 2;
         return 0;
     }
 
@@ -525,6 +532,8 @@ public class HomeActivity extends BaseActivity {
                 return getString(R.string.home_app_live);
             case NT_FAV:
                 return getString(R.string.home_app_fav);
+            case NT_VIP:
+                return getString(R.string.v8_nav_vip);
             case NT_MORE:
                 return getString(R.string.v8_nav_more);
             case NT_FILM:
@@ -870,7 +879,8 @@ public class HomeActivity extends BaseActivity {
             LivePreload.warmUp(this);
             return;
         }
-        if (it.type == NT_SEARCH || it.type == NT_FAV || it.type == NT_MORE) return;
+        if (it.type == NT_SEARCH || it.type == NT_FAV || it.type == NT_MORE
+                || it.type == NT_VIP) return;
         pendingNavSwitch = new Runnable() {
             @Override
             public void run() {
@@ -937,6 +947,9 @@ public class HomeActivity extends BaseActivity {
             case NT_FAV:
                 jumpActivity(CollectActivity.class);
                 break;
+            case NT_VIP:
+                jumpActivity(VipActivity.class);
+                break;
             case NT_SEARCH:
                 jumpActivity(SearchActivity.class);
                 break;
@@ -965,6 +978,7 @@ public class HomeActivity extends BaseActivity {
                 jumpActivity(SettingActivity.class);
             }
         });
+
     }
 
     // ---------------- hero 按钮 ----------------
@@ -1805,8 +1819,8 @@ public class HomeActivity extends BaseActivity {
     /**
      * 墙上边距，三个页面共用一个函数：
      * <pre>
-     *   影视（没有 hero） → 固定在二级菜单下沿（114mm），焦点进出都不动
-     *   推荐 / 历史       → 首屏 240mm（hero 在上面），焦点进墙后 96mm
+     *   影视（没有 hero） → 固定在二级菜单下沿（118mm），焦点进出都不动
+     *   推荐 / 历史       → 首屏 276mm（hero 在上面），焦点进墙后 110mm
      * </pre>
      *
      * 用 topMargin 而不是 translationY：translationY 只是把整个控件挪走，
@@ -1969,6 +1983,15 @@ public class HomeActivity extends BaseActivity {
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (handleVerticalKey(keyCode == KeyEvent.KEYCODE_DPAD_UP)) return true;
+            }
+            /* 第一个标签按左停住。
+               框架的焦点搜索在这套布局里从来没按几何位置走过：最左边再往左，
+               它会绕回屏幕最右边的源胶囊/时钟，用户按一下就直接「飞」到右上角。
+               账号头像已经搬到设置页，这条拦截现在只剩「左端自锁」一个作用。 */
+            View cur = getCurrentFocus();
+            View navFirst = navViews.isEmpty() ? null : navViews.get(0);
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && cur == navFirst) {
+                return true;
             }
         }
         return super.dispatchKeyEvent(event);

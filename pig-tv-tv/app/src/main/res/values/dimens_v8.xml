@@ -6,10 +6,13 @@
     （1217.6mm × 685mm），1 设计 px = 0.634mm。屏幕实际尺寸变了也成立。
 
     垂直排布（首屏，单位 mm）：
-        26 ─ 56   顶栏（品牌 + 导航 + 源胶囊 + 齿轮 + 时钟）
-        78 ─ 196  hero 信息（标签 / 片名 / 元信息 / 简介）
-       204 ─ 226  操作按钮
-       208 ─ 685  内容流（浏览态整体上移 v8_lines_lift，露出更多行）
+        26 ─ 64   顶栏（导航 + 源胶囊 + 齿轮 + 时钟）
+       76 ─ 106   二级菜单（只在「影视」页），与顶栏标签同一条竖轴
+      108 ─ 234   hero 信息（标签 / 片名 / 元信息 / 简介）
+      注：v13 起顶栏左端那颗账号头像已撤掉，账号入口在设置页最上面。
+          这里的 108 保持不动 —— hero 让出的空间已经变成了首屏的呼吸区。
+      241 ─ 269   操作按钮
+      276 ─ 720   内容流（浏览态整体上移，露出更多行）
 -->
 <resources>
 
@@ -31,7 +34,7 @@
     <!-- ============ 二级菜单（影视 → 电影/电视剧/…） ============ -->
     <!-- 只在「影视」页出现，位置在顶栏正下方。字号比顶栏小一档（22.8 → 17），
          层级上「影视」是父级，二级项不该和它一样大。 -->
-    <dimen name="v8_subnav_top">8mm</dimen>
+    <dimen name="v8_subnav_top">12mm</dimen>
     <dimen name="v8_subnav_h">30mm</dimen>
     <dimen name="v8_subnav_pad">14mm</dimen>
     <dimen name="v8_subnav_gap">5mm</dimen>
@@ -51,7 +54,11 @@
     <dimen name="v8_pill_radius">24mm</dimen>
 
     <!-- ============ hero 信息 ============ -->
-    <dimen name="v8_hero_top">72mm</dimen>
+    <!-- 108mm：hero 整块从头像那一列下面起。头像字形现在只到 87mm（56mm 的位居中在
+         38~94），理论上 96 就够，但 hero 的 tag 行是从版心最左开始铺的，
+         贴着字形下沿会显得挤；108 是上一版为了避开 72mm 圆盘定的数，
+         现在圆盘没了、保留它当呼吸位，改小反而会让 hero 顶到二级菜单的视觉重心里。 -->
+    <dimen name="v8_hero_top">108mm</dimen>
     <dimen name="v8_hero_w">560mm</dimen>
     <!-- 65 寸 3 米外：顶栏已经放大到 22.8mm，hero 这几行原来停在 9~11mm，
          放一起头重脚轻，整体提到 13~15mm -->
@@ -71,8 +78,8 @@
 
     <!-- ============ 操作按钮 ============ -->
     <!-- 字号涨上来之后按钮得跟着长，否则文字顶着上下边框；
-         按钮行整体下移 15mm 给 hero 让出空间（简介 13.5mm 两行比原来高 ~14mm） -->
-    <dimen name="v8_btn_top">205mm</dimen>
+         跟着 hero 一起下移（hero_top 72→108，这里 205→241），两者间距保持不变 -->
+    <dimen name="v8_btn_top">241mm</dimen>
     <dimen name="v8_btn_h">28mm</dimen>
     <dimen name="v8_btn_pad">18mm</dimen>
     <dimen name="v8_btn_tx">14mm</dimen>
@@ -80,7 +87,10 @@
     <dimen name="v8_btn_radius">14mm</dimen>
 
     <!-- ============ 内容流 ============ -->
-    <dimen name="v8_lines_top">240mm</dimen>
+    <!-- 首屏墙起点，跟 HomeActivity.MM_LINE_TOP_FIRST 必须一致：
+         hero 让到 108 → 按钮 241~269 → 墙 276。
+         影视页不吃这个值（那一页走 MM_WALL_TOP_CAT=118），这里只影响第一帧。 -->
+    <dimen name="v8_lines_top">276mm</dimen>
     <dimen name="v8_lines_lift">96mm</dimen>
     <dimen name="v8_line_head">19mm</dimen>
     <dimen name="v8_line_sub">16mm</dimen>
@@ -153,5 +163,41 @@
     <!-- 底部按键提示：原来 14mm，跟放大的顶栏放一起像脚注，提到 17mm -->
     <dimen name="v8_hint_tx">17mm</dimen>
 
+    <!-- ============ 会员中心（v12） ============ -->
+    <!-- 1080p 电视上 1mm ≈ 0.9px；3 米视距下正文字号 ≈ 18mm、主标题 40mm。
+         这一页没有「占剩余」的横向张力，所有间距都按固定值排，改一处即可整体缩放。 -->
+    <dimen name="v8_vip_pad">70mm</dimen>
+    <dimen name="v8_vip_radius">20mm</dimen>
+    <!-- 两栏之间的横向间隙（左栏会员卡 / 右栏登录区） -->
+    <dimen name="v8_vip_col_gap">40mm</dimen>
+    <dimen name="v8_vip_title">40mm</dimen>
+    <dimen name="v8_vip_card_pad">40mm</dimen>
+    <dimen name="v8_vip_avatar">120mm</dimen>
+    <!-- 会员卡头像里的 logo / 首字共用这一块位置；120 - 48 = 72，四边各留 24mm 金边。
+         线稿本身已经铺满画布（见 drawable/v8_mine_pig.xml 的 1.4286 缩放），
+         所以 72 就是画出来的猪头高度，跟改版前 88×70% ≈ 62 相比略微放大。 -->
+    <dimen name="v8_vip_logo">62mm</dimen>
+    <dimen name="v8_vip_name">30mm</dimen>
+    <dimen name="v8_vip_sub">18mm</dimen>
+    <dimen name="v8_vip_body">22mm</dimen>
+    <dimen name="v8_vip_code_h">88mm</dimen>
+    <!-- 扫码登录的二维码边长；3 米外不用扫，是给手机扫的，170mm 够大 -->
+    <dimen name="v8_vip_qr">170mm</dimen>
+    <!-- 数字码是这一页唯一需要「隔两米也读得出」的元素，字号单独给到 82mm -->
+    <dimen name="v8_vip_code_tx">54mm</dimen>
+    <dimen name="v8_vip_btn_h">56mm</dimen>
+    <dimen name="v8_vip_btn_pad">44mm</dimen>
+    <dimen name="v8_vip_btn_tx">20mm</dimen>
+
+    <!-- 设置页「我的」：卡片右侧那两个数字（登录设备 / 可绑上限）。
+         比正文大一号，3 米外一眼能读出 2 还是 5。 -->
+    <dimen name="v8_vip_num">26mm</dimen>
+
+    <!-- 设置页「我的」的卡片：这一页只是整屏的 2/3 宽，用会员中心那套
+         120mm 头像 + 40mm 内边距会占掉五分之一的屏高，卡像一堵墙。
+         单独一套小一号的，只在这一页用。 -->
+    <dimen name="v8_me_avatar">88mm</dimen>
+    <dimen name="v8_me_logo">46mm</dimen>
+    <dimen name="v8_me_card_pad">26mm</dimen>
 
 </resources>

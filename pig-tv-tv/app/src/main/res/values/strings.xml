@@ -313,6 +313,8 @@
     <string name="v8_collected">已收藏</string>
     <string name="v8_hero_desc_default">按 OK 看详情 · 长按卡片可全站搜索这部剧</string>
     <string name="v8_setting_title">配置中心</string>
+    <!-- 配置中心左侧第一项：账号 / 会员入口 -->
+    <string name="set_tab_me">我的</string>
     <string name="v8_sec_api">接口</string>
     <string name="v8_sec_play">播放</string>
     <string name="v8_sec_display">显示</string>
@@ -347,6 +349,7 @@
     <!-- ================= 首页 v10（顶栏标签页 / 历史） ================= -->
     <string name="v8_nav_hist">历史</string>
     <string name="v8_nav_more">更多</string>
+    <string name="v8_nav_vip">会员</string>
     <!-- 顶栏第二个分组：电影/电视剧/综艺/动漫/少儿/纪录片全部收进这一个标签，
          选中后下面才展开二级菜单，顶栏不用再摆一排分类 -->
     <string name="v8_nav_film">影视</string>
@@ -375,5 +378,45 @@
     <!-- 顶栏片源胶囊的兜底文案：config 里 site.name 可能为空，
          空着就只剩一个圆点加箭头，看着像没加载出来 -->
     <string name="v8_pill_fallback">换源</string>
+
+    // Member Center //
+    <string name="hm_vip">Account</string>
+    <string name="vip_title">Me</string>
+    <string name="vip_avatar_guest">G</string>
+    <string name="vip_name_guest">Not signed in</string>
+    <string name="vip_name_member">Member</string>
+    <string name="vip_sub_guest">Guest</string>
+    <!-- 副标题只说登录状态：本 App 没有会员分级 -->
+    <string name="vip_sub_logged">Signed in</string>
+    <string name="vip_code_tip">Scan with your phone, then sign in on the page it opens</string>
+    <string name="vip_code_or">Or enter the code below</string>
+    <string name="vip_qr_desc">Sign-in QR code</string>
+    <string name="vip_code_wait">· · · · · ·</string>
+    <string name="vip_code_empty">&#8212;</string>
+    <string name="vip_code_hint">Or enter this code in the phone app · valid for 5 minutes</string>
+    <string name="vip_account_dash">Account —</string>
+    <string name="vip_account_fmt">Account %1$s</string>
+    <string name="vip_net_fail">Cannot reach the server, try again later</string>
+    <string name="vip_btn_refresh">New code</string>
+    <string name="vip_btn_logout">Sign out</string>
+    <string name="vip_btn_reload">Refresh</string>
+    <string name="vip_foot">Scan to sign in &#183; sign out right here on the TV</string>
+    <string name="vip_login_ok">Signed in</string>
+    <string name="vip_logout_ok">Signed out</string>
+
+    <!-- two numbers on the member card (v12, simplified) -->
+    <string name="vip_kv_dev">Devices</string>
+    <string name="vip_kv_limit">Device limit</string>
+    <string name="vip_num_dash">—</string>
+    <string name="vip_limit_default">3</string>
+    <string name="vip_joined_dash">Joined —</string>
+    <string name="vip_joined_fmt">Joined %1$s</string>
+
+    <!-- account card on the settings page -->
+    <string name="set_acc_guest">Not signed in</string>
+    <string name="set_acc_guest_hint">Sign in to sync favourites and history</string>
+    <string name="set_acc_manage">Manage</string>
+    <string name="set_acc_login">Sign in</string>
+    <string name="set_acc_dev_fmt">Devices %1$s/%2$s</string>
 
 </resources>

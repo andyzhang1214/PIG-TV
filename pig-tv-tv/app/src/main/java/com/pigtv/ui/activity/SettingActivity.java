@@ -1,12 +1,9 @@
 package com.pigtv.ui.activity;
 
-import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.TextView;
 
 import androidx.viewpager.widget.ViewPager;
 
@@ -18,6 +15,7 @@ import com.pigtv.base.BaseLazyFragment;
 import com.pigtv.ui.adapter.SettingMenuAdapter;
 import com.pigtv.ui.adapter.SettingPageAdapter;
 import com.pigtv.ui.fragment.ModelSettingFragment;
+import com.pigtv.ui.fragment.SettingMeFragment;
 import com.pigtv.util.AppManager;
 import com.pigtv.util.HawkConfig;
 import com.orhanobut.hawk.Hawk;
@@ -30,7 +28,14 @@ import java.util.List;
 /**
  * @author pj567
  * @date :2020/12/23
- * @description:
+ * @description: 配置中心
+ *
+ * <p>左侧 5 项索引：我的 / 接口 / 播放 / 显示 / 高级。</p>
+ *
+ * <p>「我的」是真正的第二页（{@link SettingMeFragment}），其余四项仍然只是
+ * 一整页设置里的锚点（{@link ModelSettingFragment#focusSection(int)}）。
+ * 为什么不把设置也拆成 4 页：那一页 800 多行、上百个控件互相依赖，
+ * 拆页面的收益只有「标题看起来更整齐」，风险却是把设置项搞丢。</p>
  */
 public class SettingActivity extends BaseActivity {
     private TvRecyclerView mGridView;
@@ -38,15 +43,20 @@ public class SettingActivity extends BaseActivity {
     private SettingMenuAdapter sortAdapter;
     private SettingPageAdapter pageAdapter;
     private List<BaseLazyFragment> fragments = new ArrayList<>();
-    private boolean sortChange = false;
-    private int defaultSelected = 0;
-    private int sortFocused = 0;
     private Handler mHandler = new Handler();
     private String homeSourceKey;
     private String currentApi;
     private String currentLive;
     private int homeRec;
     private int dnsOpt;
+
+    /** 左侧当前停在哪一项：从右侧按 ← 逃回左侧时用它定位 */
+    private int curSection = 1;
+
+    /** 右侧第几页是「我的」 */
+    private static final int PAGE_ME = 0;
+    /** 右侧第几页是设置列表 */
+    private static final int PAGE_SETTING = 1;
 
     @Override
     protected int getLayoutResID() {
@@ -66,14 +76,13 @@ public class SettingActivity extends BaseActivity {
         mGridView.setAdapter(sortAdapter);
         mGridView.setLayoutManager(new V7LinearLayoutManager(this.mContext, 1, false));
         mGridView.setSpacingWithMargins(0, 0);
-        // 左侧分组只是索引：点一下把焦点送到右侧对应的设置项，
-        // 不切页（右侧本来就是一整页，切页会让用户以为设置丢了一半）
+        /* 左侧只是索引：按 OK 才切页 / 跳锚点。
+           焦点只是路过某一项时不动右侧 —— 不然按一下 ↓ 右侧就整块换掉，
+           用户会以为自己误触了什么。 */
         sortAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                sortFocused = position;
-                sortAdapter.setSelected(position);
-                focusSection(position);
+                pickSection(position);
             }
         });
         mGridView.setOnItemListener(new TvRecyclerView.OnItemListener() {
@@ -88,8 +97,6 @@ public class SettingActivity extends BaseActivity {
             public void onItemSelected(TvRecyclerView parent, View itemView, int position) {
                 if (itemView == null) return;
                 itemView.animate().scaleX(1.03f).scaleY(1.03f).setDuration(140).start();
-                sortChange = true;
-                sortFocused = position;
             }
 
             @Override
@@ -99,10 +106,60 @@ public class SettingActivity extends BaseActivity {
         });
     }
 
-    /** 把焦点送到右侧某个分组的第一项 */
+    /**
+     * 左侧某一项被按下 OK。
+     *
+     * <p>「我的」切到第 0 页并把焦点交给那一页的按钮；其余四项切回设置列表，
+     * 再把焦点送到对应分组的第一行。切页是同步的，但 fragment 的 show/hide
+     * 走的是 commitAllowingStateLoss，焦点得等下一帧才找得到 —— 所以延 60ms。</p>
+     */
+    private void pickSection(int position) {
+        curSection = position;
+        sortAdapter.setSelected(position);
+        if (position == 0) {
+            mViewPager.setCurrentItem(PAGE_ME, false);
+            mViewPager.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (fragments.isEmpty()) return;
+                    if (fragments.get(0) instanceof SettingMeFragment) {
+                        ((SettingMeFragment) fragments.get(0)).focusFirst();
+                    }
+                }
+            });
+        } else {
+            mViewPager.setCurrentItem(PAGE_SETTING, false);
+            mViewPager.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    focusSection(position - 1);
+                }
+            }, 60);
+        }
+    }
+
+    /**
+     * 从右侧内容区把焦点送回左侧索引。
+     *
+     * <p>为什么必须手动送：右侧那页从上往下是「不可聚焦的卡 → 不可聚焦的信息 →
+     * 一排按钮」，按钮上面什么都没有，按 ↑ 焦点原地不动 —— 用户会以为界面卡死。
+     * 这里跟顶栏那个「第一个标签按左自锁」是同一类问题：框架的几何焦点搜索
+     * 在「这个方向上没有可聚焦元素」时不会帮我们跨容器跳。</p>
+     */
+    public void focusSideNav() {
+        View v = mGridView.getLayoutManager() == null ? null
+                : mGridView.getLayoutManager().findViewByPosition(curSection);
+        if (v != null) {
+            v.requestFocus();
+        } else {
+            mGridView.requestFocus();
+        }
+    }
+
+    /** 把焦点送到设置列表里某个分组的第一项 */
     private void focusSection(int position) {
-        if (fragments.isEmpty()) return;
-        BaseLazyFragment f = fragments.get(0);
+        if (fragments.size() <= PAGE_SETTING) return;
+        BaseLazyFragment f = fragments.get(PAGE_SETTING);
         if (f instanceof ModelSettingFragment) {
             ((ModelSettingFragment) f).focusSection(position);
         }
@@ -115,6 +172,7 @@ public class SettingActivity extends BaseActivity {
         homeRec = Hawk.get(HawkConfig.HOME_REC, 0);
         dnsOpt = Hawk.get(HawkConfig.DOH_URL, 0);
         List<String> sortList = new ArrayList<>();
+        sortList.add(getString(R.string.set_tab_me));
         sortList.add(getString(R.string.v8_sec_api));
         sortList.add(getString(R.string.v8_sec_play));
         sortList.add(getString(R.string.v8_sec_display));
@@ -124,34 +182,24 @@ public class SettingActivity extends BaseActivity {
     }
 
     private void initViewPager() {
+        fragments.add(SettingMeFragment.newInstance());
         fragments.add(ModelSettingFragment.newInstance());
         pageAdapter = new SettingPageAdapter(getSupportFragmentManager(), fragments);
         mViewPager.setAdapter(pageAdapter);
-        mViewPager.setCurrentItem(0);
-        // 焦点先落在左侧「接口」分组，用户一眼知道这里有 4 个分区
+        /* 默认停在设置列表：这一页叫「配置中心」，进来多半是要改配置。
+           「我的」放在第一项，按 ↑ 就到，不占默认焦点。 */
+        mViewPager.setCurrentItem(PAGE_SETTING, false);
+        sortAdapter.setSelected(1);
         mGridView.post(new Runnable() {
             @Override
             public void run() {
                 View v = mGridView.getLayoutManager() == null ? null
-                        : mGridView.getLayoutManager().findViewByPosition(0);
+                        : mGridView.getLayoutManager().findViewByPosition(1);
                 if (v != null) v.requestFocus();
                 else mGridView.requestFocus();
             }
         });
     }
-
-    private final Runnable mDataRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (sortChange) {
-                sortChange = false;
-                if (sortFocused != defaultSelected) {
-                    defaultSelected = sortFocused;
-                    mViewPager.setCurrentItem(sortFocused, false);
-                }
-            }
-        }
-    };
 
     private final Runnable mDevModeRun = new Runnable() {
         @Override
@@ -172,22 +220,16 @@ public class SettingActivity extends BaseActivity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            mHandler.removeCallbacks(mDataRunnable);
-            int keyCode = event.getKeyCode();
-            switch (keyCode) {
-                case KeyEvent.KEYCODE_0:
-                    mHandler.removeCallbacks(mDevModeRun);
-                    devMode += "0";
-                    mHandler.postDelayed(mDevModeRun, 200);
-                    if (devMode.length() >= 4) {
-                        if (callback != null) {
-                            callback.onChange();
-                        }
+            if (event.getKeyCode() == KeyEvent.KEYCODE_0) {
+                mHandler.removeCallbacks(mDevModeRun);
+                devMode += "0";
+                mHandler.postDelayed(mDevModeRun, 200);
+                if (devMode.length() >= 4) {
+                    if (callback != null) {
+                        callback.onChange();
                     }
-                    break;
+                }
             }
-        } else if (event.getAction() == KeyEvent.ACTION_UP) {
-            mHandler.postDelayed(mDataRunnable, 200);
         }
         return super.dispatchKeyEvent(event);
     }

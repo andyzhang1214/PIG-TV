@@ -228,4 +228,45 @@
         <item>首选配置地址</item>
         <item>首选设置配置</item>
     </string-array>
+
+    // 会员中心（电视端） //
+    <string name="hm_vip">账号</string>
+    <string name="vip_title">我的</string>
+    <string name="vip_avatar_guest">游</string>
+    <string name="vip_name_guest">未登录</string>
+    <string name="vip_name_member">会员</string>
+    <string name="vip_sub_guest">游客</string>
+    <!-- 副标题只说登录状态：本 App 没有会员分级 -->
+    <string name="vip_sub_logged">已登录</string>
+    <string name="vip_code_tip">用手机扫描下方二维码，在打开的页面里输入账号密码</string>
+    <string name="vip_code_or">或在手机 App 里输入这串数字</string>
+    <string name="vip_qr_desc">登录二维码</string>
+    <string name="vip_code_wait">· · · · · ·</string>
+    <string name="vip_code_empty">—</string>
+    <string name="vip_code_hint">5 分钟内有效，也可以在手机 App 里输入上面这串数字</string>
+    <string name="vip_account_dash">账号 —</string>
+    <string name="vip_account_fmt">账号 %1$s</string>
+    <string name="vip_net_fail">连不上服务器，稍后再试</string>
+    <string name="vip_btn_refresh">换一个码</string>
+    <string name="vip_btn_logout">退出登录</string>
+    <string name="vip_btn_reload">刷新</string>
+    <string name="vip_foot">扫码登录 · 退出登录在这台电视上就能完成</string>
+    <string name="vip_login_ok">登录成功</string>
+    <string name="vip_logout_ok">已退出登录</string>
+
+    <!-- 会员卡上的两格数字（v12 精简） -->
+    <string name="vip_kv_dev">登录设备</string>
+    <string name="vip_kv_limit">可绑上限</string>
+    <string name="vip_num_dash">—</string>
+    <string name="vip_limit_default">3</string>
+    <string name="vip_joined_dash">注册时间 —</string>
+    <string name="vip_joined_fmt">注册于 %1$s</string>
+
+    <!-- 设置页的账号卡 -->
+    <string name="set_acc_guest">未登录</string>
+    <string name="set_acc_guest_hint">登录后收藏和历史多端同步</string>
+    <string name="set_acc_manage">管理</string>
+    <string name="set_acc_login">登录</string>
+    <string name="set_acc_dev_fmt">设备 %1$s/%2$s</string>
+
 </resources>

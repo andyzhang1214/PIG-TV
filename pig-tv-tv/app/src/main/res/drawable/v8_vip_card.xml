@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 会员卡卡面：斜向香槟金 + 深底。
+     电视上没有渐变角度可选（只有 0/45/90/...），45 度就是左上到右下，够用。
+     电视端只有一套深色主题（没有 values-night / 浅色），所以这里写死深色即可；
+     手机端那张卡是跟随主题的（浅色主题下是暖白卡面），两端不必强求同色，
+     只求「卡和页面属于同一套配色」。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="45"
+        android:startColor="#FF3A2318"
+        android:centerColor="#FF231720"
+        android:endColor="#FF160F14"
+        android:type="linear" />
+    <stroke android:width="0.8mm" android:color="#33FFCE98" />
+    <corners android:radius="@dimen/v8_vip_radius" />
+</shape>

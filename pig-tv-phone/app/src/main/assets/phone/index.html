@@ -148,30 +148,50 @@
       </div>
     </div>
 
-    <!-- 账号卡：未登录点进去是登录/注册，已登录点进去看账号信息和登出。
-         游客模式下这里只是个入口，不影响下面任何功能 —— 不登录照样能看片。 -->
-    <div class="accBar" onclick="openAcc()">
-      <div class="accAv guest" id="accAv">游</div>
-      <div class="accTxt">
-        <div class="accName" id="accName">游客</div>
-        <div class="accSub" id="accSub">登录后收藏、历史和设置在多端同步</div>
+    <!-- 会员卡：原来是 .accBar，v12 换成一张「实体卡」。
+         卡上只放四样东西：头像、名字、身份、两个数字（登录设备 / 可绑上限）。
+         卡面恒深、字恒白（不跟主题走，见 app.css 里的铁律），
+         未登录点卡 = 去登录，已登录点卡 = 进会员中心。 -->
+    <div class="vipCard" id="vipCard" onclick="vipTap()">
+      <div class="vipMain">
+        <div class="vipAv" id="vipAv">游</div>
+        <div class="vipWho">
+          <div class="vipName" id="vipName">未登录</div>
+          <div class="vipSub" id="vipSub">登录后收藏与历史多端同步</div>
+        </div>
+        <div class="vipGo" id="vipGo">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7"/></svg>
+        </div>
       </div>
-      <svg class="ic accGo" viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7"/></svg>
+      <div class="vipFoot">
+        <div class="vipKv"><b id="vipDev">—</b><span>登录设备</span></div>
+        <div class="vipKv"><b id="vipLimit">3</b><span>可绑上限</span></div>
+      </div>
+    </div>
+
+    <!-- 两格统计：把原来「我的收藏 / 观看历史」两行从列表里提到这里，
+         数字一眼能看到，不用滚下去数。设备数就在上面的卡里，不重复摆一遍。 -->
+    <div class="statRow">
+      <div class="statCell" onclick="openListPage('fav')">
+        <div class="statN" id="favCnt">0</div>
+        <div class="statL">收藏</div>
+      </div>
+      <div class="statCell" onclick="openListPage('hist')">
+        <div class="statN" id="histCnt">0</div>
+        <div class="statL">历史</div>
+      </div>
     </div>
 
     <div class="melist top">
-      <div class="meitem" onclick="openListPage('fav')">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M6.5 4.5h11v15l-5.5-4-5.5 4z"/></svg>
-        我的收藏<span class="v" id="favCnt">0</span>
-      </div>
-      <div class="meitem" onclick="openListPage('hist')">
-        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.5V12l3.2 2"/></svg>
-        观看历史<span class="v" id="histCnt">0</span>
-      </div>
-      <!-- 「电视直播」入口已移到独立页面（底部 Tab 第三个），这里不再重复 -->
+      <!-- 收藏 / 历史 已经在上面的三格里，列表这里只留搜索和会员入口 -->
       <div class="meitem" onclick="openSearch()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
         全站搜索<span class="v">多源聚合</span>
+      </div>
+      <div class="meitem ar" onclick="openVip()">
+        <!-- 人像（账号）。原来是皇冠（会员）—— 本项目不做会员分级，2026-11-05 换掉。 -->
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="7.8" r="3.6"/><path d="M4.8 20.2c0-3.9 3.2-6.1 7.2-6.1s7.2 2.2 7.2 6.1"/></svg>
+        账号<span class="v" id="vipHint">游客</span>
       </div>
     </div>
 
@@ -245,6 +265,106 @@
     <div style="height:6px"></div>
   </section>
 
+  <!-- ================= 会员中心 ================= -->
+  <!-- 这一页只在「想看清楚自己是什么身份」时才进。
+       数据分两层：本地登录态（秒回）+ 服务端档案（设备数/注册时间，尽力补）。
+       断网就停在「—」，不让它变砖。 -->
+  <section id="pVip" class="page">
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="back" onclick="go('me')" style="margin:0">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7"/></svg>
+        </div>
+        <div class="htitle">账号</div>
+      </div>
+    </div>
+
+    <!-- 和「我的」页同一张卡，只是大一号。卡片下面直接接设备列表，
+         不再放「当前身份」「会员权益」这类中间层 —— 身份就写在卡上。 -->
+    <div class="vipCard big" id="vpCard">
+      <div class="vipMain">
+        <div class="vipAv" id="vpAv">游</div>
+        <div class="vipWho">
+          <div class="vipName" id="vpName">未登录</div>
+          <div class="vipSub" id="vpSub">登录后收藏与历史多端同步</div>
+        </div>
+      </div>
+      <div class="vipFoot">
+        <div class="vipKv"><b id="vpDev">—</b><span>登录设备</span></div>
+        <div class="vipKv"><b id="vpLimit">3</b><span>可绑上限</span></div>
+      </div>
+    </div>
+
+    <div class="meSec">登录设备</div>
+    <div class="devList" id="vpDevs"></div>
+
+    <!-- 绑定电视：手机输码，电视那边自己轮询登录。
+         入口挂在设备区下面而不是账号区 —— 用户的心智是「再加一台设备」，
+         从设备区找比从账号设置里找自然。 -->
+    <div class="melist" id="vpBindEntry" style="margin-top:12px">
+      <div class="meitem ar" onclick="tvBindOpen()">
+        <svg class="ic" viewBox="0 0 24 24"><rect x="2.6" y="6" width="18.8" height="12" rx="2.4"/><path d="M9 18v2.4h6V18"/><path d="M12 13.4V9.2M9.9 11.2L12 9.1l2.1 2.1"/></svg>
+        绑定电视<span class="v">输码</span>
+      </div>
+    </div>
+
+    <div id="tvBindBox" style="display:none">
+      <div class="accField">
+        <label>电视上显示的 6 位数字</label>
+        <input id="tvBindCode" type="tel" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="例如 397249">
+      </div>
+      <div class="accErr" id="tvBindErr"></div>
+      <div class="accBtn" id="tvBindBtn" onclick="tvDoBind()">绑定这台电视</div>
+      <div class="accTip">电视打开「我的」页就能看到这串数字，5 分钟内有效，用一次就作废。</div>
+    </div>
+
+    <div class="meSec">账号</div>
+    <div class="accInfo">
+      <div class="row"><span class="k">账号</span><span class="v" id="vpMyName">—</span></div>
+      <div class="row"><span class="k">用户 ID</span><span class="v" id="vpMyUid">—</span></div>
+      <div class="row"><span class="k">注册时间</span><span class="v" id="vpMySince">—</span></div>
+      <div class="row"><span class="k">服务器</span><span class="v" id="vpMyBase">—</span></div>
+    </div>
+
+    <div class="melist" id="vpAcctList" style="margin-top:12px">
+      <div class="meitem ar" onclick="vipChangePwd()">
+        <svg class="ic" viewBox="0 0 24 24"><rect x="4.6" y="10.4" width="14.8" height="9" rx="2.4"/><path d="M8.2 10.4V7.8a3.8 3.8 0 0 1 7.6 0v2.6"/></svg>
+        修改密码<span class="v"></span>
+      </div>
+      <div class="meitem ar" onclick="openAcc()">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8.6" r="3.8"/><path d="M4.8 20.2c0-3.6 3.2-6 7.2-6s7.2 2.4 7.2 6"/></svg>
+        账号设置<span class="v"></span>
+      </div>
+    </div>
+
+    <!-- 改密码面板：默认折叠，展开后上面那条 tip 会跟着往下让位 -->
+    <div id="vpPwdBox" style="display:none">
+      <div class="accField">
+        <label>原密码</label>
+        <input id="vpOldPwd" type="password" autocomplete="current-password" placeholder="当前登录密码">
+      </div>
+      <div class="accField">
+        <label>新密码</label>
+        <input id="vpNewPwd" type="password" autocomplete="new-password" placeholder="8-32 位，需同时含字母和数字">
+      </div>
+      <div class="accField">
+        <label>确认新密码</label>
+        <input id="vpNewPwd2" type="password" autocomplete="new-password" placeholder="再输一次">
+      </div>
+      <div class="accErr" id="vpPwdErr"></div>
+      <div class="accBtn" id="vpPwdBtn" onclick="vipDoChangePwd()">保存新密码</div>
+      <div class="accTip">改完所有设备都要重新登录，电视端需要重新领一次数字码。</div>
+    </div>
+
+    <!-- 游客态：账号操作整块藏起来，换成一颗「登录 / 注册」——
+         否则点「修改密码」只会弹一句「未登录」，等于让人白点一次 -->
+    <div class="accBtn" id="vpLoginBtn" onclick="openAcc()" style="display:none">登录 / 注册</div>
+
+    <div class="accOut" id="vpOut" onclick="vipLogout()">退出登录</div>
+    <div class="accTip" id="vpTip">退出只清登录状态，本机收藏、历史和设置全部保留。</div>
+    <div style="height:12px"></div>
+  </section>
+
   <!-- ================= 账号 ================= -->
   <!-- 未登录是「登录 / 注册」表单，已登录是账号信息 + 退出。
        服务器地址折叠在最下面：正常用户不用管，换了机器/IP 时不用重新打包就能改。 -->
@@ -258,11 +378,20 @@
       </div>
     </div>
 
+    <!-- 未登录：品牌区 → 分段 → 输入 → 主按钮 → 「先随便看看」。
+         服务器地址仍然折在最下面：正常用户不用管，换机器/IP 时才用得上。 -->
     <div id="accForm">
+      <div class="accBrand">
+        <div class="accMark" id="accMark">猪</div>
+        <div class="accBrandT">登录猪猪影视</div>
+        <div class="accBrandS">收藏、历史、设置跟着账号走，换机不用重新找片</div>
+      </div>
+
       <div class="accTabs">
         <div class="accTab on" id="tabLogin" onclick="switchAcc('login')">登录</div>
         <div class="accTab" id="tabReg" onclick="switchAcc('reg')">注册</div>
       </div>
+
       <div class="accField">
         <label>账号</label>
         <input id="accUser" type="text" autocomplete="username" placeholder="4-20 位字母、数字或下划线">
@@ -277,7 +406,9 @@
       </div>
       <div class="accBtn" id="accBtn" onclick="doAcc()">登录</div>
       <div class="accErr" id="accErr"></div>
-      <div class="accTip">不登录也能正常看片。登录只是多了「收藏 / 历史 / 设置」多端同步。</div>
+      <!-- 「先随便看看」：透明底 + 描边。做成实心灰底会被当成禁用按钮 -->
+      <div class="accSkip" onclick="go('me')">先随便看看</div>
+      <div class="accTip">不登录也能正常看片，登录只是多一条「多端同步」。</div>
       <div class="accAdv" onclick="toggleAccAdv()">服务器：<b id="accBase">—</b></div>
       <div class="accAdvBox" id="accAdvBox" style="display:none">
         <input id="accBaseInput" type="text" placeholder="http://1.2.3.4:8088">
@@ -285,12 +416,15 @@
       </div>
     </div>
 
+    <!-- 已登录：只留一张身份卡 + 一个去会员中心的主按钮。
+         账号详情、设备、改密码全在会员中心，这里不重复堆 info 行。 -->
     <div id="accBox" style="display:none">
-      <div class="accInfo">
-        <div class="row"><span class="k">账号</span><span class="v" id="accMyName">—</span></div>
-        <div class="row"><span class="k">用户 ID</span><span class="v" id="accMyUid">—</span></div>
-        <div class="row"><span class="k">本机版本</span><span class="v" id="accMyVer">—</span></div>
+      <div class="accBrand">
+        <div class="accMark lg" id="accMarkAv">我</div>
+        <div class="accBrandT" id="accMyName">—</div>
+        <div class="accBrandS"><span id="accMyUid">UID —</span> · <span id="accMyVer">—</span></div>
       </div>
+      <div class="accGoBtn" onclick="openVip()">进入账号</div>
       <div class="accOut" onclick="doAccLogout()">退出登录</div>
       <div class="accTip">退出只清登录状态，本机收藏、历史和设置全部保留。</div>
     </div>
@@ -3472,7 +3606,7 @@ function askYes(){
 var state = {page:'home'};
 /* scrollLockUntil 在「状态」那一节声明（scrollCatTop / reloadCat 都在它前面用） */
 function go(p){
-  var map = {home:'pH', cat:'pC', live:'pLive', me:'pM', list:'pL', acc:'pAcc'};
+  var map = {home:'pH', cat:'pC', live:'pLive', me:'pM', list:'pL', acc:'pAcc', vip:'pVip'};
   Object.keys(map).forEach(function(k){
     var el = document.getElementById(map[k]);
     if (el) el.classList.toggle('on', k === p);
@@ -3480,7 +3614,7 @@ function go(p){
   /* tabOf：列表页（收藏/历史）算在「收藏」这一格上，
      这样从底栏点「收藏」进来时高亮的是收藏，而不是「我的」。
      账号页同理算在「我的」上，否则底栏会一格都不亮。 */
-  var tabOf = {home:'home', cat:'cat', live:'live', me:'me', list:'fav', acc:'me'};
+  var tabOf = {home:'home', cat:'cat', live:'live', me:'me', list:'fav', acc:'me', vip:'me'};
   document.querySelectorAll('.tab').forEach(function(t){
     t.classList.toggle('on', t.dataset.p === tabOf[p]);
   });
@@ -3495,6 +3629,10 @@ function go(p){
     if (ST.sorts.length && !ST.curSort) openSort(ST.sorts[0].id);
   }
   if (p === 'me'){ loadHist(); refreshSettings(); loadAcc(); }
+  /* 会员中心的数据全部来自 loadAcc → vipRefresh。放在路由里统一刷，
+     而不是每个入口各调一次 —— 否则「卡片点进来」和「列表点进来」
+     会因为入口不同、拿到的新旧程度不同。 */
+  if (p === 'vip') loadAcc();
   /* 直播页：第一次进来才拉，之后靠 liveSt.loaded 复用（分组和频道不会中途变，
      真正换了直播源时 openLiveCfg() 那边的回调会清掉这个标记）。 */
   if (p === 'live') loadLive(false);
@@ -3521,33 +3659,37 @@ function loadAcc(){
     var bi = document.getElementById('accBaseInput');
     if (bi && !bi.value) bi.value = ACC.base || '';
     renderAcc(d.logged ? 1 : 0, d);
+    /* 本地态先画（renderAcc 里已经 paintVip），再尽力补服务端档案。
+       断网时 vipInfo 自己会退化成 0，界面停在「—」而不是报错。 */
+    vipRefresh();
   });
 }
 
 function renderAcc(logged, d){
   ACC.logged = logged;
-  var av = document.getElementById('accAv');
-  var nm = document.getElementById('accName');
-  var sub = document.getElementById('accSub');
-  if (logged){
-    var n = (d && d.name) || '';
-    if (av){ av.textContent = n ? n.charAt(0).toUpperCase() : '我'; av.className = 'accAv'; }
-    if (nm) nm.textContent = n || '已登录';
-    if (sub) sub.textContent = '已登录 · 点这里查看账号信息';
-  } else {
-    if (av){ av.textContent = '游'; av.className = 'accAv guest'; }
-    if (nm) nm.textContent = '游客';
-    if (sub) sub.textContent = '登录后收藏、历史和设置在多端同步';
+  /* 登录态是唯一真相：会员卡、统计格、会员中心全由 VIP 驱动，
+     这里先把本地的部分同步过去，界面不会出现「账号页说登录了、
+     我的页还写着游客」这种半截状态。 */
+  VIP.logged = logged ? 1 : 0;
+  if (d){
+    if (logged){
+      VIP.name = d.name || '';
+      VIP.uid = d.uid || 0;
+    }
+    if (d.base) VIP.base = d.base;
   }
   var f = document.getElementById('accForm');
   var box = document.getElementById('accBox');
   if (f) f.style.display = logged ? 'none' : '';
   if (box) box.style.display = logged ? '' : 'none';
   if (logged && d){
-    accSet('accMyName', d.name || '—');
-    accSet('accMyUid', d.uid ? String(d.uid) : '—');
-    accSet('accMyVer', 'v' + (d.verName || '') + (d.verCode ? '（' + d.verCode + '）' : ''));
+    var mk = document.getElementById('accMarkAv');
+    if (mk) mk.textContent = VIP.name ? VIP.name.charAt(0).toUpperCase() : '我';
+    accSet('accMyName', d.name || '已登录');
+    accSet('accMyUid', d.uid ? ('UID ' + d.uid) : 'UID —');
+    accSet('accMyVer', 'v' + (d.verName || '') + (d.verCode ? ' · ' + d.verCode : ''));
   }
+  paintVip();
 }
 
 function accSet(id, txt){ var e = document.getElementById(id); if (e) e.textContent = txt; }
@@ -3634,6 +3776,234 @@ function saveAccBase(){
   });
 }
 
+/* =====================================================================
+   会员中心（v12）
+   ---------------------------------------------------------------------
+   数据分两层，缺一不可：
+     1) accInfo  —— 本地登录态（token 在原生侧，JS 只拿到「登没登、叫什么」），
+                    秒回，决定整页是「游客皮」还是「会员皮」
+     2) vipInfo  —— 尽力补服务端档案（设备数 / 注册时间），断网就退化成
+                    「—」，绝对不能让会员中心因为没网变成一块空白
+
+   权益清单写在前端：它描述的是「这个 App 能做什么」，不是服务端契约，
+   改一句文案不该跟着发版后端。
+   ===================================================================== */
+var VIP = {logged:0, name:'', uid:0, dev:0, limit:3, since:'', base:'', net:0};
+
+
+function openVip(){ go('vip'); }
+/* 列表页那张卡：登录了点进会员中心，没登录直接去登录 —— 
+   游客点卡却只翻个页、不给登录入口，是最常见的「点了没反应」 */
+function vipTap(){ if (VIP.logged) openVip(); else openAcc(); }
+
+/** 补一次服务端档案。失败就什么都不做，让界面停在本地态 */
+function vipRefresh(){
+  ncall('vipInfo', [], function(d){
+    if (!d || !d.ok) return;
+    VIP.logged = d.logged ? 1 : 0;
+    VIP.name = d.name || VIP.name;
+    VIP.uid = d.uid || VIP.uid;
+    VIP.dev = d.deviceCount || 0;
+    VIP.limit = d.deviceLimit || 3;
+    VIP.since = d.joinedAt || '';
+    VIP.base = d.base || VIP.base;
+    VIP.net = d.net || 0;
+    /* 会员字段（vipActive / vipDays / expireAt）2026-11-05 起不再使用：
+       本项目只做账号登录，没有会员分级。服务端仍会下发，这里直接忽略。 */
+    paintVip();
+  });
+}
+
+/**
+ * 画一张会员卡。
+ * p = 'vip'（「我的」页）或 'vp'（会员中心），靠前缀复用同一套 id。
+ * 卡片文字恒白，不跟主题走 —— 见 app.css 顶部的铁律。
+ */
+function paintCard(p){
+  function g(s){ return document.getElementById(p + s); }
+  var av = g('Av'), nm = g('Name'), sub = g('Sub');
+  var dev = g('Dev'), lim = g('Limit');
+  var n = VIP.logged ? (VIP.name || '') : '';
+  if (av) av.textContent = VIP.logged ? (n ? n.charAt(0).toUpperCase() : '我') : '游';
+  if (nm) nm.textContent = VIP.logged ? (n || '已登录') : '未登录';
+  if (sub) sub.textContent = vipSubText();
+  /* 游客态设备数必须是「—」。写 1 会让人以为已经有一台在线，
+     然后去会员中心找那台不存在的设备 */
+  if (dev) dev.textContent = VIP.logged ? (VIP.dev || 1) : '—';
+  if (lim) lim.textContent = VIP.logged ? (VIP.limit || 3) : 3;
+}
+
+/**
+ * 卡片上那行「身份」。本 App 只做账号登录，没有会员分级 ——
+ * 所以这里只说「登录没登录」，不再出现会员 / 剩余天数 / 到期日。
+ */
+function vipSubText(){
+  if (!VIP.logged) return '登录后收藏与历史多端同步';
+  return '已登录 · 收藏与历史已同步';
+}
+
+function paintVip(){
+  paintCard('vip');
+  paintCard('vp');
+
+  var hint = document.getElementById('vipHint');
+  if (hint) hint.textContent = VIP.logged ? '已登录' : '游客';
+  /* ---- 会员中心 ---- */
+  /* 没有会员这一行了：账号、用户 ID、注册时间、服务器就够。
+     卡面副标题已经说了「已登录」，这里再列一遍是重复。 */
+  var kv = [
+    ['vpMyName', VIP.logged ? (VIP.name || '—') : '—'],
+    ['vpMyUid', VIP.logged ? (VIP.uid ? String(VIP.uid) : '—') : '—'],
+    ['vpMySince', VIP.logged ? (VIP.since || '—') : '—'],
+    ['vpMyBase', VIP.base || '—']
+  ];
+  for (var i = 0; i < kv.length; i++){
+    var e = document.getElementById(kv[i][0]);
+    if (e) e.textContent = kv[i][1];
+  }
+
+  var acct = document.getElementById('vpAcctList');
+  if (acct) acct.style.display = VIP.logged ? '' : 'none';
+  var loginBtn = document.getElementById('vpLoginBtn');
+  if (loginBtn) loginBtn.style.display = VIP.logged ? 'none' : '';
+  var out = document.getElementById('vpOut');
+  if (out) out.style.display = VIP.logged ? '' : 'none';
+  var tip = document.getElementById('vpTip');
+  if (tip) tip.style.display = VIP.logged ? '' : 'none';
+
+  /* 绑定电视必须登录后才能用：服务端要拿当前账号去认领那串码。 */
+  var bindEntry = document.getElementById('vpBindEntry');
+  if (bindEntry) bindEntry.style.display = VIP.logged ? '' : 'none';
+  if (!VIP.logged){
+    var bindBox = document.getElementById('tvBindBox');
+    if (bindBox) bindBox.style.display = 'none';
+  }
+
+  renderVipDevs();
+}
+
+/**
+ * 设备列表。
+ * 服务端只回「台数」，不回设备明细，所以这里按台数展开：
+ * 第一台标「本机」，其余标「同账号登录中」。
+ * 不要自己编设备型号 —— 编出来的型号用户会当真，然后来问「这是谁的手机」。
+ */
+function renderVipDevs(){
+  var box = document.getElementById('vpDevs');
+  if (!box) return;
+  if (!VIP.logged){
+    box.innerHTML = '<div class="devEmpty">登录后这里会列出正在使用的设备</div>';
+    return;
+  }
+  var n = VIP.dev || 1;
+  var h = '';
+  for (var i = 0; i < n; i++){
+    var ic = (i === 0)
+      ? '<rect x="7" y="2.6" width="10" height="18.8" rx="2.4"/><path d="M10.6 18.6h2.8"/>'
+      : '<rect x="2.8" y="6" width="18.4" height="12" rx="2.4"/><path d="M9 18v2.4h6V18"/>';
+    h += '<div class="devRow">' +
+           '<div class="devIc"><svg class="ic" viewBox="0 0 24 24">' + ic + '</svg></div>' +
+           '<div class="devBody">' +
+             '<div class="devN">' + (i === 0 ? '这台手机' : '设备 ' + (i + 1)) + '</div>' +
+             '<div class="devS">' + (i === 0 ? '当前设备 · 已登录' : '同账号登录中') + '</div>' +
+           '</div>' +
+           (i === 0 ? '<div class="devTag">本机</div>' : '') +
+         '</div>';
+  }
+  box.innerHTML = h;
+}
+
+/* ---- 绑定电视 ---- */
+function tvBindOpen(){
+  var b = document.getElementById('tvBindBox');
+  if (!b) return;
+  var open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : '';
+  var err = document.getElementById('tvBindErr');
+  if (err) err.textContent = '';
+  if (!open){
+    var i = document.getElementById('tvBindCode');
+    if (i){ i.value = ''; i.focus(); }
+  }
+}
+
+function tvDoBind(){
+  var i = document.getElementById('tvBindCode');
+  var err = document.getElementById('tvBindErr');
+  var btn = document.getElementById('tvBindBtn');
+  /* 只留数字：用户可能带着空格粘贴，inputmode 也不保证只有数字 */
+  var v = i ? String(i.value || '').replace(/[^0-9]/g, '') : '';
+  if (v.length !== 6){
+    if (err) err.textContent = '请输入电视上显示的 6 位数字';
+    return;
+  }
+  if (err) err.textContent = '';
+  if (btn){ btn.className = 'accBtn off'; btn.textContent = '绑定中…'; }
+  ncall('bindTv', [v], function(r){
+    if (btn){ btn.className = 'accBtn'; btn.textContent = '绑定这台电视'; }
+    if (!r || !r.ok){
+      if (err) err.textContent = (r && r.msg) || '绑定失败，数字可能已过期';
+      return;
+    }
+    if (i) i.value = '';
+    document.getElementById('tvBindBox').style.display = 'none';
+    toast('电视已登录');
+    /* 设备数会 +1，重拉一次；不重拉的话卡片上还是旧的台数 */
+    loadAcc();
+  });
+}
+
+/* ---- 改密码 ---- */
+function vipChangePwd(){
+  var b = document.getElementById('vpPwdBox');
+  if (!b) return;
+  var open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : '';
+  if (!open){
+    var o = document.getElementById('vpOldPwd');
+    if (o) o.focus();
+  }
+}
+function vipPwdErr(m){
+  var e = document.getElementById('vpPwdErr');
+  if (e) e.textContent = m || '';
+}
+
+function vipDoChangePwd(){
+  var o = document.getElementById('vpOldPwd');
+  var n = document.getElementById('vpNewPwd');
+  var n2 = document.getElementById('vpNewPwd2');
+  var ov = o ? String(o.value || '') : '';
+  var nv = n ? String(n.value || '') : '';
+  var n2v = n2 ? String(n2.value || '') : '';
+  if (!ov || !nv){ vipPwdErr('请填写原密码和新密码'); return; }
+  if (nv.length < 8 || nv.length > 32){ vipPwdErr('新密码需 8-32 位'); return; }
+  if (!/[A-Za-z]/.test(nv) || !/[0-9]/.test(nv)){ vipPwdErr('新密码要同时含字母和数字'); return; }
+  if (nv !== n2v){ vipPwdErr('两次输入的新密码不一致'); return; }
+  vipPwdErr('');
+  var btn = document.getElementById('vpPwdBtn');
+  if (btn){ btn.className = 'accBtn off'; btn.textContent = '保存中…'; }
+  ncall('accChangePwd', [ov, nv], function(r){
+    if (btn){ btn.className = 'accBtn'; btn.textContent = '保存新密码'; }
+    if (!r || !r.ok){ vipPwdErr((r && r.msg) || '修改失败，请稍后重试'); return; }
+    if (o) o.value = '';
+    if (n) n.value = '';
+    if (n2) n2.value = '';
+    toast('密码已更新，请重新登录');
+    go('acc');
+    loadAcc();
+  });
+}
+
+function vipLogout(){
+  askDialog('退出登录', '退出只清登录状态，本机收藏、历史和设置全部保留。', function(){
+    ncall('accLogout', [], function(){
+      toast('已退出登录');
+      loadAcc();
+    });
+  });
+}
+
 var toastT = null;
 function toast(msg){
   var el = document.getElementById('toast');
@@ -3677,6 +4047,9 @@ window.PAGEAPI = {
     if (c.classList.contains('on')){ cfgClose(); return true; }
     if (d.classList.contains('on')){ closeDetail(); return true; }
     if (s.classList.contains('on')){ closeSearch(); return true; }
+    /* 会员中心 / 账号页是「我的」的下级页，先退一层回「我的」。
+       直接 go('home') 会让人以为刚才那一步被吞了。 */
+    if (state.page === 'vip' || state.page === 'acc'){ go('me'); return true; }
     if (state.page !== 'home'){ go('home'); return true; }
     return false;
   }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 二维码底板。必须是不透明的白：zxing 生成的位图是黑白两色，
+     透明底上扫码器经常识别不出来（黑块浮在深色页面上对比度不够）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FFFFFFFF" />
+    <corners android:radius="14mm" />
+</shape>
