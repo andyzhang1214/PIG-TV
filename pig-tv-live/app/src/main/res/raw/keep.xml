@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  shrinkResources 的保留清单。
+
+  MediaSettingDialog 是拼字符串拿数组资源的：
+      getIdentifier("media_content_" + key, "array", ...)
+      getIdentifier("media_content_tag_" + key, "array", ...)
+  R8 静态分析看不到这种引用，不在这里保住就会被当成无用资源删掉，
+  进播放设置页时媒体选项整排消失。
+
+  其它按名字取资源的点也在这里加，别再靠「编译过了就行」——
+  资源被删是运行时才炸的，编译期一点提示都没有。
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@array/media_content_*,@array/media_content_tag_*" />

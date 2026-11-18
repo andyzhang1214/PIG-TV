@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    直播频道表（点「直播」先进的那一页）
+
+    和手机端「直播」页对齐：进来先看见全部频道，挑一个才进播放器。
+    以前点「直播」是直接进 LivePlayActivity 播上次那个台 —— 那个台经常已经失效，
+    屏幕上就是一片黑，还得先按 MENU 调出左侧列表才知道有哪些台，等于什么都没给。
+
+    ★ 版面按设计稿（design/redesign/s1-home）来：左边一条竖排 rail 放分组导航，
+      右边是标题 + 频道墙。原来那排横向胶囊在 12 个分组时要一路按到屏幕外才找得到
+      「地方频道」，竖排一屏就能看全，也不用记「往右按几下」。
+
+    左栏结构：品牌 → 列表（全部 / 收藏 / 超清专区 / ─ 分组 ─ / 各分组）→ 底部两个入口。
+    列表用 TvRecyclerView + 竖向 LinearLayoutManager，焦点走到哪行就自动滚到哪行。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/uiBg"
+    android:orientation="horizontal">
+
+    <!-- ================= 左栏 rail ================= -->
+    <LinearLayout
+        android:layout_width="@dimen/v8_rail_w"
+        android:layout_height="match_parent"
+        android:layout_marginStart="@dimen/h_edge"
+        android:layout_marginTop="@dimen/v8_rail_pad"
+        android:layout_marginBottom="@dimen/v8_rail_pad"
+        android:background="@drawable/v8_rail_bg"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/v8_rail_pad"
+        android:paddingTop="@dimen/v8_rail_pad"
+        android:paddingEnd="@dimen/v8_rail_pad"
+        android:paddingBottom="@dimen/v8_rail_pad">
+
+        <!-- 品牌字：设计稿左上角那枚 PTV LIVE -->
+        <TextView
+            android:id="@+id/tvBrand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12mm"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.06"
+            android:text="@string/app_name"
+            android:textColor="?attr/uiText"
+            android:textSize="@dimen/v8_rail_brand_tx"
+            android:textStyle="bold" />
+
+        <com.owen.tvrecyclerview.widget.TvRecyclerView
+            android:id="@+id/mChipRow"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingTop="2mm"
+            android:paddingBottom="2mm"
+            app:tv_verticalSpacingWithMargins="@dimen/v8_rail_gap" />
+
+        <!-- 底部两个入口：设置 / 直播源 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0.7mm"
+            android:layout_marginTop="8mm"
+            android:layout_marginBottom="6mm"
+            android:background="?attr/uiStroke" />
+
+        <TextView
+            android:id="@+id/btnSettings"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/v8_rail_item_h"
+            android:background="@drawable/v8_rail_item_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="false"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:nextFocusRight="@+id/mChannelGrid"
+            android:paddingStart="@dimen/v8_rail_foot_pad"
+            android:paddingEnd="@dimen/v8_rail_item_pad"
+            android:text="@string/v8_live_btn_settings"
+            android:textColor="@color/v8_flt_pill_tx"
+            android:textSize="@dimen/v8_rail_tx" />
+
+        <TextView
+            android:id="@+id/btnConfig"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/v8_rail_item_h"
+            android:layout_marginTop="@dimen/v8_rail_gap"
+            android:background="@drawable/v8_rail_item_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="false"
+            android:gravity="center_vertical"
+            android:includeFontPadding="false"
+            android:nextFocusRight="@+id/mChannelGrid"
+            android:paddingStart="@dimen/v8_rail_foot_pad"
+            android:paddingEnd="@dimen/v8_rail_item_pad"
+            android:text="@string/v8_live_btn_config"
+            android:textColor="@color/v8_flt_pill_tx"
+            android:textSize="@dimen/v8_rail_tx" />
+
+    </LinearLayout>
+
+    <!-- ================= 右侧内容区 ================= -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/h_edge"
+        android:paddingTop="@dimen/v8_nav_top"
+        android:paddingEnd="@dimen/h_edge">
+
+        <!-- 标题行：「直播 · N 个频道」在左，时钟日期贴在右端。
+             设计稿里时钟和标题是同一条水平带上的（.head 的两端），
+             单独占一行会把整个内容区往下顶一截、频道墙少一排。 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6mm"
+            android:gravity="bottom"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="@string/v8_live_title"
+                android:textColor="?attr/uiText"
+                android:textSize="@dimen/v8_live_title"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvLiveStat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12mm"
+                android:layout_marginBottom="2mm"
+                android:includeFontPadding="false"
+                android:textColor="?attr/uiTextSub"
+                android:textSize="@dimen/v8_live_stat" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:letterSpacing="-0.02"
+                    android:textColor="?attr/uiText"
+                    android:textSize="@dimen/v8_clock_tx" />
+
+                <TextView
+                    android:id="@+id/tvDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1.9mm"
+                    android:includeFontPadding="false"
+                    android:textColor="?attr/uiTextSub"
+                    android:textSize="@dimen/v8_date_tx" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- ================= 频道墙 ================= -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="12mm"
+            android:layout_weight="1">
+
+            <com.owen.tvrecyclerview.widget.TvRecyclerView
+                android:id="@+id/mChannelGrid"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingTop="@dimen/vs_10"
+                android:paddingBottom="@dimen/vs_30"
+                app:tv_horizontalSpacingWithMargins="@dimen/v8_live_card_gap"
+                app:tv_verticalSpacingWithMargins="@dimen/v8_live_card_gap" />
+
+            <!-- 收藏档专用的空提示：这一档没有台时，不能借用下面那个 liveEmptyBox ——
+                 那个会把整条导航一起隐藏掉，用户就退不出「收藏」这一档了。
+                 这里只盖住频道墙那块区域，左栏照常可点。 -->
+            <LinearLayout
+                android:id="@+id/favHintBox"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="@dimen/v8_fav_empty_star"
+                    android:layout_height="@dimen/v8_fav_empty_star"
+                    android:layout_marginBottom="14mm"
+                    android:alpha="0.22"
+                    android:contentDescription="@null"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_fav_star" />
+
+                <TextView
+                    android:id="@+id/tvFavHintTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:textColor="?attr/uiText"
+                    android:textSize="@dimen/v8_live_title"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvFavHintDesc"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10mm"
+                    android:gravity="center"
+                    android:lineSpacingExtra="4mm"
+                    android:textColor="?attr/uiTextSub"
+                    android:textSize="@dimen/v8_flt_group_name" />
+
+            </LinearLayout>
+
+            <!-- 空态：没频道 / 只有自定义直播源占位 / 读取失败，都停在这里说清楚 -->
+            <LinearLayout
+                android:id="@+id/liveEmptyBox"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tvEmptyTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
+                    android:textColor="?attr/uiText"
+                    android:textSize="@dimen/v8_live_title"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvEmptyDesc"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10mm"
+                    android:gravity="center"
+                    android:lineSpacingExtra="4mm"
+                    android:textColor="?attr/uiTextSub"
+                    android:textSize="@dimen/v8_flt_group_name" />
+
+                <TextView
+                    android:id="@+id/btnEmptyAction"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18mm"
+                    android:background="@drawable/v8_btn_ghost"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:focusableInTouchMode="false"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:paddingStart="@dimen/v8_btn_pad"
+                    android:paddingTop="6mm"
+                    android:paddingEnd="@dimen/v8_btn_pad"
+                    android:paddingBottom="6mm"
+                    android:textColor="@color/v8_btn_ghost_tx"
+                    android:textSize="@dimen/v8_btn_tx" />
+
+            </LinearLayout>
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

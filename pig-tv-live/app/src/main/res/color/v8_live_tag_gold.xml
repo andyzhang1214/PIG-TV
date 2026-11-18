@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4K 画质角标：金色（uiStrokeSel，深浅主题各压了一档）；焦点卡反色时同样换 uiTextFocus -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="?attr/uiTextFocus" />
+    <item android:color="?attr/uiStrokeSel" />
+</selector>

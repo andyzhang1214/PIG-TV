@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    直播频道卡的三种状态（和顶栏、筛选胶囊同一套语言）
+      focused  → 整块反白，文字反黑（遥控器走到哪一眼就看得到）
+      selected → 半透明白底 + 描边（上次看的那个台，回来时一眼能找到）
+      默认     → 8% 白底
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="@dimen/v8_live_card_radius" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#26FFFFFF" />
+            <stroke
+                android:width="0.9mm"
+                android:color="#99FFFFFF" />
+            <corners android:radius="@dimen/v8_live_card_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#14FFFFFF" />
+            <corners android:radius="@dimen/v8_live_card_radius" />
+        </shape>
+    </item>
+</selector>

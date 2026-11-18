@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 入口卡副标题：默认白 50%，焦点黑 45% -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#730A0908" />
+    <item android:color="#80FFFFFF" />
+</selector>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    直播频道卡的三种状态，颜色全部来自主题（深色 / 浅色各一套，见 styles.xml）：
+      focused  → uiSurfaceFocus + uiStrokeFocus：深色下是白块（描边同色，靠块本身）
+                 浅色下是淡粉块 + 玫红描边（浅底上压不出黑，只能靠色相和描边立住）
+      selected → uiSurfaceSel + uiStroke：上次看的那个台，回来时一眼能找到
+      默认     → uiSurface
+
+    卡面上唯一的文字是底部那枚画质角标（color/v8_live_tag_tx），它必须跟着一起换色，
+    否则浅色下会出现「深色焦点块配深色字」这种看不见的组合。两边是配套的，
+    改一个就得改另一个。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceFocus" />
+            <stroke
+                android:width="2mm"
+                android:color="?attr/uiStrokeFocus" />
+            <corners android:radius="@dimen/v8_live_card_radius" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceSel" />
+            <stroke
+                android:width="0.9mm"
+                android:color="?attr/uiStroke" />
+            <corners android:radius="@dimen/v8_live_card_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurface" />
+            <corners android:radius="@dimen/v8_live_card_radius" />
+        </shape>
+    </item>
+</selector>

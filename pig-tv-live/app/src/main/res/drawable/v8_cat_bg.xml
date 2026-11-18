@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    分类页 / 配置中心的左列项：焦点 = 稍亮底 + 亮竖条；选中（当前所在分类/分组）= 淡底 + 暗竖条。
+    离开焦点以后还得知道自己在哪一页，所以选中态必须单独一层。
+
+    原来底色和竖条都写死成半透明白：浅色主题下「12% 白」落在 #F4F4F7 页面上等于没有，
+    白色竖条更是彻底消失 —— 左侧菜单在浅色模式下等于没有焦点。现在全部走主题语义色：
+    深色下仍是白竖条，浅色下跟着变玫红。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="?attr/uiSurfaceSel" />
+                    <corners android:radius="4mm" />
+                </shape>
+            </item>
+            <item android:width="1.6mm" android:gravity="start|center_vertical">
+                <shape android:shape="rectangle">
+                    <solid android:color="?attr/uiStrokeFocus" />
+                    <corners android:radius="0.8mm" />
+                    <size android:height="14mm" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:state_selected="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="?attr/uiSurface" />
+                    <corners android:radius="4mm" />
+                </shape>
+            </item>
+            <item android:width="1.6mm" android:gravity="start|center_vertical">
+                <shape android:shape="rectangle">
+                    <solid android:color="?attr/uiTextSub" />
+                    <corners android:radius="0.8mm" />
+                    <size android:height="14mm" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+            <corners android:radius="4mm" />
+        </shape>
+    </item>
+</selector>

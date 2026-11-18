@@ -1,0 +1,4 @@
+rootProject.name = "PIG-TV-Live"
+include ':app'
+include ':quickjs'
+include ':pyramid'

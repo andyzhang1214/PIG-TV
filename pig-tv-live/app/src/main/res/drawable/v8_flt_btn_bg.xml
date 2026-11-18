@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 筛选弹层的「清空 / 完成」按钮：和 hero 次按钮同一套玻璃底 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="@dimen/v8_flt_btn_h" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1AFFFFFF" />
+            <stroke
+                android:width="0.6mm"
+                android:color="#33FFFFFF" />
+            <corners android:radius="@dimen/v8_flt_btn_h" />
+        </shape>
+    </item>
+</selector>

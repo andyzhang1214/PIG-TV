@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    频道详情弹层里台标那块底板。
+
+    为什么台标要垫一块底板：台标图本身底色是透明的，白字台标（CCTV 系）落在
+    浅色面板上就是一片白；深色面板上黑字台标（部分地方台）同样看不见。
+    给一个跟面板略微错开的「凹槽」底色，台标不管什么颜色都有个参照边界。
+
+    取舍：深色主题用比面板更深一档的 surface，浅色用浅灰；描边只有 0.6mm，
+    是「这块是图」的提示，不该画成一张卡片。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/uiSurfaceSel" />
+    <stroke
+        android:width="0.6mm"
+        android:color="?attr/uiStroke" />
+    <corners android:radius="12mm" />
+</shape>

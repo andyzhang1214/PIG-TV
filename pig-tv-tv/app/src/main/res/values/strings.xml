@@ -376,4 +376,20 @@
          空着就只剩一个圆点加箭头，看着像没加载出来 -->
     <string name="v8_pill_fallback">换源</string>
 
+    <!-- ================= 直播频道表（点「直播」先进的那一页） ================= -->
+    <string name="v8_live_title">直播</string>
+    <string name="v8_live_hint">OK 播放 · ↑ ↓ 选择 · BACK 返回</string>
+    <string name="v8_live_stat">%1$d 个频道 · %2$d 个分组</string>
+    <string name="v8_live_all">全部</string>
+    <!-- 卡片第二行：全部视图里给分组名，选了分组就给频道号 -->
+    <string name="v8_live_sub_num">频道 %1$d</string>
+    <string name="v8_live_sub_srcs">%1$d 路</string>
+    <string name="v8_live_locked">加密</string>
+    <string name="v8_live_empty_proxy_title">已设置自定义直播源</string>
+    <string name="v8_live_empty_proxy_desc">频道表由播放器按需加载，\n按下面的按钮直接进播放器浏览</string>
+    <string name="v8_live_empty_none_title">还没有直播源</string>
+    <string name="v8_live_empty_none_desc">当前片源没有自带直播，\n先去「设置 → 直播源」填一个地址</string>
+    <string name="v8_live_btn_player">进入播放器</string>
+    <string name="v8_live_btn_retry">重新读取</string>
+
 </resources>

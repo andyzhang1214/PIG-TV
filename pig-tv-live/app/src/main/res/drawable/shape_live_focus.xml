@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 播放页内侧栏（频道列表 / 播放设置）的焦点底。
+     这份**不跟主题走**：它压在视频画面上，任何主题下都必须是深色 + 白描边，
+     跟着浅色主题变成浅灰的话，在视频上直接消失。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:state_pressed="true">
+        <shape>
+            <corners android:radius="@dimen/vs_10" />
+            <solid android:color="?attr/color_theme_40" />
+        </shape>
+    </item>
+    <item android:state_focused="false" android:state_pressed="true">
+        <shape>
+            <corners android:radius="@dimen/vs_10" />
+            <solid android:color="?attr/color_theme_40" />
+        </shape>
+    </item>
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="@dimen/vs_10" />
+            <solid android:color="?attr/color_theme_40" />
+	    <!--添加选中外边框-->
+	    <stroke android:width="2mm" android:color="@android:color/white" />
+        </shape>
+    </item>
+    <item android:state_focused="false" android:state_pressed="false">
+        <shape>
+            <corners android:radius="@dimen/vs_10" />
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+</selector>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 行内「删除」按钮文字：暗态浅灰，焦点深色（底是白的） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="?attr/uiTextFocus" />
+    <item android:color="?attr/uiTextSub" />
+</selector>

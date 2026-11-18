@@ -3,6 +3,14 @@
     <attr name="fontPath" format="string" />
     <attr name="textFieldStyle" format="reference" />
 
+    <!-- FadeMaskView 的渐变方向：top 顶部实黑往下渐透（顶栏用），
+         bottom 顶部透明往下实黑（底部溶进黑底用）。
+         注意格式必须是 string，不能是 enum：
+         enum 属性在 AttributeSet 里读到的是序号（"1"），不是枚举名（"bottom"），
+         用 "bottom".equals(...) 判断会永远落空，bottom 就退化成 top，
+         屏幕底部会出现一条纯黑横带。 -->
+    <attr name="fadeEdge" format="string" />
+
     <declare-styleable name="themeColor">
         <attr name="color_theme" format="color|reference" />
         <attr name="color_theme_80" format="color|reference" />

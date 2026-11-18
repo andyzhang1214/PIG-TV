@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 预览卡右下角「OK」小键帽 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#24FFFFFF" />
+    <stroke android:width="0.6mm" android:color="#33FFFFFF" />
+    <corners android:radius="3.2mm" />
+</shape>

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    添加直播源的输入弹窗。
+
+    深色玻璃底，和频道表 / 选源弹层同一套（v8_dialog_bg）。
+    网址那行比名字那行高一点不重要，重要的是宽度 —— 一条 m3u 地址动辄七八十字符，
+    弹窗做到 720mm 宽（1080p 上约 1080px），一行能看见大半条，用户改起来才知道在改什么。
+
+    两个 EditText 都是 focusable，遥控器上下切换；OK 键由系统输入法或软键盘接，
+    这时方向键归输入法管，收起来之后才回到我们这边 —— 电视上就是这个行为，认了。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="@dimen/v8_src_dlg_w"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/v8_dialog_bg"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/v8_src_dlg_pad"
+        android:paddingTop="@dimen/v8_src_dlg_pad"
+        android:paddingEnd="@dimen/v8_src_dlg_pad"
+        android:paddingBottom="@dimen/v8_src_dlg_pad">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="@string/v8_src_dlg_title"
+            android:textColor="#FFFFFFFF"
+            android:textSize="@dimen/v8_src_dlg_tx"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvTip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/v8_src_sub_mt"
+            android:lineSpacingExtra="3mm"
+            android:textColor="#8CFFFFFF"
+            android:textSize="@dimen/v8_src_dlg_hint_tx" />
+
+        <EditText
+            android:id="@+id/etName"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/v8_src_input_h"
+            android:layout_marginTop="12mm"
+            android:background="@drawable/v8_src_input_bg"
+            android:hint="@string/v8_src_dlg_name_hint"
+            android:imeOptions="actionNext"
+            android:importantForAutofill="no"
+            android:includeFontPadding="false"
+            android:inputType="text"
+            android:maxLength="30"
+            android:paddingStart="@dimen/v8_src_input_pad"
+            android:paddingEnd="@dimen/v8_src_input_pad"
+            android:singleLine="true"
+            android:textColor="#FFFFFFFF"
+            android:textColorHint="#4DFFFFFF"
+            android:textSize="@dimen/v8_src_input_tx" />
+
+        <EditText
+            android:id="@+id/etUrl"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/v8_src_input_h"
+            android:layout_marginTop="9mm"
+            android:background="@drawable/v8_src_input_bg"
+            android:hint="@string/v8_src_dlg_url_hint"
+            android:imeOptions="actionDone"
+            android:importantForAutofill="no"
+            android:includeFontPadding="false"
+            android:inputType="textUri"
+            android:paddingStart="@dimen/v8_src_input_pad"
+            android:paddingEnd="@dimen/v8_src_input_pad"
+            android:singleLine="true"
+            android:textColor="#FFFFFFFF"
+            android:textColorHint="#4DFFFFFF"
+            android:textSize="@dimen/v8_src_input_tx" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20mm"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btnCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/v8_btn_ghost"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/v8_btn_pad"
+                android:paddingTop="6mm"
+                android:paddingEnd="@dimen/v8_btn_pad"
+                android:paddingBottom="6mm"
+                android:text="@string/v8_src_dlg_cancel"
+                android:textColor="@color/v8_btn_ghost_tx"
+                android:textSize="@dimen/v8_btn_tx" />
+
+            <TextView
+                android:id="@+id/btnOk"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/v8_btn_gap"
+                android:background="@drawable/v8_btn_ghost"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/v8_btn_pad"
+                android:paddingTop="6mm"
+                android:paddingEnd="@dimen/v8_btn_pad"
+                android:paddingBottom="6mm"
+                android:text="@string/v8_src_dlg_ok"
+                android:textColor="@color/v8_btn_ghost_tx"
+                android:textSize="@dimen/v8_btn_tx" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

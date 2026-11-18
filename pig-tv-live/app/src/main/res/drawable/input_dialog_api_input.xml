@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- 配置弹窗输入框底：焦点态整块描边（原来只有一条细下划线，电视上坐远了看不出焦点在哪） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_5" />
+            <stroke android:width="@dimen/vs_2" android:color="@color/color_theme" />
+            <solid android:color="#33FFFFFF" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/vs_5" />
+            <stroke android:width="@dimen/vs_1" android:color="#33FFFFFF" />
+            <solid android:color="#0DFFFFFF" />
+        </shape>
+    </item>
+</selector>

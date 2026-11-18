@@ -102,10 +102,11 @@
         <com.pigtv.ui.tv.widget.FadeMaskView
             android:id="@+id/bottomFade"
             android:layout_width="0dp"
-            android:layout_height="88mm"
+            android:layout_height="110mm"
             android:clickable="false"
             android:focusable="false"
             android:tag="bottom"
+            app:fadeEdge="bottom"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />

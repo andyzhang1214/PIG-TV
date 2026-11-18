@@ -1,0 +1,315 @@
+
+package com.github.catvod.crawler;
+
+import android.content.Context;
+import android.util.Log;
+
+
+import com.pigtv.base.App;
+import com.pigtv.util.FileUtils;
+import com.pigtv.util.MD5;
+import com.lzy.okgo.OkGo;
+
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import dalvik.system.DexClassLoader;
+import okhttp3.Response;
+
+public class JarLoader {
+    private final ConcurrentHashMap<String, DexClassLoader> classLoaders = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Method> proxyMethods = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Spider> spiders = new ConcurrentHashMap<>();
+    private volatile String recentJarKey = "";
+
+    /**
+     * 同一个组件的下载锁。
+     * <p>
+     * 全站搜索时几十个站可能共用同一个 jar（实测 128 个可搜站里 68 个自带组件，
+     * 但只有 7 个不同的 jar 地址）。没有锁的话这些站会**同时**往同一个 .part 文件上写，
+     * 续传偏移互相踩 —— 文件直接写坏，表现是「组件下载失败」或者加载出一个残包。
+     * 加锁后：第一个线程去下，其余线程在这儿等，等完直接命中 classLoaders 缓存。
+     */
+    private final ConcurrentHashMap<String, Object> jarLocks = new ConcurrentHashMap<>();
+
+    private Object jarLock(String key) {
+        Object lock = jarLocks.get(key);
+        if (lock != null) return lock;
+        lock = new Object();
+        Object old = jarLocks.putIfAbsent(key, lock);
+        return old != null ? old : lock;
+    }
+
+    /**
+     * 不要在主线程调用我
+     *
+     * @param cache
+     */
+    public boolean load(String cache) {
+        recentJarKey = "main";
+        return loadClassLoader(cache, recentJarKey);
+    }
+
+    public void clear() {
+        spiders.clear();
+        proxyMethods.clear();
+        classLoaders.clear();
+    }
+
+    /**
+     * 丢掉某个 key 的 classLoader。
+     * <p>检测到坏包（下载残缺 / md5 与配置对不上）时必须调它：
+     * {@link #loadClassLoader} 开头会因为 {@code containsKey} 直接 return true，
+     * 不清掉的话，后面对的新包永远加载不进来，页面一直停在上一个坏包上。
+     */
+    public void removeLoader(String key) {
+        if (key == null) return;
+        classLoaders.remove(key);
+        spiders.remove(key);
+        proxyMethods.remove(key);
+    }
+
+    /*
+     * 必须 synchronized：搜索是多线程的（SourceViewModel 的 fixedThreadPool），
+     * 8 个线程同时首搜 jar 站会各自 new 一个 DexClassLoader 并各自跑一遍
+     * spider.Init.init()。加固包（Guard 系列）的 Init.init 要做 native 解密，
+     * 并发跑会重复解密上兆数据、内存翻倍，甚至直接 SIGSEGV。
+     * 串行化只影响「首次加载」，之后都命中 classLoaders 缓存。
+     */
+    private synchronized boolean loadClassLoader(String jar, String key) {
+        if (classLoaders.containsKey(key)){
+            Log.i("JarLoader", "echo-loadClassLoader jar缓存: " + key);
+            return true;
+        }
+        boolean success = false;
+        try {
+            File cacheDir = new File(App.getInstance().getCacheDir().getAbsolutePath() + "/catvod_csp");
+            if (!cacheDir.exists())
+                cacheDir.mkdirs();
+            final DexClassLoader classLoader = new DexClassLoader(jar, cacheDir.getAbsolutePath(), null, App.getInstance().getClassLoader());
+            int count = 0;
+            do {
+                try {
+                    final Class<?> classInit = classLoader.loadClass("com.github.catvod.spider.Init");
+                    if (classInit != null) {
+                        final Method initMethod = classInit.getMethod("init", Context.class);
+                        // 在子线程中调用 init 方法，避免网络请求在主线程中执行
+                        Thread initThread = new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    initMethod.invoke(null, App.getInstance());
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        });
+                        initThread.start();
+                        initThread.join();
+                        Log.i("JarLoader", "echo-自定义爬虫代码加载成功!");
+                        success = true;
+                        try {
+                            Class<?> proxy = classLoader.loadClass("com.github.catvod.spider.Proxy");
+                            Method proxyMethod = proxy.getMethod("proxy", Map.class);
+                            proxyMethods.put(key, proxyMethod);
+                        } catch (Throwable th) {
+                            // 可以记录错误日志
+                            th.printStackTrace();
+                        }
+                        break;
+                    }
+                    Thread.sleep(200);
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
+                count++;
+            } while (count < 2);
+
+            if (success) {
+                classLoaders.put(key, classLoader);
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+        return success;
+    }
+
+    private DexClassLoader loadJarInternal(String jar, String md5, String key) {
+        if (classLoaders.containsKey(key)){
+            Log.i("JarLoader", "echo-loadJarInternal jar缓存: " + key);
+            return classLoaders.get(key);
+        }
+        // 同一个组件只允许一个线程下载，其余线程在这里排队等（等完直接命中缓存）
+        synchronized (jarLock(key)) {
+            // 等锁的这段时间里，别的人可能已经把它下好了
+            if (classLoaders.containsKey(key)) {
+                Log.i("JarLoader", "echo-loadJarInternal 等锁后命中缓存: " + key);
+                return classLoaders.get(key);
+            }
+            return loadJarInternalLocked(jar, md5, key);
+        }
+    }
+
+    private DexClassLoader loadJarInternalLocked(String jar, String md5, String key) {
+        File cache = new File(App.getInstance().getFilesDir().getAbsolutePath() + "/csp/" + key + ".jar");
+        if (!md5.isEmpty()) {
+            if (cache.exists() && MD5.getFileMd5(cache).equalsIgnoreCase(md5)) {
+                if(loadClassLoader(cache.getAbsolutePath(), key)){
+                    return classLoaders.get(key);
+                }else {
+                    return null;
+                }
+            }
+        }else {
+            if (cache.exists() && !FileUtils.isWeekAgo(cache)) {
+                if(loadClassLoader(cache.getAbsolutePath(), key)){
+                    return classLoaders.get(key);
+                }
+            }
+        }
+        // 站点自带 jar（config 里每个 site 的 "jar" 字段）走的是这条分支。
+        // 以前这里用 OkGo 直下：10 秒读超时、没有续传，慢站/断流就是
+        // 「这个站点一直是空的」，而且失败没有任何提示。统一交给 JarFetcher。
+        try {
+            File part = new File(cache.getAbsolutePath() + ".part");
+            com.pigtv.api.JarFetcher.Result r = com.pigtv.api.JarFetcher.fetch(jar, part, md5);
+            if (r.file != null && r.file.exists() && r.file.length() > 0) {
+                if (cache.exists()) cache.delete();
+                if (!r.file.renameTo(cache)) {
+                    // 跨挂载点 rename 会失败，退化成复制
+                    java.io.FileInputStream in = new java.io.FileInputStream(r.file);
+                    FileOutputStream out = new FileOutputStream(cache);
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+                    out.flush();
+                    out.close();
+                    in.close();
+                    r.file.delete();
+                }
+                if (loadClassLoader(cache.getAbsolutePath(), key)) {
+                    com.pigtv.api.SpiderDiag.clear();
+                    return classLoaders.get(key);
+                }
+                com.pigtv.api.SpiderDiag.set("站点组件已下载但加载失败（可能不是 jar）");
+            } else {
+                com.pigtv.api.SpiderDiag.set("下载站点组件失败：" + r.err
+                        + (r.diag == null || r.diag.isEmpty() ? "" : "（" + r.diag + "）"));
+            }
+        } catch (Throwable e) {
+            com.pigtv.api.SpiderDiag.fail("下载站点组件", e);
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public Spider getSpider(String key, String cls, String ext, String jar) {
+        if (spiders.containsKey(key)) {
+            Log.i("JarLoader", "echo-getSpider spider缓存: " + key);
+            return spiders.get(key);
+        }
+        String clsKey = cls.replace("csp_", "");
+        String jarUrl = "";
+        String jarMd5 = "";
+        String jarKey;
+        if (jar.isEmpty()) {
+            jarKey = "main";
+        } else {
+            String[] urls = jar.split(";md5;");
+            jarUrl = urls[0];
+            jarKey = MD5.string2MD5(jarUrl);
+            jarMd5 = urls.length > 1 ? urls[1].trim() : "";
+        }
+        recentJarKey = jarKey;
+        assert jarKey != null;
+        DexClassLoader classLoader = jarKey.equals("main")? classLoaders.get("main"):loadJarInternal(jarUrl, jarMd5, jarKey);
+        if (classLoader == null) {
+            com.pigtv.api.SpiderDiag.set("播放组件没有加载成功，站点 " + clsKey + " 用不了");
+            return new SpiderNull();
+        }
+        try {
+            Log.i("JarLoader", "echo-getSpider 加载spider: " + key);
+            Spider sp = (Spider) classLoader.loadClass("com.github.catvod.spider." + clsKey).newInstance();
+            sp.init(App.getInstance(), ext);
+            if (!jar.isEmpty()) {
+                sp.homeContent(false); // 增加此行 应该可以解决部分写的有问题源的历史记录问题 但会增加这个源的首次加载时间 不需要可以已删掉
+            }
+            spiders.put(key, sp);
+            return sp;
+        } catch (Throwable th) {
+            // 这里最常抓到的是 NoClassDefFoundError: com.github.catvod.net.OkHttp ——
+            // 也就是「R8 把宿主给 jar 用的 API 改名了」，报给前端才能看出来。
+            com.pigtv.api.SpiderDiag.fail("加载站点 " + clsKey, th);
+            // 主 jar 里没有这个类：可能是组件过期（站点换了新包、本地还是旧的），
+            // 也可能只是**这个站本来就不在这版组件里**（接口更新比组件快，很常见）。
+            // 后者绝不能删主组件 —— 几十个站共用这一个 jar，一删全瘫。
+            // 交给 noteClassMissing 判断：两个不同的类都缺才算组件过期。
+            if (jar.isEmpty()
+                    && (th instanceof ClassNotFoundException || th instanceof NoClassDefFoundError)) {
+                if (com.pigtv.api.ApiConfig.get().noteClassMissing(clsKey)
+                        && com.pigtv.api.ApiConfig.get().invalidateMainJar()) {
+                    com.pigtv.api.SpiderDiag.set("站点 " + clsKey
+                            + " 在本地组件里不存在（当前组件是旧版），已清掉旧组件，"
+                            + "点「重新加载」会自动下载新组件");
+                } else {
+                    // 只报这个站用不了，别动主组件
+                    com.pigtv.api.SpiderDiag.set("这个站点不在当前组件里（" + clsKey
+                            + "），换一个片源即可，其它站点不受影响");
+                }
+            }
+            th.printStackTrace();
+        }
+        return new SpiderNull();
+    }
+
+    public JSONObject jsonExt(String key, LinkedHashMap<String, String> jxs, String url) {
+        try {
+            DexClassLoader classLoader = classLoaders.get("main");
+            String clsKey = "Json" + key;
+            String hotClass = "com.github.catvod.parser." + clsKey;
+            assert classLoader != null;
+            Class<?> jsonParserCls = classLoader.loadClass(hotClass);
+            Method mth = jsonParserCls.getMethod("parse", LinkedHashMap.class, String.class);
+            return (JSONObject) mth.invoke(null, jxs, url);
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+        return null;
+    }
+
+    public JSONObject jsonExtMix(String flag, String key, String name, LinkedHashMap<String, HashMap<String, String>> jxs, String url) {
+        try {
+            DexClassLoader classLoader = classLoaders.get("main");
+            String clsKey = "Mix" + key;
+            String hotClass = "com.github.catvod.parser." + clsKey;
+            assert classLoader != null;
+            Class<?> jsonParserCls = classLoader.loadClass(hotClass);
+            Method mth = jsonParserCls.getMethod("parse", LinkedHashMap.class, String.class, String.class, String.class);
+            return (JSONObject) mth.invoke(null, jxs, name, flag, url);
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+        return null;
+    }
+
+    public Object[] proxyInvoke(Map<String,String> params) {
+        try {
+            Method proxyFun = proxyMethods.get(recentJarKey);
+            if (proxyFun != null) {
+                return (Object[]) proxyFun.invoke(null, params);
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+        return null;
+    }
+}

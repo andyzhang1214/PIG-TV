@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    频道卡右下角的画质角标（「1080P」「4K · 2 路」）。
+    强调胶囊：底色 uiAccentChip + 细描边 uiAccentChipStroke（两套主题各有一档金色），
+    文字色在布局里按 4K / 普通画质分别指到 v8_live_tag_tx / v8_live_tag_gold。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/uiAccentChip" />
+    <stroke
+        android:width="0.4mm"
+        android:color="?attr/uiAccentChipStroke" />
+    <corners android:radius="30mm" />
+</shape>

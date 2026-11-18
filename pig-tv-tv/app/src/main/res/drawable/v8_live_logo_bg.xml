@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 台标方块的底色：卡片反白时跟着压暗，否则白底上再叠一层白就看不出形状 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#14000000" />
+            <corners android:radius="@dimen/v8_live_logo_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1FFFFFFF" />
+            <corners android:radius="@dimen/v8_live_logo_radius" />
+        </shape>
+    </item>
+</selector>

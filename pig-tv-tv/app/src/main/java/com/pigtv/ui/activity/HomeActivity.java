@@ -932,7 +932,8 @@ public class HomeActivity extends BaseActivity {
                 showHistoryPage(true);
                 break;
             case NT_LIVE:
-                jumpActivity(LivePlayActivity.class);
+                // 先进频道表：看清楚有哪些台再挑，不再直接播上次那个（经常已经失效）
+                jumpActivity(LiveChannelActivity.class);
                 break;
             case NT_FAV:
                 jumpActivity(CollectActivity.class);
@@ -2266,8 +2267,10 @@ public class HomeActivity extends BaseActivity {
     private void initData() {
         if (dataInitOk && jarInitOk) {
             sourceViewModel.getSort(ApiConfig.get().getHomeSourceBean().getKey());
+            // 「启动直接进直播」也走频道表：开机自动播上次那个台，
+            // 那个台十有八九已经失效，用户开机先看到一片黑，比多点一下还糟
             if (Hawk.get(HawkConfig.HOME_DEFAULT_SHOW, false)) {
-                jumpActivity(LivePlayActivity.class);
+                jumpActivity(LiveChannelActivity.class);
             }
             return;
         }

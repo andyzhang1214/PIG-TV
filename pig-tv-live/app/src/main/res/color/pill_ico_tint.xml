@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 顶栏胶囊里的图标：默认白 92%，胶囊变白（焦点）时转成近黑。
+     不加这个的话，白色描边的滑杆图标压在白色胶囊上会整个消失。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FF0A0908" />
+    <item android:color="#EBFFFFFF" />
+</selector>

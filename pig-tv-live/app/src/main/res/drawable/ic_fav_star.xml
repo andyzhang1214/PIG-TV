@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    收藏标记：一颗五角星，没有底盘、没有圆圈。
+
+    为什么是矢量图而不是字体里的「★」：
+      1. 字形由设备字体提供，海信、小米、模拟器上的 ★ 粗细、光学中心都不一样，
+         同一版布局在不同机器上星星的高低能差半毫米；
+      2. 字体 ★ 四周留白不对称，wrap_content 量出来的框比星本身大一圈，
+         星永远贴不到方块的角上。
+
+    轮廓的做法：先在星后面垫一层**放大 14% 的同形状暗星**，再盖上原尺寸的金星。
+    不用 android:strokeColor 是因为描边是居中的，一半压在金色填充上，
+    小尺寸下金星边缘会被啃掉一圈、看着发脏；垫底那层只增加外轮廓，金色一点不损失。
+
+    需要轮廓的原因是台标底色跟着卡片走：深色主题获焦是白块、浅色主题是近白块，
+    4K 台还是一块半透明金。纯金压上去只有 1.3:1 的对比，星会糊进底色里；
+    一圈 60% 黑的轮廓把形状钉出来，四种底色上都读得清。
+
+    星形参数：中心 (12,12)、外径 9.4、内径 3.95（内/外 = 0.42，比 iOS 的 0.38 稍胖，
+    小尺寸下不那么扎手）。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 轮廓层：同一条路径绕中心放大 14%，大约等于 17mm 图标下 0.9mm 的外圈 -->
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:scaleX="1.14"
+        android:scaleY="1.14">
+        <path
+            android:fillColor="#99000000"
+            android:pathData="M12,2.6 L14.32,8.8 L20.94,9.1 L15.76,13.22 L17.52,19.6 L12,15.95 L6.48,19.6 L8.24,13.22 L3.06,9.1 L9.68,8.8 Z" />
+    </group>
+
+    <path
+        android:fillColor="#FFC24A"
+        android:pathData="M12,2.6 L14.32,8.8 L20.94,9.1 L15.76,13.22 L17.52,19.6 L12,15.95 L6.48,19.6 L8.24,13.22 L3.06,9.1 L9.68,8.8 Z" />
+
+</vector>

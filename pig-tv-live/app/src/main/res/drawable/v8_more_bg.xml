@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 行尾「查看全部」卡：默认细描边留白，焦点变白底（跟导航同一套反色逻辑） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <stroke android:width="1.2mm" android:color="#FFFFFFFF" />
+            <corners android:radius="@dimen/v8_card_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#12FFFFFF" />
+            <stroke android:width="0.8mm" android:color="#38FFFFFF" />
+            <corners android:radius="@dimen/v8_card_radius" />
+        </shape>
+    </item>
+</selector>

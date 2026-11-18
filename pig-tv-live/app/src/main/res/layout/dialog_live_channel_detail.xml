@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    频道详情弹层：在频道墙上按 MENU 键放大当前这一格。
+
+    为什么要有这一层：卡面为了「一屏多放几台」，只剩台标 + 两颗角标，
+    台名、分组、线路数、地址这些都得让位。挑台时想知道「这个 CCTV-5 是哪个源、
+    几路线、清不清楚」，卡面答不了，退回上一页去翻更答不了 —— 所以按 MENU 把这一格放大，
+    信息一次摊清楚，收藏按钮也做成看得见的按钮（不用再记「长按 OK」这种隐藏手势）。
+
+    版面：左台标（和卡面同一张图，放大版，不裁切）、右边标题 + 画质胶囊 + 分组/地址两行，
+    底下一条按钮带（收藏 / 播放 / 关闭）。台标没到手时那块底板上先写台名，
+    和卡面的降级规则保持一致 —— 见过一次的东西不要在弹层里变成空白。
+
+    根节点是 FrameLayout：CustomDialogStyle 是浮层窗口，铺满才能让面板居中，
+    否则面板会顶在窗口左上角。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="@dimen/v8_live_dlg_w"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/v8_dialog_bg"
+        android:orientation="vertical"
+        android:padding="@dimen/v8_live_dlg_pad">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <!-- 台标：跟卡面用同一份图，只是放大。底板见过深色/浅色两套主题 -->
+            <FrameLayout
+                android:layout_width="@dimen/v8_live_dlg_logo_w"
+                android:layout_height="@dimen/v8_live_dlg_logo_h"
+                android:background="@drawable/v8_live_dlg_logo_bg">
+
+                <ImageView
+                    android:id="@+id/ivLogo"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:padding="@dimen/v8_live_dlg_logo_inset"
+                    android:scaleType="fitCenter" />
+
+                <!-- 台标没到手时的台名，图和卡面完全一致 -->
+                <TextView
+                    android:id="@+id/tvLogoName"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="3"
+                    android:padding="@dimen/v8_live_dlg_logo_inset"
+                    android:textColor="?attr/uiText"
+                    android:textSize="@dimen/v8_live_dlg_logo_name_tx"
+                    android:visibility="gone"
+                    tools:text="湖南卫视" />
+
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="@dimen/v8_live_dlg_gap"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <!-- 台名：这一层存在的第一理由，字号给到比页面标题还大一号 -->
+                <TextView
+                    android:id="@+id/tvName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false"
+                    android:lineSpacingExtra="3mm"
+                    android:maxLines="2"
+                    android:textColor="?attr/uiText"
+                    android:textSize="@dimen/v8_live_dlg_name_tx"
+                    android:textStyle="bold"
+                    tools:text="CCTV-5 体育" />
+
+                <!-- 画质胶囊：和卡面那颗同一个底、同一套配色（4K 金 / 普通强调色） -->
+                <TextView
+                    android:id="@+id/tvTag"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/v8_live_dlg_tag_mt"
+                    android:background="@drawable/v8_live_chip_tag"
+                    android:includeFontPadding="false"
+                    android:paddingStart="@dimen/v8_live_chip_pad_h"
+                    android:paddingTop="@dimen/v8_live_chip_pad_v"
+                    android:paddingEnd="@dimen/v8_live_chip_pad_h"
+                    android:paddingBottom="@dimen/v8_live_chip_pad_v"
+                    android:singleLine="true"
+                    android:textColor="@color/v8_live_tag_tx"
+                    android:textSize="@dimen/v8_live_tag_tx"
+                    tools:text="1080P · 2 路" />
+
+                <TextView
+                    android:id="@+id/tvGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/v8_live_dlg_row_mt"
+                    android:ellipsize="end"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
+                    android:textColor="?attr/uiTextSub"
+                    android:textSize="@dimen/v8_live_dlg_row_tx"
+                    tools:text="分组 · 央视频道" />
+
+                <!-- 地址：单行、中间省略。它是「排查能不能播」时唯一有用的东西，
+                     又几乎必然长到放不下，所以不折行 —— 折成三行会把按钮挤出面板 -->
+                <TextView
+                    android:id="@+id/tvAddr"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/v8_live_dlg_row_gap"
+                    android:ellipsize="middle"
+                    android:includeFontPadding="false"
+                    android:singleLine="true"
+                    android:textColor="?attr/uiTextSub"
+                    android:textSize="@dimen/v8_live_dlg_row_tx"
+                    tools:text="http://ivi.bupt.edu.cn/hls/cctv5phd.m3u8" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1mm"
+            android:layout_marginTop="@dimen/v8_live_dlg_pad"
+            android:background="?attr/uiStroke" />
+
+        <!-- 按钮带：收藏（星 + 文案，状态就地切换）/ 播放 / 关闭。
+             三颗都走 v8_btn_ghost —— 这一层是「看一眼信息」，不该用主按钮把
+             播放做得比收藏重；用户按 MENU 进来多半就是想收藏，播放那条路卡面上点一下就有。 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/v8_live_dlg_btn_mt"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/btnFav"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/v8_btn_ghost"
+                android:clickable="true"
+                android:drawablePadding="@dimen/v8_live_dlg_star_gap"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/v8_btn_pad"
+                android:paddingTop="6mm"
+                android:paddingEnd="@dimen/v8_btn_pad"
+                android:paddingBottom="6mm"
+                android:textColor="@color/v8_btn_ghost_tx"
+                android:textSize="@dimen/v8_btn_tx"
+                tools:text="收藏本台" />
+
+            <TextView
+                android:id="@+id/btnPlay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/v8_btn_gap"
+                android:background="@drawable/v8_btn_ghost"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/v8_btn_pad"
+                android:paddingTop="6mm"
+                android:paddingEnd="@dimen/v8_btn_pad"
+                android:paddingBottom="6mm"
+                android:text="@string/v8_live_detail_play"
+                android:textColor="@color/v8_btn_ghost_tx"
+                android:textSize="@dimen/v8_btn_tx" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/btnClose"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/v8_btn_ghost"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/v8_btn_pad"
+                android:paddingTop="6mm"
+                android:paddingEnd="@dimen/v8_btn_pad"
+                android:paddingBottom="6mm"
+                android:text="@string/v8_live_detail_close"
+                android:textColor="@color/v8_btn_ghost_tx"
+                android:textSize="@dimen/v8_btn_tx" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PTV</string>
+    <string name="app_home">Home</string>
+    <string name="app_source">https://盒子迷.top/饭太硬</string>
+
+    // Home Page //
+    <string name="hm_ok">Load Complete</string>
+    <string name="hm_notok">Load Fail</string>
+    <string name="hm_retry">Retry</string>
+    <string name="hm_cancel">Cancel</string>
+    <string name="hm_exit">Press BACK again to EXIT</string>
+    <string name="hm_exit_live">Press BACK again to exit LiveTV</string>
+    <string name="hm_date1">dd MMM</string>
+    <string name="hm_date2">EE HH:mm</string>
+    <string name="hm_hist">History</string>
+    <string name="hm_live">LiveTV</string>
+    <string name="hm_search">Search</string>
+    <string name="hm_push">Push</string>
+    <string name="hm_file">Drives</string>
+    <string name="hm_fav">Favorite</string>
+    <string name="hm_setting">Menu</string>
+    <string name="hm_style_line">Line View</string>
+    <string name="hm_style_grid">Grid View</string>
+    <string name="hm_hist_del">Removed from History</string>
+    <string name="hm_cache_del">Cache Cleared</string>
+
+    // Play Detail Page //
+    <string name="det_play">Play</string>
+    <string name="det_expand">Expand</string>
+    <string name="det_search">Search</string>
+    <string name="det_sort">Reverse</string>
+    <string name="det_sort_normal">Normal</string>
+    <string name="det_push">Push</string>
+    <string name="det_fav">Favorite</string>
+    <string name="det_fav_add">Added to Favorite</string>
+    <string name="det_fav_del">Removed from Favorite</string>
+    <string name="det_fav_star">★ Favorite</string>
+    <string name="det_fav_unstar">☆ Favorite</string>
+    <string name="det_url">Play URL Copied</string>
+    <string name="det_source"></string>
+    <string name="det_year">Year</string>
+    <string name="det_area">Area</string>
+    <string name="det_lang">Language</string>
+    <string name="det_type">Genre</string>
+    <string name="det_actor">Cast</string>
+    <string name="det_dir">Director</string>
+    <string name="det_des"></string>
+    <string name="det_desc">intro</string>
+
+    // Settings Menu Page //
+    <string name="mn_config">Configuration Address</string>
+    <string name="mn_home">Source</string>
+    <string name="mn_home_show">Show Source</string>
+    <string name="mn_home_type">Type</string>
+    <string name="mn_icon">Button</string>
+    <string name="mn_history_num">History</string>
+    <string name="mn_live_boot">Autostart Live</string>
+    <string name="mn_wall_change">Wallpaper</string>
+    <string name="mn_wall_load">Loading Wallpaper</string>
+    <string name="mn_wall_reset">Reset</string>
+    <string name="mn_play_type">Player</string>
+    <string name="mn_play_decode">Decode</string>
+    <string name="mn_search">Search Display</string>
+    <string name="mn_ratio">Screen Ratio</string>
+    <string name="mn_bgplay">Bgplay</string>
+    <string name="mn_preview">Preview Window</string>
+    <string name="mn_webview">WebView</string>
+    <string name="mn_render">Render</string>
+    <string name="mn_backup">Backup/Restore</string>
+    <string name="mn_dns">DNS</string>
+    <string name="mn_locale">Language</string>
+    <string name="mn_theme">Theme</string>
+    <string name="mn_about">About</string>
+    <string name="mn_purify">Skip Ad</string>
+    <string name="mn_ijk_cache_play">IJK Cache</string>
+    <string name="mn_reset">resetApp</string>
+    <string name="mn_fastsearch">FastSearch</string>
+
+    // Settings Dialog Pop-Up //
+    <string name="dia_source">Select Source</string>
+    <string name="dia_hm_type">Select Display Type</string>
+    <string name="dia_hm_icon">Home Icon Placement</string>
+    <string name="dia_history">Select History to Keep</string>
+    <string name="dia_history_list">Configuration History List</string>
+    <string name="dia_history_live">Live History List</string>
+    <string name="dia_history_epg">EPG History List</string>
+    <string name="dia_player">Select Player Type</string>
+    <string name="dia_decode">Select IJK Decoder</string>
+    <string name="dia_search">Select Search Mode</string>
+    <string name="dia_ratio">Select Screen Ratio</string>
+    <string name="dia_render">Select Render Mode</string>
+    <string name="dia_bkres">Backup / Restore</string>
+    <string name="dia_bkpkg">Select Backup Package</string>
+    <string name="dia_dns">Select DNS</string>
+    <string name="dia_locale">Select Language</string>
+    <string name="dia_theme">Select Theme</string>
+    <string name="dia_confirm">Confirm to Clear All ?</string>
+    <string name="dia_reset">Reset Clear Configuration</string>
+    <string name="dia_media_setting_title">Media Setting</string>
+
+
+    // Settings Backup Restore Page //
+    <string name="set_bkup_ok">Backup Success</string>
+    <string name="set_bkup_del">Backup Deleted</string>
+    <string name="set_bkup_fail">Backup Fail</string>
+    <string name="set_bkup_fail_hk">Backup Fail (Hawk)</string>
+    <string name="set_bkup_fail_db">Backup Fail (DB)</string>
+    <string name="set_rest_ok">Restore Success, Automatic Restart</string>
+    <string name="set_rest_fail_hk">Restore Fail (Hawk)</string>
+    <string name="set_rest_fail_db">Restore Fail (DB)</string>
+    <string name="set_permission_ok">Write Permission Granted</string>
+    <string name="set_permission_fail1">Failed to get Permission</string>
+    <string name="set_permission_fail2">Failed to get Permission, please grant in Settings</string>
+
+    // Activity Page //
+    <string name="act_app">Applications</string>
+    <string name="act_app_sel">Select to Uninstall</string>
+    <string name="act_app_rm">Uninstall</string>
+    <string name="act_fav">Favorite</string>
+    <string name="act_fav_sel">Select to Remove</string>
+    <string name="act_fav_rm">Remove</string>
+    <string name="act_drive">Drives</string>
+    <string name="act_hist">History</string>
+    <string name="act_hist_sel">Select to Remove</string>
+    <string name="act_hist_rm">Remove</string>
+    <string name="act_live_play_empty_live_url">The live url is not configured, please go to the settings page to configure it</string>
+    <string name="act_live_play_empty_channel">The channel list is empty</string>
+    <string name="act_live_play_network_error">The network request for the live-streaming address failed</string>
+    <string name="act_search">Search</string>
+    <string name="act_search_clr">Clear</string>
+    <string name="act_search_del">Backspace</string>
+    <string name="act_search_rem">Remote</string>
+    <string name="act_search_trend">Trending</string>
+    <string name="act_search_txt">Enter Search Title</string>
+    <string name="act_settings">Settings</string>
+    <string name="act_home">Home</string>
+    <string name="act_player">Player</string>
+    <string name="act_system">System</string>
+
+    // Search Page //
+    <string name="search_input">Input cannot be blank</string>
+    <string name="search_site">No source site selected</string>
+    <string name="search_checkAll">Select All</string>
+    <string name="search_clearAll">Select None</string>
+
+    // Fast Search Page //
+    <string name="fs_show_all">All</string>
+    <string name="fs_results">Search Results</string>
+    <string name="global_search">global search</string>
+    <string name="search_all_src">All sources · %1$d sites</string>
+    <string name="search_part_src">%1$d / %2$d sites</string>
+    <string name="search">search</string>
+    <string name="Select_source">Select source</string>
+
+    // VOD //
+    <string name="vod_audio">Select Audio Track</string>
+    <string name="vod_no_audio">No Audio Track</string>
+    <string name="vod_sub_option">Subtitle Options</string>
+    <string name="vod_sub_sel">Select Subtitle</string>
+    <string name="vod_sub_na">No Internal Subtitle</string>
+    <string name="vod_sub_int">Internal</string>
+    <string name="vod_sub_ext">External</string>
+    <string name="vod_sub_remote">Search</string>
+    <string name="vod_sub_size">Size</string>
+    <string name="vod_sub_delay">Delay</string>
+    <string name="vod_sub_search">Search</string>
+    <string name="vod_sub_off">Subtitle Off</string>
+    <string name="vod_sub_on">Subtitle On</string>
+    <string name="vod_remaining_time">Remaining Time</string>
+    <string name="vod_ends_at">Ends at</string>
+
+    // EXO Player
+    <string name="exo_track_selection_title_video">Video</string>
+    <string name="exo_track_selection_title_audio">Audio</string>
+    <string name="exo_track_selection_title_text">Text</string>
+    <string name="exo_track_selection_none">None</string>
+    <string name="exo_track_selection_auto">Auto</string>
+    <string name="exo_track_unknown">Unknown</string>
+    <string name="exo_track_resolution">%1$d × %2$d</string>
+    <string name="exo_track_mono">Mono</string>
+    <string name="exo_track_stereo">Stereo</string>
+    <string name="exo_track_surround">Surround Sound</string>
+    <string name="exo_track_surround_5_point_1">5.1 Surround Sound</string>
+    <string name="exo_track_surround_7_point_1">7.1 Surround Sound</string>
+    <string name="exo_track_role_alternate">Alternate</string>
+    <string name="exo_track_role_supplementary">Supplementary</string>
+    <string name="exo_track_role_commentary">Commentary</string>
+    <string name="exo_track_role_closed_captions">CC</string>
+    <string name="exo_track_bitrate">%1$.2f Mbps</string>
+    <string name="exo_item_list">%1$s，%2$s</string>
+    <string name="sub_size">Size</string>
+    <string name="sub_delay">Delay</string>
+    <string name="sub_style">Style</string>
+    <string name="sub_style_text">ABC.</string>
+
+    <string-array name="doh_name">
+        <item>System</item>
+        <item>Tencent</item>
+        <item>Alibaba</item>
+        <item>360</item>
+    </string-array>
+
+    <string-array name="doh_url">
+        <item />
+        <item>https://doh.pub/dns-query</item>
+        <item>https://dns.alidns.com/dns-query</item>
+        <item>https://doh.360.cn/dns-query</item>
+    </string-array>
+
+    <!-- 视频设置 相关数据 -->
+    <string-array name="media_title_tag">
+        <item>General</item>
+        <item>ExoPlayer</item>
+        <item>IjkPlayer</item>
+    </string-array>
+
+    <string-array name="media_title">
+        <item>General</item>
+        <item>EXO</item>
+        <item>IJK</item>
+    </string-array>
+
+    <!--    用于解释怎么处理数据  -->
+    <string-array name="media_content_tag_General">
+        <item>VodPlayerPreferred</item>
+    </string-array>
+
+    <string-array name="media_content_tag_ExoPlayer">
+        <item>ExoRenderer</item>
+        <item>M3u8AdFilter</item>
+<!--        <item>ExoRendererMode</item>-->
+    </string-array>
+
+    <string-array name="media_content_tag_IjkPlayer">
+        <item>IjkMediaCodecMode</item>
+        <item>IjkCache</item>
+    </string-array>
+
+    <!--    用于展示名称-->
+    <string-array name="media_content_General">
+        <item>VodPlayerPreferred</item>
+        <!--        用于强制使用设置中的配置 比如设置 首选设置配置 ,首选配置文件 优先单独设置的就不管-->
+    </string-array>
+
+
+    <string-array name="media_content_ExoPlayer">
+        <!--  渲染器选择  -->
+        <item>Renderer</item>
+        <!--  采集站插在 m3u8 片头/中插的广告段，剔除后直接跳到正片  -->
+        <item>广告段过滤</item>
+<!--        &lt;!&ndash;首选 扩展渲染器 核心渲染器 关 &ndash;&gt;-->
+<!--        <item>RendererMode</item>-->
+    </string-array>
+
+    <string-array name="media_content_IjkPlayer">
+        <item>MediaCodecMode</item>
+        <item>Cache</item>
+    </string-array>
+
+    <string-array name="media_content_ExoPlayer_renderer">
+        <item>Default</item>
+        <item>NextLib</item>
+    </string-array>
+
+    <string-array name="media_content_ExoPlayer_renderer_mode">
+        <item>Prefer core renderer</item>
+        <item>Prefer extension renderer</item>
+        <item>extended renderers are not allowed</item>
+    </string-array>
+
+    <string-array name="media_content_General_VodPlayerPreferred">
+        <item>Prefer configuration address</item>
+        <item>Prefer setting configuration</item>
+    </string-array>
+
+    <!-- 结束 视频设置 相关配置 -->
+
+    <!-- 首页 v6.1 -->
+    <string name="home_pill_source">切换源</string>
+    <string name="home_pill_config">配置中心</string>
+    <string name="home_pill_net">WiFi</string>
+    <string name="home_pill_net_sub">已连接</string>
+    <string name="home_key_ok">OK</string>
+    <string name="home_hint_enter">进入</string>
+    <string name="home_all_apps">全部功能</string>
+    <string name="home_sec_hint">← → 选择入口，上方实时预览</string>
+    <string name="home_greet_morning">上午好</string>
+    <string name="home_greet_noon">中午好</string>
+    <string name="home_greet_afternoon">下午好</string>
+    <string name="home_greet_evening">晚上好</string>
+    <string name="home_app_hist">观看历史</string>
+    <string name="home_app_hist_sub">继续上次</string>
+    <string name="home_app_fav">收藏</string>
+    <string name="home_app_fav_sub">我的片单</string>
+    <string name="home_app_search">搜索</string>
+    <string name="home_app_search_sub">全站找片</string>
+    <string name="home_app_live">直播</string>
+    <string name="home_app_live_sub">电视直播</string>
+    <string name="home_app_home">推荐</string>
+    <string name="home_app_sort_sub">进入分类</string>
+    <string name="home_hero_loading">正在读取这个分类…</string>
+    <string name="home_hero_tag_hot">本周最热</string>
+    <string name="home_hero_func_title">%1$s</string>
+    <string name="home_hero_func_desc">按 OK 进入 %1$s。</string>
+
+    <!-- ================= 首页 v8（内容流 / 分类页） ================= -->
+    <string name="v8_nav_cat">影视</string>
+    <string name="v8_view_all">查看全部</string>
+    <string name="v8_view_all_count">%1$s 部</string>
+    <string name="v8_play_now">立即播放</string>
+    <string name="v8_collect">收藏</string>
+    <string name="v8_collected">已收藏</string>
+    <string name="v8_hero_desc_default">按 OK 看详情 · 长按卡片可全站搜索这部剧</string>
+    <string name="v8_setting_title">配置中心</string>
+    <string name="v8_sec_api">接口</string>
+    <string name="v8_sec_play">播放</string>
+    <string name="v8_sec_display">显示</string>
+    <string name="v8_sec_adv">高级</string>
+    <string name="v8_cat_index">分类</string>
+    <string name="v8_hint_home">↑↓ 切换行 · ←→ 选片 · OK 进入 · MENU 切换片源</string>
+    <string name="v8_hint_home_single">← → 选片 · OK 继续观看 · MENU 切换片源</string>
+    <string name="v8_hint_cat">← → 分类 / 海报墙 · OK 进入 · BACK 回首页</string>
+    <string name="v8_line_continue">继续观看</string>
+    <string name="v8_line_continue_sub">看了不到一半</string>
+    <string name="v8_wall_title">观看历史</string>
+    <string name="v8_wall_sub">接着上次的进度看 · 最近 %1$d 部</string>
+    <string name="v8_wall_empty">还没有播放记录，随便点一部开始看吧</string>
+    <string name="v8_rec_title">推荐内容</string>
+    <string name="v8_rec_from">来自 %1$s</string>
+    <string name="v8_line_loading">正在读取…</string>
+    <string name="v8_line_empty">这个分类暂时没有内容</string>
+    <string name="v8_line_fail">这个分类没读到内容，按 OK 重试</string>
+    <string name="v8_filter">筛选</string>
+    <string name="v8_dlg_hint">OK 确定 · BACK 取消 · ← → ↑ ↓ 选择</string>
+    <!-- 站点体检：底部刷新 + 隐藏计数 -->
+    <string name="v8_probe_refresh">重新检测</string>
+    <string name="v8_probe_hidden">%1$d 个源没内容，已排到最后</string>
+    <string name="v8_probe_none">所有源都没取到内容</string>
+    <string name="v8_count_unit">%1$d 部</string>
+    <string name="v8_hero_none_tag">暂无内容</string>
+    <string name="v8_hero_none_title">这个片源没有内容</string>
+    <string name="v8_hero_none_desc">接口连上了，但首页推荐和分类都没给出影片。在顶栏换一个片源试试。</string>
+    <string name="v8_hero_connecting">正在连接接口，稍等一下…</string>
+    <string name="v8_hint_home_none">接口没有响应 · MENU 换片源 · BACK 退出</string>
+
+    <!-- ================= 首页 v10（顶栏标签页 / 历史） ================= -->
+    <string name="v8_nav_hist">历史</string>
+    <string name="v8_nav_more">更多</string>
+    <!-- 顶栏第二个分组：电影/电视剧/综艺/动漫/少儿/纪录片全部收进这一个标签，
+         选中后下面才展开二级菜单，顶栏不用再摆一排分类 -->
+    <string name="v8_nav_film">影视</string>
+    <string name="v8_hint_rec">↑ ↓ 选片 · OK 进入详情 · MENU 切换片源</string>
+    <string name="v8_hint_grid">↑ 回顶栏 · 标签上按 OK 筛选 · 海报上按 OK 进详情</string>
+    <!-- 影视页按 OK 打在二级标签上弹出来的筛选面板 -->
+    <string name="v8_flt_all">全部</string>
+    <string name="v8_flt_clear">清空</string>
+    <string name="v8_flt_done">完成</string>
+    <string name="v8_flt_count">已选 %1$d 项</string>
+    <string name="v8_flt_hint">OK 选中 · 再按一次取消 · BACK 关闭并刷新</string>
+    <string name="v8_flt_none">这个分类没有筛选条件</string>
+    <!-- 筛选生效时的底部提示：把条件写出来，否则用户不知道列表是被筛过的 -->
+    <string name="v8_hint_filter">筛选：%1$s · 标签上按 OK 调整</string>
+    <string name="v8_hint_hist">↑ 回顶栏 · ↑ ↓ 选片 · OK 继续观看 · MENU 切换片源</string>
+    <string name="v8_hist_tag">上次看到</string>
+    <string name="v8_cat_tag">最新%1$s</string>
+    <string name="v8_cat_connecting">正在读取这个分类，稍等一下…</string>
+    <string name="v8_hist_continue">继续播放</string>
+    <string name="v8_hist_empty_title">还没有看过什么</string>
+    <string name="v8_hist_empty_desc">在任意影片上按 OK 就开始播放了，看到哪儿会自动记在这儿 —— 下次从这一格接着往下看。</string>
+    <string name="v8_hist_empty_hint">← → 换个标签 · OK 回推荐挑一部</string>
+    <string name="v8_hist_sub">看到 %1$s</string>
+    <string name="v8_cat_empty_loading">正在读取这个分类…</string>
+    <string name="v8_more_title">全部分类</string>
+    <!-- 顶栏片源胶囊的兜底文案：config 里 site.name 可能为空，
+         空着就只剩一个圆点加箭头，看着像没加载出来 -->
+    <string name="v8_pill_fallback">换源</string>
+
+    <!-- ================= 直播频道表（点「直播」先进的那一页） ================= -->
+    <string name="v8_live_title">直播</string>
+    <string name="v8_live_hint">OK 播放 · ↑ ↓ 选择 · BACK 返回</string>
+    <string name="v8_live_stat">%1$d 个频道 · %2$d 个分组</string>
+    <string name="v8_live_all">全部</string>
+    <!-- 左栏里「全部/收藏/超清」与真实分组之间那行小标题 -->
+    <string name="v8_live_rail_group">分组</string>
+    <!-- 跨分组的聚合视图：把台名里带 4K / 2160 / UHD 的台挑到一起，不是源里的一组台 -->
+    <string name="v8_live_group_4k">4K 超清</string>
+    <!-- 设置 · 界面明暗（整块界面白底还是黑底，和强调色皮肤是两件事） -->
+    <string name="mn_ui_mode">界面明暗</string>
+    <string name="v8_ui_mode_dark">深色</string>
+    <string name="v8_ui_mode_light">浅色</string>
+    <!-- 卡片第二行：全部视图里给分组名，选了分组就给频道号 -->
+    <string name="v8_live_sub_srcs">%1$d 路</string>
+    <string name="v8_live_locked">加密</string>
+    <string name="v8_live_empty_proxy_title">已设置自定义直播源</string>
+    <string name="v8_live_empty_proxy_desc">频道表由播放器按需加载，\n按下面的按钮直接进播放器浏览</string>
+    <string name="v8_live_empty_none_title">还没有直播源</string>
+    <string name="v8_live_empty_none_desc">当前片源没有自带直播，\n点右上角「配置」添加一条直播源</string>
+    <string name="v8_live_btn_player">进入播放器</string>
+    <string name="v8_live_btn_retry">重新读取</string>
+    <string name="v8_live_btn_config_src">配置直播源</string>
+    <!-- 频道表标题行右侧的入口：进直播源管理页 -->
+    <string name="v8_live_btn_config">配置</string>
+    <string name="v8_live_btn_settings">设置</string>
+
+    <!-- ================= 收藏频道 ================= -->
+    <!-- 分组胶囊上的「收藏」档。带星号是为了在一排「XX频道」里一眼认出来 -->
+    <string name="v8_live_fav">收藏</string>
+    <!-- 卡片左下角的收藏标记：画在图里（drawable/ic_fav_star），不再用字体星号 -->
+    <string name="v8_fav_stat">收藏 %1$d / 共 %2$d</string>
+    <string name="v8_fav_empty_title">还没有收藏的频道</string>
+    <string name="v8_fav_empty_desc">在任意频道上按 MENU 看详情并收藏，\n也可以直接长按 OK 收藏，再长按一次取消。\n收藏的台固定待在这一档，换直播源以后只要能对上名字就还在。</string>
+    <string name="v8_fav_missing_title">收藏的台都不在当前源里</string>
+    <string name="v8_fav_missing_desc">你收藏了 %1$d 个台，当前这个直播源里一个都对不上。\n换回原来那个源，或者在这里重新收藏。</string>
+    <!-- 收藏/取消收藏后的提示，%1$s 是台名 -->
+    <string name="v8_fav_toast_add">已收藏「%1$s」</string>
+    <string name="v8_fav_toast_del">已取消收藏「%1$s」</string>
+    <string name="v8_fav_toast_full">收藏夹满了（最多 %1$d 个），先取消几个吧</string>
+    <string name="v8_fav_toast_save_failed">收藏保存失败，请重试</string>
+    <!-- 播放页设置面板里的开关项：选中 = 当前这个台已收藏 -->
+    <string name="v8_fav_current">收藏本台</string>
+
+    <!-- ================= 频道详情弹层（频道墙上按 MENU 放大当前这一格） ================= -->
+    <!-- 「分组 · 央视频道」这一行，%1$s 是分组名 -->
+    <string name="v8_live_detail_group">分组 · %1$s</string>
+    <!-- 按钮：未收藏时显示前者，已收藏时显示后者 -->
+    <string name="v8_live_detail_fav_add">收藏本台</string>
+    <string name="v8_live_detail_fav_del">取消收藏</string>
+    <string name="v8_live_detail_play">立即播放</string>
+    <string name="v8_live_detail_close">关闭</string>
+
+    <!-- ================= 直播源管理页（频道表右上角「配置」进来） ================= -->
+    <string name="v8_src_title">直播源</string>
+    <string name="v8_src_hint">OK 切换 · → 删除 · BACK 返回</string>
+    <string name="v8_src_current_stat">当前：%1$s</string>
+    <string name="v8_src_tag_builtin">内置</string>
+    <string name="v8_src_tag_custom">自定义</string>
+    <string name="v8_src_current">当前</string>
+    <string name="v8_src_delete">删除</string>
+    <string name="v8_src_add">＋ 添加直播源</string>
+    <string name="v8_src_web_hint">手机浏览器打开 %1$s 也能添加，比遥控器输入快</string>
+    <string name="v8_src_del_title">删除直播源</string>
+    <string name="v8_src_del_msg">确定删除「%1$s」吗？\n删掉后这条地址要重新输入才能找回。</string>
+    <string name="v8_src_applied">已切换到「%1$s」，正在重启…</string>
+    <string name="v8_src_added">已添加「%1$s」</string>
+    <string name="v8_src_added_switch">已添加并切换到「%1$s」，正在重启…</string>
+    <string name="v8_src_bad_url">地址要以 http:// 或 https:// 开头</string>
+    <string name="v8_src_empty_name">未命名</string>
+
+    <!-- 添加直播源的输入弹窗 -->
+    <string name="v8_src_dlg_title">添加直播源</string>
+    <string name="v8_src_dlg_name_hint">名称（可留空，自动取文件名）</string>
+    <string name="v8_src_dlg_url_hint">https://example.com/live.txt</string>
+    <string name="v8_src_dlg_tip">支持 txt / m3u 直播源地址，保存后立即切换。\n电视上用遥控器敲地址很慢，手机浏览器打开 %1$s 更快。</string>
+    <string name="v8_src_dlg_ok">保存并切换</string>
+    <string name="v8_src_dlg_cancel">取消</string>
+    <string name="v8_src_loading">正在读取直播源…</string>
+    <string name="v8_src_empty_content">这个地址里没解析出频道</string>
+    <string name="v8_src_unreachable">地址连不上%1$s</string>
+    <string name="v8_src_use_cache">源连不上，显示的是上次缓存的频道表</string>
+    <string name="v8_src_fail_title">直播源打不开</string>
+    <string name="v8_src_fail_desc">「%1$s」%2$s\n按 OK 重试，或按 ↑ 到右上角「配置」换一条</string>
+
+</resources>

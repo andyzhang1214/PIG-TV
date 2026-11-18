@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    输入框底：不翻色块，只靠描边亮一档表示获焦 —— 反色的话光标和输入的文字都会看不见。
+
+    对比度必须拉够：电视隔着两三米看，0.6mm 灰边和 1mm 半透明边在暗背景上几乎分不出来。
+    浅色下也不能用「近黑描边」—— 一圈黑框在浅色页上又重又赊，改走品牌玫红。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiFieldFocus" />
+            <stroke android:width="1.6mm" android:color="?attr/uiStrokeFocus" />
+            <corners android:radius="@dimen/v8_src_del_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiField" />
+            <stroke android:width="0.6mm" android:color="?attr/uiStroke" />
+            <corners android:radius="@dimen/v8_src_del_radius" />
+        </shape>
+    </item>
+</selector>

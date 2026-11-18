@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 行主文字：焦点反白后转深色，当前生效项走金色 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="?attr/uiTextFocus" />
+    <item android:state_selected="true" android:color="?attr/uiTextAccent" />
+    <item android:color="?attr/uiText" />
+</selector>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 海报小徽标（源名/年份）：半透明黑底 + 小圆角，Apple TV 风——
+     轻到不跟海报抢戏，只在确有信息时出现 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#8C000000" />
+    <corners android:radius="1.5mm" />
+</shape>

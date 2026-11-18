@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 左栏 rail 的底板：一整块圆角面板，和卡片同一档底色。
+     深色主题下它比页面底亮一档（页面是纯黑，面板是 #1A1A20 那种），
+     浅色主题下是纯白 —— 靠这一层把「导航栏」和「内容区」分开。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/uiSurface" />
+    <corners android:radius="@dimen/v8_rail_radius" />
+</shape>

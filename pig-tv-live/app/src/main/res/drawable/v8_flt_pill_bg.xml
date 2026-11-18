@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    分组胶囊（全部 / 4K 超清 / 央视频道 …）：三态和卡片、顶栏同一套语言。
+
+      focused  → uiSurfaceFocus + uiStrokeFocus（深色下纯白、浅色下淡粉块配玫红描边）
+      selected → uiSurfaceSel + uiStroke（当前在看的那一组）
+      默认     → uiSurface
+
+    浅色下页面底是 #F4F4F7、胶囊和卡片都是纯白，靠底色差把形状托出来，
+    所以这里不需要额外描边 —— 加一圈描边反而脏。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceFocus" />
+            <stroke
+                android:width="1.6mm"
+                android:color="?attr/uiStrokeFocus" />
+            <corners android:radius="@dimen/v8_flt_pill_h" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceSel" />
+            <stroke
+                android:width="1mm"
+                android:color="?attr/uiStroke" />
+            <corners android:radius="@dimen/v8_flt_pill_h" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurface" />
+            <corners android:radius="@dimen/v8_flt_pill_h" />
+        </shape>
+    </item>
+</selector>

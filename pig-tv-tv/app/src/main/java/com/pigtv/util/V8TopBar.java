@@ -14,7 +14,7 @@ import com.pigtv.R;
 import com.pigtv.ui.activity.CollectActivity;
 import com.pigtv.ui.activity.HistoryActivity;
 import com.pigtv.ui.activity.HomeActivity;
-import com.pigtv.ui.activity.LivePlayActivity;
+import com.pigtv.ui.activity.LiveChannelActivity;
 import com.pigtv.ui.activity.SearchActivity;
 
 import java.util.Calendar;
@@ -182,7 +182,8 @@ public class V8TopBar {
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 break;
             case NAV_LIVE:
-                intent = new Intent(act, LivePlayActivity.class);
+                // 直播标签统一进频道表，挑完台再进播放器（和手机端一个走法）
+                intent = new Intent(act, LiveChannelActivity.class);
                 break;
             case NAV_FAV:
                 intent = new Intent(act, CollectActivity.class);

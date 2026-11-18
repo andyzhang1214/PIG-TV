@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 行内「删除」小按钮：默认透明描边，焦点反色块（和整行焦点同款，不会混淆层级） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceFocus" />
+            <stroke
+                android:width="1.4mm"
+                android:color="?attr/uiStrokeFocus" />
+            <corners android:radius="@dimen/v8_src_del_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurface" />
+            <stroke android:width="0.5mm" android:color="?attr/uiStroke" />
+            <corners android:radius="@dimen/v8_src_del_radius" />
+        </shape>
+    </item>
+</selector>

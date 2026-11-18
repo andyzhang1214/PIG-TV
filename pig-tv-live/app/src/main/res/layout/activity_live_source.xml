@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    直播源管理页（频道表右上角「配置」进来）。
+
+    这一页只干一件事：把用户手上的几条直播源列出来，点一下换、按删除去掉。
+    以前换源只有一条路 —— 记下电视 IP，手机浏览器开 9978 端口填地址，保存后
+    整个 app 重启。想换回上一条得把地址重新敲一遍，电视遥控器上基本做不到。
+
+    列表第一项恒为「内置频道表」（assets/live_builtin.txt），不可删；后面才是
+    用户自己加的。底部固定「＋ 添加直播源」，顺手把手机网址也写出来 ——
+    遥控器敲 URL 终究难受，两个入口都给。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/uiBg"
+    android:orientation="vertical">
+
+    <!-- ================= 顶栏（只留时钟） ================= -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/h_edge"
+        android:paddingTop="@dimen/v8_nav_top"
+        android:paddingEnd="@dimen/h_edge">
+
+        <LinearLayout
+            android:id="@+id/navBox"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/v8_nav_h"
+            android:gravity="center_vertical"
+            android:orientation="horizontal" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14mm"
+            android:gravity="end"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.02"
+                android:textColor="?attr/uiText"
+                android:textSize="@dimen/v8_clock_tx" />
+
+            <TextView
+                android:id="@+id/tvDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1.9mm"
+                android:includeFontPadding="false"
+                android:textColor="?attr/uiTextSub"
+                android:textSize="@dimen/v8_date_tx" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ================= 标题行 ================= -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8mm"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/h_edge"
+        android:paddingEnd="@dimen/h_edge">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="@string/v8_src_title"
+            android:textColor="?attr/uiText"
+            android:textSize="@dimen/v8_live_title"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvCurStat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12mm"
+            android:includeFontPadding="false"
+            android:textColor="?attr/uiTextSub"
+            android:textSize="@dimen/v8_live_stat" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="@string/v8_src_hint"
+            android:textColor="?attr/uiTextDim"
+            android:textSize="@dimen/v8_live_stat" />
+
+    </LinearLayout>
+
+    <!-- ================= 源列表 ================= -->
+    <com.owen.tvrecyclerview.widget.TvRecyclerView
+        android:id="@+id/mSourceList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="12mm"
+        android:layout_weight="1"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:paddingStart="@dimen/h_edge"
+        android:paddingTop="@dimen/vs_10"
+        android:paddingEnd="@dimen/h_edge"
+        android:paddingBottom="@dimen/vs_10"
+        app:tv_verticalSpacingWithMargins="@dimen/v8_src_row_gap" />
+
+    <!-- ================= 底部：添加 + 手机入口 ================= -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10mm"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/h_edge"
+        android:paddingEnd="@dimen/h_edge"
+        android:paddingBottom="26mm">
+
+        <TextView
+            android:id="@+id/btnAdd"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/v8_btn_ghost"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="false"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:paddingStart="@dimen/v8_btn_pad"
+            android:paddingTop="6mm"
+            android:paddingEnd="@dimen/v8_btn_pad"
+            android:paddingBottom="6mm"
+            android:text="@string/v8_src_add"
+            android:textColor="@color/v8_btn_ghost_tx"
+            android:textSize="@dimen/v8_btn_tx" />
+
+        <TextView
+            android:id="@+id/tvWebHint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14mm"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="?attr/uiTextDim"
+            android:textSize="@dimen/v8_live_stat" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    未收藏时的空星：只有轮廓，中间是空的（和已收藏的金色实心星区分）。
+
+    颜色为什么是这枚中灰而不是跟主题走：
+      star 会落在三种底色上 —— 深色主题的深卡、获焦反白的白卡、浅色主题的白卡。
+      按主题取色只能顾一头（白色星在白卡上消失、深色星在深卡上消失）。
+      中灰 #9AA0AE 对深卡约 4.6:1、对白卡约 2.9:1，两头顶得住；
+      再垫一层 30% 黑的放大描边，白底上的边缘也不至于糊掉。
+
+    这枚星是「有没有收藏」的指示，不是主信息，所以不追求白底上的高对比 ——
+    真要高对比就得加深色底盘，反而比一颗灰轮廓吵。
+
+    星形与 ic_fav_star 同参数（中心 12,12、外径 9.4），两枚叠在同一位置不会跳。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 外扩层：同一条路径放大 14%，给白底留一圈暗边 -->
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:scaleX="1.14"
+        android:scaleY="1.14">
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#4D000000"
+            android:strokeWidth="2.2"
+            android:pathData="M12,2.6 L14.32,8.8 L20.94,9.1 L15.76,13.22 L17.52,19.6 L12,15.95 L6.48,19.6 L8.24,13.22 L3.06,9.1 L9.68,8.8 Z" />
+    </group>
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF9AA0AE"
+        android:strokeWidth="1.7"
+        android:strokeLineJoin="round"
+        android:pathData="M12,2.6 L14.32,8.8 L20.94,9.1 L15.76,13.22 L17.52,19.6 L12,15.95 L6.48,19.6 L8.24,13.22 L3.06,9.1 L9.68,8.8 Z" />
+
+</vector>

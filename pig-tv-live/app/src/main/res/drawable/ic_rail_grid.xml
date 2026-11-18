@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    「全部」那一行的图标：2×2 的圆角小格，电视端常见的「宫格」意象。
+
+    用矢量而不是字体的 ▦：字形由设备字体提供，海信 / 小米 / 模拟器上粗细和留白
+    都不一样，同一版界面在不同机器上图标会一大一小。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,4 m0,2 a2,2 0 0 1 2,-2 h3 a2,2 0 0 1 2,2 v3 a2,2 0 0 1 -2,2 h-3 a2,2 0 0 1 -2,-2 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13,4 m0,2 a2,2 0 0 1 2,-2 h3 a2,2 0 0 1 2,2 v3 a2,2 0 0 1 -2,2 h-3 a2,2 0 0 1 -2,-2 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,13 m0,2 a2,2 0 0 1 2,-2 h3 a2,2 0 0 1 2,2 v3 a2,2 0 0 1 -2,2 h-3 a2,2 0 0 1 -2,-2 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13,13 m0,2 a2,2 0 0 1 2,-2 h3 a2,2 0 0 1 2,2 v3 a2,2 0 0 1 -2,2 h-3 a2,2 0 0 1 -2,-2 z" />
+
+</vector>

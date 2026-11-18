@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 深色版二次确认框（直播源删除等）。
+     原来的 dialog_tip.xml 是早年手机端的浅色卡片：在整屏黑的电视上突然弹一块
+     灰白板子，像系统弹窗，和「直播源」这一页完全不是一个风格。
+     这里只换皮，id 和 TipDialog 保持一致，逻辑不用动。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="@dimen/v8_src_dlg_w"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/v8_dialog_bg"
+        android:orientation="vertical"
+        android:padding="@dimen/v8_src_dlg_pad">
+
+        <TextView
+            android:id="@+id/tipInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:lineSpacingExtra="@dimen/v8_src_sub_mt"
+            android:textColor="?attr/uiText"
+            android:textSize="@dimen/v8_src_dlg_tx"
+            tools:text="确定删除「xxx」吗？" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/v8_src_text_gap"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/leftBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/v8_btn_ghost"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/v8_btn_pad"
+                android:paddingTop="6mm"
+                android:paddingEnd="@dimen/v8_btn_pad"
+                android:paddingBottom="6mm"
+                android:text="@string/v8_src_delete"
+                android:textColor="@color/v8_btn_ghost_tx"
+                android:textSize="@dimen/v8_btn_tx" />
+
+            <TextView
+                android:id="@+id/rightBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/v8_btn_gap"
+                android:background="@drawable/v8_btn_ghost"
+                android:clickable="true"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:paddingStart="@dimen/v8_btn_pad"
+                android:paddingTop="6mm"
+                android:paddingEnd="@dimen/v8_btn_pad"
+                android:paddingBottom="6mm"
+                android:text="@string/v8_src_dlg_cancel"
+                android:textColor="@color/v8_btn_ghost_tx"
+                android:textSize="@dimen/v8_btn_tx" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

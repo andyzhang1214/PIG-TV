@@ -276,7 +276,9 @@ public final class SiteProbe {
             // 不这么写的话，缓存里那条「失败」的 TTL 活到退避结束，把冻结分支整个盖住：
             // 用户看到的是「失败」，其实这一轮压根没测 —— 分不清「刚测的不通」和
             // 「很久没测、已知最近不通」，而这正是加「暂停」态想区分的东西。
-            if (!force && FailBackoff.isFrozen(key)) {
+            // 强制重测（点「重新检测」）也不破例：退避的用意就是这段时间别再打它，
+            // 手点一下又真测一次的话 fails 白涨（8 分钟变 16 分钟），结论还是不通。
+            if (FailBackoff.isFrozen(key)) {
                 CACHE.put(key, frozenResult());
                 continue;
             }
@@ -471,6 +473,13 @@ public final class SiteProbe {
             FailBackoff.markGood(key);
         } else if (r.state == ST_FAIL) {
             FailBackoff.markBad(key);
+            // 这次失败正好把连续失败数推到阈值：本轮就该按「暂停」显示。
+            // 不这么做的话，要等下次打开弹层才变灰，中间这一屏它还是红的，
+            // 用户看到的是「我刚点的重测，它又失败了」，而不是「它已经歇着了」。
+            if (FailBackoff.isFrozen(key)) {
+                r.state = ST_FROZEN;
+                r.msg = "暂停";
+            }
         }
         return r;
     }

@@ -77,6 +77,9 @@
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation" />
         <activity
+            android:name=".ui.activity.LiveChannelActivity"
+            android:screenOrientation="sensorLandscape" />
+        <activity
             android:name=".ui.activity.CollectActivity"
             android:screenOrientation="sensorLandscape" />
         <activity

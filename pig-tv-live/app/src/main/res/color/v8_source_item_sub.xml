@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 行副文字（地址那行）：同样跟焦点翻色，暗态留半透明灰 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="?attr/uiTextFocusSub" />
+    <item android:state_selected="true" android:color="?attr/uiTextAccent" />
+    <item android:color="?attr/uiTextSub" />
+</selector>

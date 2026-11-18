@@ -2576,6 +2576,8 @@ public class PhoneBridge {
                             // 拿「未测」去盖会把徽章擦成空白，看起来像刚测就挂了。
                             // 只有全量重测才写未测 —— 那时旧结论确实不该再信。
                             JSONObject old = forced ? null : SITE_PROBE.get(k);
+                            // 兜底路径也别把冻结站画成「未测」：预算耗尽时它的任务可能压根没轮到
+                            if (old == null && FailBackoff.isFrozen(k)) old = spFrozen();
                             emit("site", spSiteEvt(mySeq, sb,
                                     old != null ? old : spUntested()).toString());
                         }
@@ -2593,15 +2595,20 @@ public class PhoneBridge {
                             if (myGen != SITE_GEN.get()) return;
                             JSONObject r = forced ? null : freshProbe(sb.getKey());
                             if (r == null) {
-                                if (System.currentTimeMillis() > deadline) {
-                                    r = spUntested();
-                                } else if (!forced && FailBackoff.isFrozen(sb.getKey())) {
+                                // 冻结判断必须排在超时判断前面：它不发请求、不耗时，
+                                // 放到后面的话，预算一用完冻结站就被画成「未测」，
+                                // 用户点「重新检测」看到一排未测，还是会以为站点状态不明。
+                                if (FailBackoff.isFrozen(sb.getKey())) {
                                     // 冷启动后 SITE_PROBE 是空的（这份缓存只活在内存里），
                                     // 但退避记录落了盘：上一次会话已经把这个站判死在退避期里了。
                                     // 这一轮直接摆「暂停」，别再白测一次 —— 这正是退避要落盘的原因。
+                                    // 强制重测同样跳过：退避期内重打只会让 fails 白涨（8 分钟变 16 分钟），
+                                    // 界面还会把「暂停」错画成「失败」。
                                     r = spFrozen();
                                     SITE_PROBE.put(nz(sb.getKey()), r);
                                     SITE_PROBE_AT.put(nz(sb.getKey()), System.currentTimeMillis());
+                                } else if (System.currentTimeMillis() > deadline) {
+                                    r = spUntested();
                                 } else {
                                     r = probeOneSite(sb, deadline);
                                     // 只有真正测出结论的才进缓存：「未测」不是结论
@@ -2742,6 +2749,16 @@ public class PhoneBridge {
             FailBackoff.markGood(key);
         } else if (st == 4) {
             FailBackoff.markBad(key);
+            // 这次失败正好把连续失败数推到阈值：本轮就该按「暂停」显示。
+            // 不这么做的话，要等下次打开弹层才变灰，中间这一屏它还是红的，
+            // 用户看到的是「我刚点的重测，它又失败了」，而不是「它已经歇着了」。
+            if (FailBackoff.isFrozen(key)) {
+                try {
+                    r.put("st", 7);
+                    r.put("msg", "暂停");
+                } catch (Throwable ignored) {
+                }
+            }
         }
         return r;
     }

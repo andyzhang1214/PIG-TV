@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 极简加载环：2.6mm 的白弧，旋转起来像一条在跑的线。
+     原来的 icon_loading 是一张彩色插画，转起来很吵，和 v8 的黑底细字语言也不搭。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <path
+        android:pathData="M6,24 A18,18 0 1,1 24,42"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="3" />
+</vector>

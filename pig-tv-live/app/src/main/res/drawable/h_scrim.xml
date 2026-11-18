@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动器层压暗遮罩：顶深、中透、底深，保证时钟与入口在白花壁纸上也能读 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#F20A0908"
+        android:centerColor="#8C0A0908"
+        android:endColor="#FA0A0908"
+        android:type="linear" />
+</shape>

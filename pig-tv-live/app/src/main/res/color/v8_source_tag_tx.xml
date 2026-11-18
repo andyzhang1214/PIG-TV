@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「内置 / 自定义 / 当前」标签：金色标识，焦点反白后转深色 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="?attr/uiTextFocusSub" />
+    <item android:color="?attr/uiTextAccent" />
+</selector>

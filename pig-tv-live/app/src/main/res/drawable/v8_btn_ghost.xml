@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    次按钮（顶栏「配置」、空态那个按钮）。
+    深色下是「玻璃底」——半透明白 + 白描边；浅色下换成浅灰底 + 灰描边，
+    同一套取值由主题给，不用在这里分支。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceFocus" />
+            <stroke
+                android:width="1.6mm"
+                android:color="?attr/uiStrokeFocus" />
+            <corners android:radius="@dimen/v8_btn_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceSel" />
+            <stroke
+                android:width="0.8mm"
+                android:color="?attr/uiStroke" />
+            <corners android:radius="@dimen/v8_btn_radius" />
+        </shape>
+    </item>
+</selector>

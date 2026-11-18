@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    首页 v6.1 尺寸表
+
+    单位说明：
+    本项目 App.java 里 setSupportDP(false) / setSupportSP(false) / setSupportSubunits(MM)，
+    且 AutoSizeUtils.mm2px 实测就是 TypedValue.applyDimension(COMPLEX_UNIT_MM, ...)，
+    说明 mm 是**真实物理毫米**，不是可缩放的设计图单位。dp、sp 都不缩放。
+
+    所以下面每个值都按「1920 设计稿像素 → 物理毫米」换算过：
+        基准 55 寸 16:9：宽 1217.6mm / 1920px  =>  1px = 0.634mm
+        换电视尺寸改 _backup/scale_dimens.js 里的 RATIO 重跑：
+        40 寸 0.461   55 寸 0.634   65 寸 0.749   75 寸 0.865
+
+    好处：毫秒尺寸恒定，1080p 和 4K 上观感一致。
+-->
+<resources>
+
+    <!-- 安全边距 -->
+    <dimen name="h_edge">45.6mm</dimen>
+
+    <!-- 时钟区 -->
+    <dimen name="h_clock_top">58.3mm</dimen>
+    <dimen name="h_greet">10.1mm</dimen>
+    <dimen name="h_time">74.8mm</dimen>
+    <dimen name="h_ampm">15.9mm</dimen>
+    <dimen name="h_date">15.2mm</dimen>
+    <dimen name="h_vdiv_w">0.6mm</dimen>
+    <dimen name="h_vdiv_h">33mm</dimen>
+    <dimen name="h_vdiv_ml">19mm</dimen>
+    <dimen name="h_vdiv_mr">19mm</dimen>
+    <dimen name="h_vdiv_mt">16.5mm</dimen>
+
+    <!-- 顶部胶囊 -->
+    <dimen name="h_pills_top">95.1mm</dimen>
+    <dimen name="h_pill_h">39.3mm</dimen>
+    <dimen name="h_pill_radius">19.7mm</dimen>
+    <dimen name="h_pill_pad">16.5mm</dimen>
+    <dimen name="h_pill_gap">10.1mm</dimen>
+    <dimen name="h_pill_tx">12.7mm</dimen>
+    <dimen name="h_pill_sub">9.5mm</dimen>
+    <dimen name="h_pill_ico">14.6mm</dimen>
+    <dimen name="h_pill_dot">5.1mm</dimen>
+
+    <!-- 预览卡 hero -->
+    <dimen name="h_hero_top">169.9mm</dimen>
+    <dimen name="h_hero_h">272.6mm</dimen>
+    <dimen name="h_hero_radius">16.5mm</dimen>
+    <dimen name="h_poster_w">147.1mm</dimen>
+    <dimen name="h_poster_h">220.6mm</dimen>
+    <dimen name="h_poster_radius">8.9mm</dimen>
+    <dimen name="h_poster_top">26mm</dimen>
+    <dimen name="h_poster_right">27.9mm</dimen>
+    <dimen name="h_info_left">30.4mm</dimen>
+    <dimen name="h_info_top">22.8mm</dimen>
+    <dimen name="h_info_right">190.2mm</dimen>
+    <dimen name="h_tag">9.5mm</dimen>
+    <dimen name="h_tag_dot">4.4mm</dimen>
+    <dimen name="h_title">34.2mm</dimen>
+    <dimen name="h_meta">11.4mm</dimen>
+    <dimen name="h_desc">11.4mm</dimen>
+    <dimen name="h_hint">8.2mm</dimen>
+    <dimen name="h_hint_right">21.6mm</dimen>
+    <dimen name="h_hint_bottom">10.1mm</dimen>
+    <dimen name="h_ok_h">16.5mm</dimen>
+    <dimen name="h_ok_pad">5.1mm</dimen>
+
+    <!-- 分区标题 -->
+    <dimen name="h_sec_top">485.6mm</dimen>
+    <dimen name="h_sec_title">16.5mm</dimen>
+    <dimen name="h_sec_hint">10.1mm</dimen>
+
+    <!-- 入口行 -->
+    <dimen name="h_apps_top">514.8mm</dimen>
+    <dimen name="h_app_w">111.6mm</dimen>
+    <dimen name="h_app_h">119.2mm</dimen>
+    <dimen name="h_app_radius">12.7mm</dimen>
+    <dimen name="h_app_gap">15.2mm</dimen>
+    <dimen name="h_app_ico">23.5mm</dimen>
+    <dimen name="h_app_nm">15.9mm</dimen>
+    <dimen name="h_app_sb">8.2mm</dimen>
+
+</resources>

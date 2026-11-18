@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    直播源管理页的一行。
+
+    和频道墙的卡片同一套视觉：暗底细描边 / 焦点白底反黑 / 当前生效项金描边。
+    「当前」和「删除」两个徽章不参与焦点，只有整行和右侧「删除」按钮能拿焦点 ——
+    一屏七八行，如果每行有两个可聚焦点，遥控器左右乱跳，用户很容易按错删掉源。
+
+    子控件一律 duplicateParentState：拿到焦点的是外层 LinearLayout，
+    TextView 自己永远不是 focused，不复制父状态 selector 会停在默认档（白字），
+    焦点反白之后就成白底白字，整行看着像空的。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/itemRoot"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/v8_src_item_h"
+    android:background="@drawable/v8_source_item_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:gravity="center_vertical"
+    android:nextFocusRight="@id/btnDel"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/v8_src_pad"
+    android:paddingEnd="@dimen/v8_src_pad">
+
+    <!-- 内置 / 自定义：一眼看出哪条是应用自带、删不掉的 -->
+    <TextView
+        android:id="@+id/tvTag"
+        android:layout_width="@dimen/v8_src_tag_w"
+        android:layout_height="wrap_content"
+        android:duplicateParentState="true"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:textColor="@color/v8_source_tag_tx"
+        android:textSize="@dimen/v8_src_tag_tx" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/v8_src_text_gap"
+        android:layout_weight="1"
+        android:duplicateParentState="true"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:duplicateParentState="true"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/v8_source_item_tx"
+            android:textSize="@dimen/v8_src_name_tx" />
+
+        <TextView
+            android:id="@+id/tvSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/v8_src_sub_mt"
+            android:duplicateParentState="true"
+            android:ellipsize="middle"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/v8_source_item_sub"
+            android:textSize="@dimen/v8_src_sub_tx" />
+
+    </LinearLayout>
+
+    <!-- 当前生效标记：只显示不聚焦，靠颜色说话 -->
+    <TextView
+        android:id="@+id/tvCurrent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/v8_src_badge_gap"
+        android:duplicateParentState="true"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:text="@string/v8_src_current"
+        android:textColor="@color/v8_source_tag_tx"
+        android:textSize="@dimen/v8_src_tag_tx"
+        android:visibility="gone" />
+
+    <!-- 删除：独立可聚焦。焦点先在整行上，按 → 才落到这里，按 OK 出二次确认。
+         nextFocusLeft 指回整行：不指定的话从这颗按钮按 ← 会去搜兄弟/父级，
+         经常直接跳到上一行，用户就找不到「回到这一行」的路了。 -->
+    <TextView
+        android:id="@+id/btnDel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/v8_src_del_gap"
+        android:background="@drawable/v8_source_del_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:focusableInTouchMode="false"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:minWidth="@dimen/v8_src_del_w"
+        android:nextFocusLeft="@id/itemRoot"
+        android:paddingStart="@dimen/v8_src_del_pad"
+        android:paddingTop="@dimen/v8_src_del_pad_v"
+        android:paddingEnd="@dimen/v8_src_del_pad"
+        android:paddingBottom="@dimen/v8_src_del_pad_v"
+        android:text="@string/v8_src_delete"
+        android:textColor="@color/v8_source_del_tx"
+        android:textSize="@dimen/v8_src_del_tx" />
+
+</LinearLayout>

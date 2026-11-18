@@ -153,5 +153,21 @@
     <!-- 底部按键提示：原来 14mm，跟放大的顶栏放一起像脚注，提到 17mm -->
     <dimen name="v8_hint_tx">17mm</dimen>
 
+    <!-- ============ 直播频道表（点「直播」先进的那一页） ============ -->
+    <!-- 一屏 6 列：内容宽 1217 - 左右各 45.6 = 1126mm，减去 5 个 9mm 间距，
+         单格约 180mm。卡片高度按 6 行左右铺满可视区（约 480mm）取 72mm。 -->
+    <dimen name="v8_live_title">26mm</dimen>
+    <dimen name="v8_live_stat">14mm</dimen>
+    <dimen name="v8_live_card_h">72mm</dimen>
+    <dimen name="v8_live_card_radius">8mm</dimen>
+    <dimen name="v8_live_card_pad">11mm</dimen>
+    <dimen name="v8_live_card_gap">9mm</dimen>
+    <dimen name="v8_live_logo">50mm</dimen>
+    <dimen name="v8_live_logo_radius">6mm</dimen>
+    <dimen name="v8_live_logo_txt">19mm</dimen>
+    <dimen name="v8_live_name_tx">16.5mm</dimen>
+    <dimen name="v8_live_sub_tx">12mm</dimen>
+    <dimen name="v8_live_name_gap">4mm</dimen>
+    <dimen name="v8_live_text_gap">9mm</dimen>
 
 </resources>

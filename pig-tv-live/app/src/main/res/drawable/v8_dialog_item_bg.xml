@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 弹层列表项：焦点反色块；「当前项」用金色描边标出来（不再用 √ 前缀，字符对齐会歪，看着像草稿） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceFocus" />
+            <stroke
+                android:width="1.6mm"
+                android:color="?attr/uiStrokeFocus" />
+            <corners android:radius="9.5mm" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceSel" />
+            <stroke android:width="1.2mm" android:color="?attr/uiStrokeSel" />
+            <corners android:radius="9.5mm" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurface" />
+            <stroke android:width="0.6mm" android:color="?attr/uiStroke" />
+            <corners android:radius="9.5mm" />
+        </shape>
+    </item>
+</selector>

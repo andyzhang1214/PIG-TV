@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    直播频道表里的一张频道卡：左边一个台标方块（CCTV-5 给 C5），右边频道名 + 一行说明。
+
+    宽度跟着网格格子走（match_parent），不写死：一屏 6 列是 LayoutManager 决定的，
+    卡片自己算宽度的话换分辨率就会半格错位。
+    焦点态整块反白，所以文字都用 color selector 跟着翻色（v8_live_card_tx）。
+
+    子控件一律 duplicateParentState="true"：真正拿到焦点的是外层这个 LinearLayout，
+    TextView 自己永远不是 focused，不复制父状态的话 selector 恒停在「白字」档，
+    反白底上就是白底白字，整格看着一片空白。
+    注意 duplicateParentState 只认「直接父级」，所以包着频道名的那层 LinearLayout
+    也得加上，否则两个 TextView 复制到的是个空状态，照样白字。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/v8_live_card_h"
+    android:background="@drawable/v8_live_card_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/v8_live_card_pad"
+    android:paddingEnd="@dimen/v8_live_card_pad">
+
+    <TextView
+        android:id="@+id/tvLogo"
+        android:layout_width="@dimen/v8_live_logo"
+        android:layout_height="@dimen/v8_live_logo"
+        android:background="@drawable/v8_live_logo_bg"
+        android:duplicateParentState="true"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:textColor="@color/v8_live_logo_tx"
+        android:textSize="@dimen/v8_live_logo_txt"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/v8_live_text_gap"
+        android:layout_weight="1"
+        android:duplicateParentState="true"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:duplicateParentState="true"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/v8_live_card_tx"
+            android:textSize="@dimen/v8_live_name_tx" />
+
+        <TextView
+            android:id="@+id/tvSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/v8_live_name_gap"
+            android:duplicateParentState="true"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/v8_live_card_sub"
+            android:textSize="@dimen/v8_live_sub_tx" />
+
+    </LinearLayout>
+
+</LinearLayout>

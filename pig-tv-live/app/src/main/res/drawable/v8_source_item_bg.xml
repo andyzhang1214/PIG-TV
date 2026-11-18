@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 直播源管理页的一行：默认暗底细描边；焦点反色块；当前生效项金描边。
+     三种状态全部走主题语义色，浅色下自动变成「白卡片 / 深色焦点块 / 深金描边」。 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceFocus" />
+            <stroke
+                android:width="2mm"
+                android:color="?attr/uiStrokeFocus" />
+            <corners android:radius="@dimen/v8_src_radius" />
+        </shape>
+    </item>
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurfaceSel" />
+            <stroke android:width="1.2mm" android:color="?attr/uiStrokeSel" />
+            <corners android:radius="@dimen/v8_src_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/uiSurface" />
+            <stroke android:width="0.6mm" android:color="?attr/uiStroke" />
+            <corners android:radius="@dimen/v8_src_radius" />
+        </shape>
+    </item>
+</selector>

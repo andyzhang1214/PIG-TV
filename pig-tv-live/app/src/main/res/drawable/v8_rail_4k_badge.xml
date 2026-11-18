@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「超清专区」那一行的 4K 徽标：一枚描边小牌，不填充，
+     和旁边的网格 / 星星图标同一个视觉重量（填充版会在一列灰字里跳出来吵）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+    <stroke
+        android:width="0.8mm"
+        android:color="#99E7C27E" />
+    <corners android:radius="4mm" />
+</shape>

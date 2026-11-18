@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v21 版（带 ripple 波纹）。和 drawable/shape_setting_model_focus.xml 内容必须一致，
+     只是套了一层按压波纹 —— 两份都要改，API 21+ 的设备只认这一份。
+
+     波纹色用 uiSurfaceSel 而不是描边色：描边色在浅色下是高饱和玫红，
+     ripple 一扩散就把整行铺成玫红块，看着像「选中了错误的东西」。
+     uiSurfaceSel 本身是淡粉（深色下 12% 白），波纹才是"轻轻按了一下"。 -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/uiSurfaceSel">
+    <item>
+        <selector>
+            <item android:state_focused="true">
+                <shape>
+                    <corners android:radius="@dimen/vs_5" />
+                    <solid android:color="?attr/uiSurfaceSel" />
+                    <stroke
+                        android:width="2mm"
+                        android:color="?attr/uiStrokeFocus" />
+                </shape>
+            </item>
+            <item android:state_pressed="true">
+                <shape>
+                    <corners android:radius="@dimen/vs_5" />
+                    <solid android:color="?attr/uiSurfaceSel" />
+                    <stroke
+                        android:width="2mm"
+                        android:color="?attr/uiStrokeFocus" />
+                </shape>
+            </item>
+            <item>
+                <shape>
+                    <corners android:radius="@dimen/vs_5" />
+                    <solid android:color="?attr/uiSurface" />
+                </shape>
+            </item>
+        </selector>
+    </item>
+</ripple>

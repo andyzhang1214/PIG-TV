@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「清空 / 完成」按钮的字色：焦点反黑 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FF0B0A0C" />
+    <item android:color="#E6FFFFFF" />
+</selector>

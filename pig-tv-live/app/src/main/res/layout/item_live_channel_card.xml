@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    直播频道表里的一张频道卡：
+
+      · 台标完整显示在卡片左边（fitCenter，不裁切、不垫底盘）——
+        台标图本身就带台名，卡片再写一遍就是重复；所以卡面不写字，认台靠图。
+      · 左下角收藏星（已收藏金色实心，未收藏空轮廓），右下角画质角标
+        （1080P · 2 路 · 加密）。想看台名 / 分组 / 地址这些详情，按 MENU 放大这一格。
+      · 台标还没拿到（下载中 / 库里没有）时，卡面正中先写台名；
+        图一旦到手就把它换成台标 —— 宁可先看到名字，也不给一块灰相框。
+
+    宽度跟着网格格子走（match_parent），不写死：一屏几列是 LayoutManager 决定的，
+    卡片自己算宽度的话换分辨率就会半格错位。
+
+    焦点态整块反色，文字/角标都用 color selector 跟着翻色（v8_live_tag_tx 等）。
+
+    子控件一律 duplicateParentState="true"：真正拿到焦点的是外层这个 LinearLayout，
+    控件自己永远不是 focused，不复制父状态的话 selector 恒停在「白字」档，
+    反色底上就是白底白字，整格看着一片空白。
+
+    ⚠ 版式为什么是「竖 LinearLayout（台标区 weight=1）+ 底部横条」，
+    而不是「RelativeLayout + alignParentStart/End」：
+    卡片的角标是**运行时**在 GONE / VISIBLE 之间切的（没有画质信息就不显示）。
+    RelativeLayout 在测量时直接跳过 GONE 的子项，等这个子项被改回 VISIBLE 时
+    如果没赶上同一轮 layout，它就会停在父容器左上角（left = paddingStart），
+    和左下角那颗星叠在一起 —— 实测就是这个现象，而且只有部分格子中招，
+    看着像「补丁没生效」。LinearLayout 是顺序摆放的，谁 GONE 谁不参与，
+    剩下的用 0dp + weight 吃满，不存在「位置要靠规则二次求解」这回事。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/v8_live_card_h"
+    android:background="@drawable/v8_live_card_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/v8_live_card_pad"
+    android:paddingTop="@dimen/v8_live_card_pad"
+    android:paddingEnd="@dimen/v8_live_card_pad"
+    android:paddingBottom="@dimen/v8_live_card_pad">
+
+    <!-- 台标区：吃掉卡片剩下的全部高度（0dp + weight=1），
+         只有这一块会让位给底部那一条 18mm 高的星/角标行。
+         duplicateParentState 不能省：子控件的 selector 只认**直接父容器**的状态，
+         这一层不加，里面 tvFallbackName 永远复制到「没有 focused」的状态，
+         焦点白卡上的台名就一直是粉色，白底粉字几乎看不见。 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:duplicateParentState="true">
+
+        <!-- 台标：完整地占满台标区，水平+垂直居中。
+             不用 fitStart（会让图贴在左上角、下半和右侧全空），也不用 centerCrop
+             （台标左右常带台名，裁掉就认不出是哪个台了）。 -->
+        <ImageView
+            android:id="@+id/tvLogo"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
+            android:duplicateParentState="true"
+            android:padding="@dimen/v8_live_logo_inset"
+            android:scaleType="fitCenter"
+            android:src="@drawable/img_logo_placeholder" />
+
+        <!-- 台标没到手时的台名：卡面正中。图一到就 GONE（见 LiveChannelCardAdapter） -->
+        <TextView
+            android:id="@+id/tvFallbackName"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:duplicateParentState="true"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="2"
+            android:textColor="@color/v8_live_tag_tx"
+            android:textSize="@dimen/v8_live_fb_name_tx"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+    <!-- 底部一条：星钉左、角标钉右，中间一个 0dp + weight=1 的空 View 吃掉空档。
+         星放左边是有意的 —— 星的两种状态同形状同位置，扫一眼就知道收没收；
+         右边留给宽度会变的画质角标，角标再长也不会把星挤走。 -->
+    <LinearLayout
+        android:id="@+id/v8BottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/v8_live_card_pad"
+        android:duplicateParentState="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- 收藏星：已收藏金色实心，未收藏空轮廓（两枚矢量同星形，切换不跳） -->
+        <ImageView
+            android:id="@+id/tvStar"
+            android:layout_width="@dimen/v8_live_star"
+            android:layout_height="@dimen/v8_live_star"
+            android:contentDescription="@null"
+            android:duplicateParentState="true"
+            android:src="@drawable/ic_fav_star_outline" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- 画质角标：没有画质信息时整颗 GONE（Java 里直接 setVisibility） -->
+        <TextView
+            android:id="@+id/tvTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/v8_live_chip_tag"
+            android:duplicateParentState="true"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:paddingStart="@dimen/v8_live_chip_pad_h"
+            android:paddingTop="@dimen/v8_live_chip_pad_v"
+            android:paddingEnd="@dimen/v8_live_chip_pad_h"
+            android:paddingBottom="@dimen/v8_live_chip_pad_v"
+            android:singleLine="true"
+            android:textColor="@color/v8_live_tag_tx"
+            android:textSize="@dimen/v8_live_tag_tx" />
+
+    </LinearLayout>
+
+</LinearLayout>

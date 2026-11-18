@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 左栏里「分组」那行小标题：只是个分隔提示，不可聚焦、不参与选中。 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tvRailLabel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:includeFontPadding="false"
+    android:paddingStart="@dimen/v8_rail_item_pad"
+    android:paddingTop="9mm"
+    android:paddingEnd="@dimen/v8_rail_item_pad"
+    android:paddingBottom="5mm"
+    android:textColor="?attr/uiTextDim"
+    android:textSize="@dimen/v8_rail_label_tx" />

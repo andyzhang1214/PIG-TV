@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr name="fontPath" format="string" />
+    <attr name="textFieldStyle" format="reference" />
+
+    <!-- FadeMaskView 的渐变方向：top 顶部实黑往下渐透（顶栏用），
+         bottom 顶部透明往下实黑（底部溶进黑底用）。
+         注意格式必须是 string，不能是 enum：
+         enum 属性在 AttributeSet 里读到的是序号（"1"），不是枚举名（"bottom"），
+         用 "bottom".equals(...) 判断会永远落空，bottom 就退化成 top，
+         屏幕底部会出现一条纯黑横带。 -->
+    <attr name="fadeEdge" format="string" />
+
+    <!--
+        ============ 界面明暗（深色 / 浅色） ============
+
+        整套界面不再直接写死颜色，layout 和 drawable 一律引用这里的语义色，
+        由 AppTheme（深色）和 Theme.PigTV.Light（浅色）分别给值，切换时重设主题重建页面。
+
+        深色那一套写在 AppTheme 里，八套「按源换色」的皮肤主题（NetfxTheme 等）
+        全都继承它，所以任何主题下这些 attr 都解析得出来 —— 少一个就是进页面闪退
+        （AppCompat 解析不到 ?attr 会直接抛异常，不是退回默认值）。
+
+        名字表达的是「这块是干什么的」，不是「它是白的还是黑的」：
+        uiSurfaceFocus 在深色下是纯白块、浅色下是淡粉块，但两者的语义都是「焦点所在的那一格」。
+        照颜色起名（whiteBg 之类）的话，做浅色时会满屏找不到东西该换什么。
+    -->
+    <attr name="uiBg" format="color|reference" />
+    <attr name="uiPanel" format="color|reference" />
+    <attr name="uiSurface" format="color|reference" />
+    <attr name="uiSurfaceSel" format="color|reference" />
+    <attr name="uiSurfaceFocus" format="color|reference" />
+    <attr name="uiStroke" format="color|reference" />
+    <attr name="uiStrokeSel" format="color|reference" />
+    <!--
+        焦点那一格的描边。深色下填的是纯白（和 uiSurfaceFocus 同色，白块上等于看不见，
+        焦点强度全靠块本身）；浅色下填品牌粉，因为浅色焦点块是淡粉、和周围的浅底差得少，
+        必须靠这圈描边把焦点点出来。
+    -->
+    <attr name="uiStrokeFocus" format="color|reference" />
+    <attr name="uiText" format="color|reference" />
+    <attr name="uiTextSub" format="color|reference" />
+    <attr name="uiTextDim" format="color|reference" />
+    <attr name="uiTextFocus" format="color|reference" />
+    <!-- 焦点块上的次要文字：焦点块本身已经反色，副标题要按它的对比重新给一档，不能套 uiTextSub -->
+    <attr name="uiTextFocusSub" format="color|reference" />
+    <attr name="uiTextAccent" format="color|reference" />
+    <attr name="uiField" format="color|reference" />
+    <attr name="uiFieldFocus" format="color|reference" />
+
+    <!-- 台标方块：它坐在卡片里，卡片本身会反色，所以它的底必须单独给，不能拿 uiSurface 顶 -->
+    <attr name="uiChip" format="color|reference" />
+    <attr name="uiChipFocus" format="color|reference" />
+    <!-- 台标底盘（放频道 logo 图的那一块）。
+         必须是**不透明**的固定色，不能像 uiChip 那样半透明：卡片获焦时整块会反白，
+         半透明的底跟着变白，白底的台标（CCTV 那几套）就直接消失了。
+         固定色还顺带保证同一张 logo 在获焦前后看着一样，不会闪一下换个底。 -->
+    <!-- 4K 台标的金：浅色白卡片上要压深才看得见，深色卡片上要提亮，两套值 -->
+    <attr name="uiAccentChip" format="color|reference" />
+    <attr name="uiAccentChipStroke" format="color|reference" />
+
+
+    <declare-styleable name="themeColor">
+        <attr name="color_theme" format="color|reference" />
+        <attr name="color_theme_80" format="color|reference" />
+        <attr name="color_theme_70" format="color|reference" />
+        <attr name="color_theme_60" format="color|reference" />
+        <attr name="color_theme_50" format="color|reference" />
+        <attr name="color_theme_40" format="color|reference" />
+        <attr name="color_theme_dark_70" format="color|reference" />
+    </declare-styleable>
+
+    <declare-styleable name="BaseVideoView">
+        <attr name="looping" format="boolean"/>
+        <attr name="enableAudioFocus" format="boolean"/>
+        <attr name="screenScaleType" format="dimension">
+            <enum name="type_default" value="0"/>
+            <enum name="type_16_9" value="1"/>
+            <enum name="type_4_3" value="2"/>
+            <enum name="type_match_parent" value="3"/>
+            <enum name="type_original" value="4"/>
+            <enum name="type_center_crop" value="5"/>
+        </attr>
+        <attr name="playerBackgroundColor" format="color"/>
+    </declare-styleable>
+
+    <declare-styleable name="lbBaseGridView">
+        <attr name="focusOutFront" format="boolean" />
+        <attr name="focusOutEnd" format="boolean" />
+        <attr name="focusOutSideStart" format="boolean" />
+        <attr name="focusOutSideEnd" format="boolean" />
+        <attr name="horizontalMargin" format="dimension" />
+        <attr name="verticalMargin" format="dimension" />
+        <attr name="android:horizontalSpacing" />
+        <attr name="android:verticalSpacing" />
+        <attr name="android:gravity" />
+    </declare-styleable>
+
+    <declare-styleable name="lbVerticalGridView">
+        <attr name="columnWidth" format="dimension">
+            <enum name="wrap_content" value="-2" />
+        </attr>
+        <attr name="numberOfColumns" format="integer" />
+    </declare-styleable>
+
+    <declare-styleable name="lbHorizontalGridView">
+        <attr name="rowHeight" format="dimension">
+            <enum name="wrap_content" value="-2" />
+        </attr>
+        <attr name="numberOfRows" format="integer" />
+    </declare-styleable>
+
+    <declare-styleable name="RecyclerViewTV">
+        <attr name="selectedItemOffsetStartTV" format="dimension" />
+        <attr name="selectedItemOffsetEndTV" format="dimension" />
+        <attr name="selectedItemIsCenteredTV" format="boolean" />
+        <attr name="isMenuTV" format="boolean" />
+        <attr name="isMemoryFocusTV" format="boolean" />
+        <attr name="optimizeLayoutTV" format="boolean" />
+        <attr name="verticalSpacingWithMarginsTV" format="dimension" />
+        <attr name="horizontalSpacingWithMarginsTV" format="dimension" />
+    </declare-styleable>
+
+    <attr name="startColor" format="reference|color" />
+    <attr name="topDelta" format="float" />
+    <!-- Selected Paint Color (color). -->
+    <attr name="endColor" format="reference|color" />
+
+    <declare-styleable name="CardViewShadow">
+        <!-- Default Paint Color (color). -->
+        <attr name="startColor" />
+        <!-- Selected Paint Color (color). -->
+        <attr name="endColor" />
+        <attr name="topDelta" />
+    </declare-styleable>
+
+</resources>

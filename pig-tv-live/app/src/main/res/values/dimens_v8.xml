@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    首页 v8 尺寸表（内容流 + 分类页）
+
+    与 dimens_home.xml 同一套换算规则：mm 是真实物理毫米，基准 55 寸 16:9
+    （1217.6mm × 685mm），1 设计 px = 0.634mm。屏幕实际尺寸变了也成立。
+
+    垂直排布（首屏，单位 mm）：
+        26 ─ 56   顶栏（品牌 + 导航 + 源胶囊 + 齿轮 + 时钟）
+        78 ─ 196  hero 信息（标签 / 片名 / 元信息 / 简介）
+       204 ─ 226  操作按钮
+       208 ─ 685  内容流（浏览态整体上移 v8_lines_lift，露出更多行）
+-->
+<resources>
+
+    <!-- ============ 顶栏 ============ -->
+    <!-- 用户 65 寸 3 米看，整条顶栏（左侧导航 + 右侧时间/源）在上一版基础上再放 50% -->
+    <dimen name="v8_nav_top">26mm</dimen>
+    <dimen name="v8_nav_h">38mm</dimen>
+    <dimen name="v8_nav_pad">15mm</dimen>
+    <dimen name="v8_nav_gap">6mm</dimen>
+    <dimen name="v8_nav_tx">22.8mm</dimen>
+    <dimen name="v8_brand_tx">22.8mm</dimen>
+    <dimen name="v8_brand_gap">26mm</dimen>
+    <dimen name="v8_clock_tx">25.5mm</dimen>
+    <dimen name="v8_date_tx">19mm</dimen>
+    <!-- 顶栏三组之间那条 1mm 竖线（内容类 | 工具类） -->
+    <dimen name="v8_nav_sep_h">25mm</dimen>
+    <dimen name="v8_nav_sep_gap">7.5mm</dimen>
+
+    <!-- ============ 二级菜单（影视 → 电影/电视剧/…） ============ -->
+    <!-- 只在「影视」页出现，位置在顶栏正下方。字号比顶栏小一档（22.8 → 17），
+         层级上「影视」是父级，二级项不该和它一样大。 -->
+    <dimen name="v8_subnav_top">8mm</dimen>
+    <dimen name="v8_subnav_h">30mm</dimen>
+    <dimen name="v8_subnav_pad">14mm</dimen>
+    <dimen name="v8_subnav_gap">5mm</dimen>
+    <dimen name="v8_subnav_tx">17mm</dimen>
+    <!-- 二级菜单占掉的垂直高度：影视页的 hero、按钮、海报墙都要整体下移这么多，
+         否则会压在二级菜单上（顶栏 26+38 到底 = 64mm，二级菜单 72~102mm，
+         而 hero 原本就从 72mm 起）。 -->
+    <dimen name="v8_subnav_shift">38mm</dimen>
+
+    <!-- ============ 右侧胶囊（源 / 齿轮） ============ -->
+    <dimen name="v8_pill_h">48mm</dimen>
+    <dimen name="v8_pill_pad">14mm</dimen>
+    <dimen name="v8_pill_gap">8mm</dimen>
+    <dimen name="v8_pill_tx">21.5mm</dimen>
+    <dimen name="v8_pill_ico">21.5mm</dimen>
+    <dimen name="v8_pill_dot">8.5mm</dimen>
+    <dimen name="v8_pill_radius">24mm</dimen>
+
+    <!-- ============ hero 信息 ============ -->
+    <dimen name="v8_hero_top">72mm</dimen>
+    <dimen name="v8_hero_w">560mm</dimen>
+    <!-- 65 寸 3 米外：顶栏已经放大到 22.8mm，hero 这几行原来停在 9~11mm，
+         放一起头重脚轻，整体提到 13~15mm -->
+    <dimen name="v8_hero_tag">13mm</dimen>
+    <dimen name="v8_hero_tag_dot">5mm</dimen>
+    <!-- 片名：这里只是布局时的初始值，运行时由 HomeActivity.applyHeroTitleSize()
+         按「字数档位 + 实际文字宽度」重算，不再依赖这个数。
+         改它只影响首帧那一瞬间的字号，别当成最终大小。
+         实测 1080p 上 1mm ≈ 1.5px（AutoSize 的 mm 是设计稿口径，不是物理毫米）。 -->
+    <dimen name="v8_hero_title">42mm</dimen>
+    <dimen name="v8_hero_title_mt">7mm</dimen>
+    <dimen name="v8_hero_meta">15mm</dimen>
+    <dimen name="v8_hero_meta_mt">6mm</dimen>
+    <dimen name="v8_hero_desc">13.5mm</dimen>
+    <dimen name="v8_hero_desc_mt">6.3mm</dimen>
+    <dimen name="v8_hero_lift">-58mm</dimen>
+
+    <!-- ============ 操作按钮 ============ -->
+    <!-- 字号涨上来之后按钮得跟着长，否则文字顶着上下边框；
+         按钮行整体下移 15mm 给 hero 让出空间（简介 13.5mm 两行比原来高 ~14mm） -->
+    <dimen name="v8_btn_top">205mm</dimen>
+    <dimen name="v8_btn_h">28mm</dimen>
+    <dimen name="v8_btn_pad">18mm</dimen>
+    <dimen name="v8_btn_tx">14mm</dimen>
+    <dimen name="v8_btn_gap">8mm</dimen>
+    <dimen name="v8_btn_radius">14mm</dimen>
+
+    <!-- ============ 内容流 ============ -->
+    <dimen name="v8_lines_top">240mm</dimen>
+    <dimen name="v8_lines_lift">96mm</dimen>
+    <dimen name="v8_line_head">19mm</dimen>
+    <dimen name="v8_line_sub">16mm</dimen>
+    <dimen name="v8_line_head_mb">7.6mm</dimen>
+    <dimen name="v8_line_gap">16mm</dimen>
+    <dimen name="v8_line_pad_end">45.6mm</dimen>
+    <dimen name="v8_line_body_h">240mm</dimen>
+
+    <!-- 行内海报：196 × 294 设计 px => 124 × 186 mm（2:3） -->
+    <dimen name="v8_card_w">146mm</dimen>
+    <dimen name="v8_card_h">219mm</dimen>
+    <dimen name="v8_card_gap">13mm</dimen>
+    <dimen name="v8_card_name">17mm</dimen>
+    <dimen name="v8_card_name_mt">6mm</dimen>
+    <dimen name="v8_card_radius">6.3mm</dimen>
+    <dimen name="v8_card_badge">8.2mm</dimen>
+
+    <!-- ============ 分类页 ============ -->
+    <dimen name="v8_cat_w">170mm</dimen>
+    <dimen name="v8_cat_item_h">26mm</dimen>
+    <dimen name="v8_cat_tx">11.4mm</dimen>
+    <dimen name="v8_cat_cnt">8.9mm</dimen>
+    <dimen name="v8_cat_pad">9mm</dimen>
+    <dimen name="v8_cat_top">86mm</dimen>
+    <dimen name="v8_chip_h">25mm</dimen>
+    <dimen name="v8_chip_pad">14mm</dimen>
+    <dimen name="v8_chip_tx">13mm</dimen>
+    <dimen name="v8_cat_title">16.5mm</dimen>
+    <dimen name="v8_grid_w">132mm</dimen>
+    <dimen name="v8_grid_h">198mm</dimen>
+
+    <!-- ============ 配置中心左侧分组 ============ -->
+    <!-- 单独一套，不复用 v8_cat_*（那套是分类页的，一行行挤在一起，不能随便放大）。
+         配置中心左侧只有 4 项、下面全是空的，11.4mm（1080p 上约 17px）在 3 米外
+         基本只是一条灰线，用户原话「看都看不见」。这里按顶栏的 2/3 取 17mm，
+         行高跟着放到 34mm，让 4 项之间拉开距离、不糊成一片。 -->
+    <dimen name="v8_set_tx">19mm</dimen>
+    <dimen name="v8_set_item_h">38mm</dimen>
+    <dimen name="v8_set_pad">14mm</dimen>
+    <dimen name="v8_set_w">182mm</dimen>
+    <!-- 页标题必须比左列大一档，否则「配置中心」和下面 4 个分组看起来是同级 -->
+    <dimen name="v8_set_title">23mm</dimen>
+
+    <!-- ============ 首页顶部：推荐大卡行 ============ -->
+    <!-- 首页只有「推荐」一块，卡片做大到把首屏填满，横向可滑看全部：
+         卡宽 215mm + 间距 12mm，一屏正好 5 张；卡高 322mm 是 2:3，海报不裁。
+         改宽度要同步 v8_wall_h（卡高 + 片名行）。 -->
+    <dimen name="v8_wall_h">358mm</dimen>
+    <dimen name="v8_wall_card_w">215mm</dimen>
+    <dimen name="v8_wall_card_h">322mm</dimen>
+    <dimen name="v8_wall_gap">12mm</dimen>
+    <dimen name="v8_wall_name">19mm</dimen>
+    <dimen name="v8_wall_name_mt">4.6mm</dimen>
+    <dimen name="v8_wall_sub">15mm</dimen>
+
+    <!-- ============ 筛选弹层（影视页 → 按 OK 打开） ============ -->
+    <!-- 面板左右各留 150mm、上下各留 70mm：1080p 上正好 938 × 545mm，
+         一屏能同时看到 5~6 组筛选（年份/地区/类型/排序/语言），不用滚。 -->
+    <dimen name="v8_flt_margin_h">150mm</dimen>
+    <dimen name="v8_flt_margin_v">70mm</dimen>
+    <dimen name="v8_flt_title">20mm</dimen>
+    <dimen name="v8_flt_group_name">15mm</dimen>
+    <dimen name="v8_flt_group_w">78mm</dimen>
+    <dimen name="v8_flt_pill_h">19mm</dimen>
+    <dimen name="v8_flt_pill_tx">14.5mm</dimen>
+    <dimen name="v8_flt_pill_pad">9mm</dimen>
+    <dimen name="v8_flt_row_gap">9mm</dimen>
+    <dimen name="v8_flt_btn_h">19mm</dimen>
+
+    <!-- 底部按键提示：原来 14mm，跟放大的顶栏放一起像脚注，提到 17mm -->
+    <dimen name="v8_hint_tx">17mm</dimen>
+
+    <!-- ============ 直播频道表（点「直播」先进的那一页） ============ -->
+    <!-- 一屏 6 列：内容宽 1217 - 左右各 45.6 = 1126mm，减去 5 个 9mm 间距，
+         单格约 180mm。卡片按 5 行铺满可视区（约 480mm）取 88mm：5×88 + 4×9 = 476。 -->
+    <dimen name="v8_live_title">26mm</dimen>
+    <dimen name="v8_live_stat">14mm</dimen>
+
+    <!-- 左栏 rail（分组导航）：设计稿里是 300/1920 ≈ 15.6% 屏宽的一条玻璃栏。
+         这里的 mm 按现有界面尺度取，240mm 在 1080p 上约 190px、占屏 10%，
+         够放「影视剧场」四个字 + 数量，又不至于把频道墙挤窄。 -->
+    <dimen name="v8_rail_w">240mm</dimen>
+    <dimen name="v8_rail_radius">24mm</dimen>
+    <dimen name="v8_rail_pad">14mm</dimen>
+    <dimen name="v8_rail_item_h">41mm</dimen>
+    <dimen name="v8_rail_item_radius">12mm</dimen>
+    <dimen name="v8_rail_item_pad">11mm</dimen>
+    <dimen name="v8_rail_tx">16mm</dimen>
+    <dimen name="v8_rail_num_tx">12mm</dimen>
+    <dimen name="v8_rail_icon_box">20mm</dimen>
+    <dimen name="v8_rail_icon_gap">9mm</dimen>
+    <dimen name="v8_rail_label_tx">10mm</dimen>
+    <dimen name="v8_rail_brand_tx">22mm</dimen>
+    <dimen name="v8_rail_gap">2mm</dimen>
+    <!-- 底部「设置 / 直播源」的左边距：图标位（20mm）+ 图标间距（9mm）+ 行内距（11mm），
+         让它们和上面那些分组的文字左边缘对齐（设计稿 rail-foot 也是带图标位的） -->
+    <dimen name="v8_rail_foot_pad">40mm</dimen>
+    <dimen name="v8_live_card_h">126mm</dimen>
+    <dimen name="v8_live_card_radius">8mm</dimen>
+    <dimen name="v8_live_card_pad">11mm</dimen>
+    <dimen name="v8_live_card_gap">9mm</dimen>
+    <!-- 卡面右上角的收藏星：18mm 在 126mm 高的卡上是「一眼能看到、又不抢台标」的尺寸 -->
+    <dimen name="v8_live_star">18mm</dimen>
+    <!-- 台标四周的内缩：CCTV 那种超宽台标按可用宽度撑满时会顶到卡片边线和收藏星，
+         缩进 3mm 才有呼吸位 -->
+    <dimen name="v8_live_logo_inset">3mm</dimen>
+    <!-- 没台标的台在卡面正中补的台名：比台标小一档、比胶囊大一档，
+         它替代的是一张图，不该比图画得还响（源里不少台是英文长名，
+         按台标尺寸写会占满整格）。 -->
+    <dimen name="v8_live_fb_name_tx">11.5mm</dimen>
+    <!-- 角标（画质）的字号和胶囊内距 -->
+    <dimen name="v8_live_tag_tx">10mm</dimen>
+    <dimen name="v8_live_chip_pad_h">6mm</dimen>
+    <dimen name="v8_live_chip_pad_v">2.5mm</dimen>
+    <!-- 播放页侧栏那颗星：那一行台名是 22mm 字号，星按字号配，24mm 看起来正好是「名字后面
+         跟了一个符号」，而不是「名字后面贴了个图标」。 -->
+    <dimen name="v8_live_fav_icon_side">24mm</dimen>
+    <!-- 收藏档空页面上那颗标记星：只是版面锚点，不承担信息，所以做得大而淡 -->
+    <dimen name="v8_fav_empty_star">84mm</dimen>
+
+    <!-- 频道详情弹层（卡面上按 MENU 放大当前这一格）。
+         820mm 在 55 寸 1080p 上约 1290px、占屏三分之二：够把台标放大两倍多，
+         又不至于盖满整屏 —— 用户还得记得住自己是从哪一格按进来的。 -->
+    <dimen name="v8_live_dlg_w">820mm</dimen>
+    <dimen name="v8_live_dlg_pad">28mm</dimen>
+    <dimen name="v8_live_dlg_gap">26mm</dimen>
+    <!-- 台标底槽：宽高比按台标常见比例 1.7:1 给，图按 fitCenter 落进去不裁切 -->
+    <dimen name="v8_live_dlg_logo_w">340mm</dimen>
+    <dimen name="v8_live_dlg_logo_h">200mm</dimen>
+    <dimen name="v8_live_dlg_logo_inset">18mm</dimen>
+    <!-- 台标没到手时底槽里写的台名：比卡面那颗（11.5mm）大一号，
+         因为它现在顶替的是一张放大图 -->
+    <dimen name="v8_live_dlg_logo_name_tx">20mm</dimen>
+    <!-- 弹层标题：比页面标题（26mm）再大一档，这是「放大看」的那一档 -->
+    <dimen name="v8_live_dlg_name_tx">28mm</dimen>
+    <dimen name="v8_live_dlg_tag_mt">12mm</dimen>
+    <dimen name="v8_live_dlg_row_mt">16mm</dimen>
+    <dimen name="v8_live_dlg_row_gap">6mm</dimen>
+    <dimen name="v8_live_dlg_row_tx">14mm</dimen>
+    <dimen name="v8_live_dlg_btn_mt">20mm</dimen>
+    <!-- 收藏按钮里那颗星：跟 v8_live_star（18mm）同档，按钮里的图标不该比卡面那颗大 -->
+    <dimen name="v8_live_dlg_star">18mm</dimen>
+    <dimen name="v8_live_dlg_star_gap">8mm</dimen>
+
+    <!-- ============ 直播源管理页（频道表右上角「配置」进去的那一页） ============ -->
+    <!-- 一行 76mm：比频道卡（72mm）略高，因为它要放「名字 + 地址」两行外加两个标签，
+         一屏 1080p 大约能露出 7 行。全部宽的 9 条源不用滚，再多才滚。 -->
+    <dimen name="v8_src_item_h">76mm</dimen>
+    <dimen name="v8_src_radius">14mm</dimen>
+    <dimen name="v8_src_pad">16mm</dimen>
+    <dimen name="v8_src_text_gap">10mm</dimen>
+    <dimen name="v8_src_tag_w">56mm</dimen>
+    <dimen name="v8_src_tag_tx">13mm</dimen>
+    <dimen name="v8_src_name_tx">18mm</dimen>
+    <dimen name="v8_src_sub_tx">12.5mm</dimen>
+    <dimen name="v8_src_sub_mt">5mm</dimen>
+    <dimen name="v8_src_badge_gap">10mm</dimen>
+    <dimen name="v8_src_del_gap">12mm</dimen>
+    <dimen name="v8_src_del_w">46mm</dimen>
+    <dimen name="v8_src_del_pad">8mm</dimen>
+    <dimen name="v8_src_del_pad_v">5mm</dimen>
+    <dimen name="v8_src_del_tx">13mm</dimen>
+    <dimen name="v8_src_del_radius">8mm</dimen>
+    <dimen name="v8_src_row_gap">9mm</dimen>
+    <!-- 输入弹窗：地址那一行要能塞下一条完整 URL，所以比普通弹窗宽 -->
+    <dimen name="v8_src_dlg_w">720mm</dimen>
+    <dimen name="v8_src_dlg_pad">26mm</dimen>
+    <dimen name="v8_src_dlg_tx">20mm</dimen>
+    <dimen name="v8_src_dlg_hint_tx">13mm</dimen>
+    <dimen name="v8_src_input_h">58mm</dimen>
+    <dimen name="v8_src_input_pad">10mm</dimen>
+    <dimen name="v8_src_input_tx">15mm</dimen>
+
+</resources>

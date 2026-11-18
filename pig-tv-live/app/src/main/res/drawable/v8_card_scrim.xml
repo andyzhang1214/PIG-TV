@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 封面底部渐隐（对齐手机端 .pcScrim）
+     手机端把「更新至 xx 集 / 评分」压在图的左下角，靠的就是这一层黑渐变：
+     只压下面 40%，上沿全透明，海报主体不被蒙灰。
+     corners 只能四个角一起给，但上沿那两个圆角落在海报内部，看不出来，
+     底部两个圆角正好贴合海报的圆角边。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <corners
+        android:bottomLeftRadius="@dimen/v8_card_radius"
+        android:bottomRightRadius="@dimen/v8_card_radius" />
+
+    <gradient
+        android:angle="90"
+        android:centerColor="#59000000"
+        android:endColor="#00000000"
+        android:startColor="#D9000000"
+        android:type="linear" />
+
+</shape>

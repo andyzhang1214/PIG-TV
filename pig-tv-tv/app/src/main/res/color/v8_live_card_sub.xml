@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 副标题（分组名 / 频道号 / 几路源）：比频道名暗一档，反白时跟着压深 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#990B0A0C" />
+    <item android:color="#8CFFFFFF" />
+</selector>

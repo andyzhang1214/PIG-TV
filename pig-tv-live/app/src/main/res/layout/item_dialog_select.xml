@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 弹层列表项：默认暗底细描边，焦点白底反黑，当前项金描边 + 金点。
+     不再用「√ 名字」标当前项——字符前缀会把整行文字推歪。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/v8_dialog_item_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/vs_60"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/vs_15"
+    android:paddingTop="@dimen/vs_10"
+    android:paddingEnd="@dimen/vs_12"
+    android:paddingBottom="@dimen/vs_10">
+
+    <TextView
+        android:id="@+id/tvName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:duplicateParentState="true"
+        android:ellipsize="end"
+        android:gravity="start|center_vertical"
+        android:singleLine="true"
+        android:textColor="@color/v8_dialog_item_tx"
+        android:textSize="@dimen/ts_18" />
+
+    <!-- 站点体检结果：默认 GONE，只有接入体检的弹窗才会显示。
+         字色恒白 —— 父行获得焦点时会整块反白，深色徽章底仍然读得清。 -->
+    <TextView
+        android:id="@+id/tvBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6mm"
+        android:background="@drawable/v8_badge_bg"
+        android:includeFontPadding="false"
+        android:maxLength="12"
+        android:paddingStart="4mm"
+        android:paddingTop="1.5mm"
+        android:paddingEnd="4mm"
+        android:paddingBottom="1.5mm"
+        android:singleLine="true"
+        android:textColor="#FFFFFFFF"
+        android:textSize="@dimen/ts_12"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/dot"
+        android:layout_width="7mm"
+        android:layout_height="7mm"
+        android:layout_marginStart="6mm"
+        android:background="@drawable/h_dot_accent"
+        android:visibility="gone" />
+
+</LinearLayout>

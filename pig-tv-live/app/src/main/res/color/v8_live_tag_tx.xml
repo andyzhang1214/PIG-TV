@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 普通画质角标：主题强调色；焦点卡反色时换 uiTextFocus（金色落在反色底上会看不清） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="?attr/uiTextFocus" />
+    <item android:color="?attr/uiTextAccent" />
+</selector>

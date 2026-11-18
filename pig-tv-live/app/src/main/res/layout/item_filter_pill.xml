@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 筛选值胶囊（年份 2024 / 地区 内地 / 类型 动作 …）
+     宽度自适应文字，不要固定宽：源站给的值长短差很多，
+     固定宽要么把「全部」撑得很空，要么把「科幻灾难」截成两个字。 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/filterPill"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/v8_flt_pill_h"
+    android:background="@drawable/v8_flt_pill_bg"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:gravity="center"
+    android:includeFontPadding="false"
+    android:maxWidth="220mm"
+    android:paddingStart="@dimen/v8_flt_pill_pad"
+    android:paddingEnd="@dimen/v8_flt_pill_pad"
+    android:singleLine="true"
+    android:textColor="@color/v8_flt_pill_tx"
+    android:textSize="@dimen/v8_flt_pill_tx" />

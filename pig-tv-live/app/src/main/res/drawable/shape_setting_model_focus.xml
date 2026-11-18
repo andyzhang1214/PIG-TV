@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    设置页右侧每一行的底（数据源 / 窗口预览 / 语言 / 界面明暗 …）。
+
+    原来非焦点态写死 @color/color_3D3D3D_50（深灰半透明），浅色主题下会变成一排深灰块，
+    配深色字完全看不清；焦点态用 color_theme_40（主色 40%）在浅底上是一片粉红，太花。
+    现在全部走主题语义色：默认 uiSurface（深色下 8% 白、浅色下纯白），
+    获焦 uiSurfaceSel 加一圈 uiStrokeFocus 描边 —— 和频道卡片、配置页那一行是同一套语言。
+    浅色下这圈描边是品牌玫红，不再用近黑的主文字色（浅底上一圈黑框太重）。
+
+    按下态和获焦态取同一个值，这里**故意**不区分：
+    1) 遥控器按一下 pressed 只存在几十毫秒，为它单独配一套颜色用户根本看不清；
+    2) 浅色下主色 40% 是一片粉（#D81F26 混白），焦点落上去像选中了错误的东西；
+    3) 实测 adb 连续发键时 pressed 会粘住不弹起，屏幕上就一直是粉的。
+    三件事加一起，这一档不如直接跟焦点走。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape>
+            <corners android:radius="@dimen/vs_5" />
+            <solid android:color="?attr/uiSurfaceSel" />
+            <stroke
+                android:width="2mm"
+                android:color="?attr/uiStrokeFocus" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape>
+            <corners android:radius="@dimen/vs_5" />
+            <solid android:color="?attr/uiSurfaceSel" />
+            <stroke
+                android:width="2mm"
+                android:color="?attr/uiStrokeFocus" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <corners android:radius="@dimen/vs_5" />
+            <solid android:color="?attr/uiSurface" />
+        </shape>
+    </item>
+</selector>

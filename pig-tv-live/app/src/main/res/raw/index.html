@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+	<meta name="theme-color" content="#0d0f13">
+	<meta name="format-detection" content="telephone=no">
+	<title>猪猪影视 · 配置</title>
+	<link rel="stylesheet" type="text/css" href="ui.css">
+</head>
+
+<body>
+	<div class="wrap">
+		<header class="hd">
+			<h1>猪猪<em>影视</em></h1>
+			<p>填好地址点保存，电视上会自动重启生效</p>
+		</header>
+
+		<section class="card">
+			<div class="cardHd">
+				<h2>点播接口</h2>
+				<span class="badge" id="vodBadge">未配置</span>
+			</div>
+			<p class="hint">决定能看哪些电影、电视剧。接口地址与 TVBox / 影视仓 通用。</p>
+			<label class="fld">
+				<span>名称</span>
+				<input id="vodName" type="text" maxlength="30" autocomplete="off" spellcheck="false"
+					placeholder="给这个接口起个名，比如 饭太硬">
+			</label>
+			<label class="fld">
+				<span>地址</span>
+				<textarea id="vodUrl" rows="3" autocomplete="off" spellcheck="false"
+					placeholder="https://example.com/api.json"></textarea>
+			</label>
+			<button class="btn" id="vodSave" type="button">保存点播接口</button>
+		</section>
+
+		<section class="card">
+			<div class="cardHd">
+				<h2>直播接口</h2>
+				<span class="badge" id="liveBadge">未配置</span>
+			</div>
+			<p class="hint">决定直播频道列表。留空保存则回到接口自带或内置的直播源。</p>
+			<label class="fld">
+				<span>名称</span>
+				<input id="liveName" type="text" maxlength="30" autocomplete="off" spellcheck="false"
+					placeholder="给这个直播源起个名，可留空">
+			</label>
+			<label class="fld">
+				<span>地址</span>
+				<textarea id="liveUrl" rows="3" autocomplete="off" spellcheck="false"
+					placeholder="https://example.com/live.txt"></textarea>
+			</label>
+			<button class="btn" id="liveSave" type="button">保存直播接口</button>
+		</section>
+
+		<p class="tip">猪猪影视只负责播放，不提供任何片源。名称只用来在电视上区分是哪个源，可以随便起。</p>
+	</div>
+
+	<div id="toast" class="toast"></div>
+	<script src="script.js"></script>
+</body>
+
+</html>

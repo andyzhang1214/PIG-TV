@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 预览卡内容遮罩：左深右透（设计稿 95deg，0% .95 / 36% .78 / 62% .30 / 100% .02） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="0"
+        android:startColor="#F206060A"
+        android:centerColor="#5906060A"
+        android:endColor="#0506060A"
+        android:type="linear" />
+</shape>

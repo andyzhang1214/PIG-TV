@@ -1,0 +1,232 @@
+<resources>
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/color_32364E</item>
+        <item name="colorPrimaryDark">@color/color_32364E_40</item>
+        <item name="colorAccent">?attr/color_theme</item>
+
+        <!--
+            防悬空引用：colorAccent 指向 ?attr/color_theme，而 color_theme 只在
+            NetfxTheme / DoraeTheme 这些「按源换色」的变体里有。走 AppTheme.NoActionBar
+            这条链（application 默认主题就是它）时它是悬空引用，AppCompat 的
+            android:textColorLink → ?attr/colorAccent → ?attr/color_theme 解析不出来，
+            Android 12+ 解析失败直接抛 UnsupportedOperationException（一进页面就闪退）。
+            这里给兜底默认值，变体主题照常覆盖，按源换肤不受影响。
+            textColorLink 也写死一份，解析时不用绕 colorAccent，更抗造。
+        -->
+        <item name="color_theme">#FFF0C070</item>
+        <item name="android:textColorLink">#FFF0C070</item>
+
+        <!--
+            界面明暗 —— 深色值全部写在这里当兜底。
+            八套皮肤主题（NetfxTheme / DoraeTheme …）都继承 AppTheme.NoActionBar → AppTheme，
+            所以不管用户选了哪套皮肤，这些属性都解析得出来。
+            浅色只由 Theme.PigTV.Light 覆盖，见文件末尾。
+        -->
+        <item name="uiBg">#FF0B0A0C</item>
+        <item name="uiPanel">#F2131218</item>
+        <item name="uiSurface">#14FFFFFF</item>
+        <item name="uiSurfaceSel">#1FFFFFFF</item>
+        <item name="uiSurfaceFocus">#FFFFFFFF</item>
+        <item name="uiStroke">#26FFFFFF</item>
+        <item name="uiStrokeSel">#E8C08C</item>
+        <item name="uiStrokeFocus">#FFFFFFFF</item>
+        <item name="uiText">#FFFFFFFF</item>
+        <item name="uiTextSub">#8CFFFFFF</item>
+        <item name="uiTextDim">#5CFFFFFF</item>
+        <item name="uiTextFocus">#FF0B0A0C</item>
+        <item name="uiTextFocusSub">#990B0A0C</item>
+        <item name="uiTextAccent">#FFC24A</item>
+        <item name="uiField">#0AFFFFFF</item>
+        <item name="uiFieldFocus">#2BFFFFFF</item>
+        <item name="uiChip">#1FFFFFFF</item>
+        <item name="uiChipFocus">#14000000</item>
+        <item name="uiAccentChip">#33FFC24A</item>
+        <item name="uiAccentChipStroke">#99FFC24A</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:windowFullscreen">true</item>//全屏即无通知栏
+        <item name="android:windowContentOverlay">@null</item>//是否有遮盖
+        <item name="windowNoTitle">true</item>
+        <!--        <item name="android:keepScreenOn">true</item>-->
+        <!--        <item name="android:windowBackground">@drawable/app_bg</item>-->
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+
+    <!-- Alternative Themes -->
+    <style name="NetfxTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#D81F26</item>
+        <item name="color_theme_80">#CCD81F26</item>
+        <item name="color_theme_70">#B3D81F26</item>
+        <item name="color_theme_60">#99D81F26</item>
+        <item name="color_theme_50">#80D81F26</item>
+        <item name="color_theme_40">#66D81F26</item>
+        <item name="color_theme_dark_70">#B38C1418</item>
+    </style>
+    <style name="DoraeTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#18A2E7</item>
+        <item name="color_theme_80">#CC18A2E7</item>
+        <item name="color_theme_70">#B318A2E7</item>
+        <item name="color_theme_60">#9918A2E7</item>
+        <item name="color_theme_50">#8018A2E7</item>
+        <item name="color_theme_40">#6618A2E7</item>
+        <item name="color_theme_dark_70">#B3106D9C</item>
+    </style>
+    <style name="PepsiTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#004B93</item>
+        <item name="color_theme_80">#CC004B93</item>
+        <item name="color_theme_70">#B3004B93</item>
+        <item name="color_theme_60">#99004B93</item>
+        <item name="color_theme_50">#80004B93</item>
+        <item name="color_theme_40">#66004B93</item>
+        <item name="color_theme_dark_70">#B3002547</item>
+    </style>
+    <style name="NarutoTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#FF7439</item>
+        <item name="color_theme_80">#CCFF7439</item>
+        <item name="color_theme_70">#B3FF7439</item>
+        <item name="color_theme_60">#99FF7439</item>
+        <item name="color_theme_50">#80FF7439</item>
+        <item name="color_theme_40">#66FF7439</item>
+        <item name="color_theme_dark_70">#B3B35127</item>
+    </style>
+    <style name="MinionTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#FFD55E</item>
+        <item name="color_theme_80">#CCFFD55E</item>
+        <item name="color_theme_70">#B3FFD55E</item>
+        <item name="color_theme_60">#99FFD55E</item>
+        <item name="color_theme_50">#80FFD55E</item>
+        <item name="color_theme_40">#66FFD55E</item>
+        <item name="color_theme_dark_70">#B3B39542</item>
+    </style>
+    <style name="YagamiTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#FF2F70</item>
+        <item name="color_theme_80">#CCFF2F70</item>
+        <item name="color_theme_70">#B3FF2F70</item>
+        <item name="color_theme_60">#99FF2F70</item>
+        <item name="color_theme_50">#80FF2F70</item>
+        <item name="color_theme_40">#66FF2F70</item>
+        <item name="color_theme_dark_70">#B3B3204E</item>
+    </style>
+    <style name="SakuraTheme" parent="AppTheme.NoActionBar">
+        <item name="color_theme">#FD9BDB</item>
+        <item name="color_theme_80">#CCFD9BDB</item>
+        <item name="color_theme_70">#B3FD9BDB</item>
+        <item name="color_theme_60">#99FD9BDB</item>
+        <item name="color_theme_50">#80FD9BDB</item>
+        <item name="color_theme_40">#66FD9BDB</item>
+        <item name="color_theme_dark_70">#B3B06B98</item>
+    </style>
+
+    <!--
+        ============ 浅色界面 ============
+
+        只覆盖语义色，窗口属性一概沿用 AppTheme.NoActionBar（全屏、无标题、透明底都照旧），
+        所以切过去之后版式一寸不动，变的只是颜色。
+
+        反色逻辑要一起想：深色下「焦点 = 一块纯白」，浅色下焦点必须跟着反过来变成
+        「一块深色」—— 焦点永远是这一屏里对比最强的那一格，而不是「永远是白的」。
+        所以 uiSurfaceFocus 在这里是近黑，uiTextFocus 是白。
+
+        背景用 #F4F4F7 而不是纯白：卡片是 @uiSurface 的纯白，底也是纯白的话卡片就没边了，
+        整片糊成一整块白，分组和卡片分不出来。
+
+        金色在浅底上必须压深：深色那套的 #FFC24A 是发光感，落在白底上会淡到看不见，
+        换成 #B47800（深琥珀）才够读。
+    -->
+    <!--
+        浅色主题。焦点态不再是「近黑块 + 白字」，改成品牌粉那一套：
+        淡粉块 + 玫红描边 + 近黑字。深色主题的「白块反色」在浅底上行不通 ——
+        浅底上能反出来的只有黑，而一大片黑块压在浅色页面上又重又脏。
+    -->
+    <style name="Theme.PigTV.Light" parent="AppTheme.NoActionBar">
+        <item name="uiBg">#FFF4F4F7</item>
+        <item name="uiPanel">#FFFFFFFF</item>
+        <item name="uiSurface">#FFFFFFFF</item>
+        <item name="uiSurfaceSel">#FFFCE8EC</item>
+        <item name="uiSurfaceFocus">#FFFFDCE3</item>
+        <item name="uiStroke">#FFD5D5DE</item>
+        <item name="uiStrokeSel">#FFB47800</item>
+        <item name="uiStrokeFocus">#FFE8455F</item>
+        <item name="uiText">#FF17171A</item>
+        <item name="uiTextSub">#FF6A6A73</item>
+        <item name="uiTextDim">#FF9A9AA3</item>
+        <item name="uiTextFocus">#FF1A1216</item>
+        <item name="uiTextFocusSub">#FF8C5560</item>
+        <item name="uiTextAccent">#FFB47800</item>
+        <item name="uiField">#FFFFFFFF</item>
+        <item name="uiFieldFocus">#FFFFFFFF</item>
+        <item name="uiChip">#0F000000</item>
+        <item name="uiChipFocus">#2EE8455F</item>
+        <item name="uiAccentChip">#1FB47800</item>
+        <item name="uiAccentChipStroke">#80B47800</item>
+    </style>
+
+    <!-- 自定义dialog样式 -->
+    <style name="CustomDialogStyle" parent="@android:style/Theme.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowFrame">@null</item>
+        <!-- 弹层后面压暗 72%：首页太亮的时候，弹层自己没个底气，字和背景会糊成一片 -->
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.72</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+    <style name="CustomDialogStyleDim" parent="@android:style/Theme.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowFrame">@null</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+    <!-- Volume / Brightness Bar -->
+    <style name="video_vertical_progressBar">
+        <item name="android:maxWidth">12dp</item>
+        <item name="android:indeterminateOnly">false</item>
+        <item name="android:indeterminateDrawable">
+            @android:drawable/progress_indeterminate_horizontal
+        </item>
+        <item name="android:progressDrawable">@drawable/play_progress_vertical</item>
+        <item name="android:indeterminateDuration">3500</item>
+        <item name="android:indeterminateBehavior">repeat</item>
+        <item name="android:minWidth">1dp</item>
+    </style>
+
+    <!-- Mini Progress Bar -->
+    <style name="video_horizontal_progressBar">
+        <item name="android:maxWidth">12dp</item>
+        <item name="android:indeterminateOnly">false</item>
+        <item name="android:indeterminateDrawable">
+            @android:drawable/progress_indeterminate_horizontal
+        </item>
+        <item name="android:progressDrawable">@drawable/play_progress_horizontal</item>
+        <item name="android:indeterminateDuration">3500</item>
+        <item name="android:indeterminateBehavior">repeat</item>
+        <item name="android:minWidth">1dp</item>
+    </style>
+
+    <style name="surfaceType_surface">
+        <item name="surface_type">surface_view</item>
+    </style>
+    <style name="surfaceType_texture">
+        <item name="surface_type">texture_view</item>
+    </style>
+
+    <!-- 海报圆角（ShapeableImageView 用）：外框 8.9mm 圆角 - 1mm 边距 ≈ 7.9mm -->
+    <style name="PosterRound">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">7.9mm</item>
+    </style>
+</resources>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 行尾「查看全部」卡：和海报卡同宽同高，底部用隐形占位撑出与片名同样的高度，
+     这样两种卡在同一行里基线对齐，不会一高一矮。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="@dimen/v8_card_w"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="@dimen/v8_card_w"
+        android:layout_height="@dimen/v8_card_h"
+        android:background="@drawable/v8_more_bg"
+        android:duplicateParentState="true"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageView
+            android:layout_width="18mm"
+            android:layout_height="18mm"
+            android:importantForAccessibility="no"
+            android:duplicateParentState="true"
+            android:src="@drawable/v8_ic_arrow_down"
+            android:tint="@color/v8_more_tx" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6mm"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:duplicateParentState="true"
+            android:text="@string/v8_view_all"
+            android:textColor="@color/v8_more_tx"
+            android:textSize="@dimen/v8_card_name"
+            android:textStyle="bold" />
+
+        <TextView
+            android:duplicateParentState="true"
+            android:id="@+id/tvCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3.8mm"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/v8_more_sub"
+            android:textSize="@dimen/ts_14" />
+
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/v8_card_name_mt"
+        android:includeFontPadding="false"
+        android:text=" "
+        android:textSize="@dimen/v8_card_name"
+        android:visibility="invisible" />
+
+</LinearLayout>

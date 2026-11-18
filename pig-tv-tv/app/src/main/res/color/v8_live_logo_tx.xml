@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 台标方块里的字：反白卡片上反黑，其余状态纯白 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="#FF0B0A0C" />
+    <item android:color="#F2FFFFFF" />
+</selector>
