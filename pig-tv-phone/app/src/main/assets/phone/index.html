@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#07070A">
-<title>猪猪影视</title>
+<title>PTV</title>
 <!--
   首屏主题必须在样式表之前定下来，否则老 WebView 不认识 prefers-color-scheme，
   会先按深色画一帧再被原生切浅色，出现一次明显的闪黑。
@@ -38,7 +38,7 @@
     <div class="hdr">
       <div>
         <div class="htitleWrap" onclick="openSites()">
-          <span class="htitle" id="srcName">猪猪影视</span>
+          <span class="htitle" id="srcName">PTV</span>
           <svg class="ic hdrArrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg>
         </div>
       </div>
@@ -228,7 +228,7 @@
       </div>
       <div class="meitem ar" onclick="openAbout()">
         <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".9" fill="currentColor"/></svg>
-        关于<span class="v" id="verHint">v1.1.3</span>
+        关于<span class="v" id="verHint">v1.2.0</span>
       </div>
     </div>
     <div style="height:6px"></div>
@@ -342,7 +342,7 @@
 <div id="cfg">
   <div class="cfgBox">
     <div class="cfgT" id="cfgTitle">片源接口</div>
-    <div class="cfgS" id="cfgDesc">猪猪影视本身不带内容，需要一个接口地址（JSON）。填你已有的接口即可，和 TVBox 通用。</div>
+    <div class="cfgS" id="cfgDesc">PTV本身不带内容，需要一个接口地址（JSON）。填你已有的接口即可，和 TVBox 通用。</div>
     <div id="cfgNameWrap" style="display:none">
       <input id="cfgName" class="cfgIn cfgInS" type="text" maxlength="30" autocomplete="off"
              spellcheck="false" placeholder="接口名（留空则用接口全名）">
@@ -362,7 +362,7 @@
     </div>
     <div class="cfgS" id="cfgMsg" style="margin-top:12px"></div>
     <div class="cfgS" id="cfgTip" style="margin-top:14px;opacity:.72">
-      提示：接口地址和 TVBox / 影视仓 通用。猪猪影视只负责播放，不提供任何片源。
+      提示：接口地址和 TVBox / 影视仓 通用。PTV只负责播放，不提供任何片源。
     </div>
   </div>
 </div>
@@ -685,7 +685,7 @@ function renderHero(){
               '<div class="heroD">慢源可能要十几秒，下面的推荐会陆续出现。</div>'
             : '<div class="heroT">还没有内容</div>' +
               '<div class="heroM">点右上角「我的 → 片源接口」添加一个接口</div>' +
-              '<div class="heroD">猪猪影视本身只是个播放器，内容全部来自你配置的接口。</div>')) +
+              '<div class="heroD">PTV本身只是个播放器，内容全部来自你配置的接口。</div>')) +
       '</div>';
     return;
   }
@@ -876,7 +876,7 @@ function shuffleHome(){
 function emptyHTML(msg){
   return '<div class="emptyBox">' +
     '<div class="emptyT">' + esc(msg) + '</div>' +
-    '<div class="emptyS">猪猪影视本身不带内容，内容来自你配置的片源接口</div>' +
+    '<div class="emptyS">PTV本身不带内容，内容来自你配置的片源接口</div>' +
     '</div>';
 }
 
@@ -1106,7 +1106,7 @@ function loadAll(){
     }
     /* 站名以原生回的为准，但**空值不覆盖**：
        原生理论上一定带 source，可真机上出现过回包缺字段（旧版本残留、
-       或切换瞬间读到的还是空 home），这时候把左上角写成「猪猪影视」
+       或切换瞬间读到的还是空 home），这时候把左上角写成「PTV」
        反而像是切换没生效。有值才刷。
        另外：失败回包（ok=0）的 source 也不能覆盖已有的名字 —— 切站点的瞬间
        home 可能已经指向另一个站，把用户刚选的「聚玩盒子4K」盖成别的名字，
@@ -2719,11 +2719,11 @@ function openCfgForm(mode, isAdd, editUrl, editName){
   } else {
     wName.style.display = '';
     elT.textContent = '片源接口';
-    elD.textContent = '猪猪影视本身不带内容，需要一个接口地址（JSON）。填你已有的接口即可，和 TVBox 通用。';
+    elD.textContent = 'PTV本身不带内容，需要一个接口地址（JSON）。填你已有的接口即可，和 TVBox 通用。';
     elIn.placeholder = 'https://example.com/api.json';
     elName.placeholder = '接口名（留空则用接口全名）';
     elOk.textContent = '保存并加载';
-    elTip.textContent = '提示：接口地址和 TVBox / 影视仓 通用。猪猪影视只负责播放，不提供任何片源。';
+    elTip.textContent = '提示：接口地址和 TVBox / 影视仓 通用。PTV只负责播放，不提供任何片源。';
     ncall('currentConfig', [], function(d){
       if (d && d.url) elIn.value = d.url;
     });
@@ -3222,7 +3222,7 @@ function refreshSettings(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) return;
     var el = document.getElementById('verHint');
-    if (el) el.textContent = 'v' + (d.ver || '1.1.3');
+    if (el) el.textContent = 'v' + (d.ver || '1.2.0');
   });
 }
 
@@ -3378,11 +3378,11 @@ function resetAppAsk(){
 function openAbout(){
   ncall('appInfo', [], function(d){
     if (!d || !d.ok) d = {};
-    var ver = d.ver || '1.1.3';
+    var ver = d.ver || '1.2.0';
     var el = document.getElementById('verHint');
     if (el) el.textContent = 'v' + ver;
     var html = '';
-    html += '<div class="altRow"><div class="altN">猪猪影视 v' + esc(ver) + '</div>' +
+    html += '<div class="altRow"><div class="altN">PTV v' + esc(ver) + '</div>' +
       '<div class="altS">播放内核来自 takagen99/Box</div></div>';
     html += '<div class="altRow"><div class="altN">已加载站点</div>' +
       '<div class="altS">' + (d.sites || 0) + ' 个 · 搜索用 ' + (d.limit || 12) + ' 个</div></div>';

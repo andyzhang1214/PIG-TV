@@ -34,7 +34,7 @@
         android:paddingEnd="@dimen/v8_rail_pad"
         android:paddingBottom="@dimen/v8_rail_pad">
 
-        <!-- 品牌字：设计稿左上角那枚 PTV LIVE -->
+        <!-- 品牌字：设计稿左上角那枚 PLIVE -->
         <TextView
             android:id="@+id/tvBrand"
             android:layout_width="wrap_content"

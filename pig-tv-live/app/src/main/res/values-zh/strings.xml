@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 应用名（PTV）是品牌名，不做本地化，只在 values/strings.xml 里定义一份 -->
+    <!-- 应用名（PLIVE）是品牌名，不做本地化，只在 values/strings.xml 里定义一份 -->
     <string name="app_home">首页</string>
     <string name="app_source">https://盒子迷.top/饭太硬</string>
 

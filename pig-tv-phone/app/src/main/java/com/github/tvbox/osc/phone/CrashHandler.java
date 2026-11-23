@@ -96,7 +96,7 @@ public final class CrashHandler implements Thread.UncaughtExceptionHandler {
         java.io.OutputStream os = null;
         try {
             android.content.ContentValues cv = new android.content.ContentValues();
-            cv.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "猪猪影视崩溃日志.txt");
+            cv.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "PTV崩溃日志.txt");
             cv.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain");
             cv.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
                     android.os.Environment.DIRECTORY_DOWNLOADS);
@@ -148,7 +148,7 @@ public final class CrashHandler implements Thread.UncaughtExceptionHandler {
 
     private static String buildReport(Thread t, Throwable e) {
         StringBuilder sb = new StringBuilder();
-        sb.append("========== 猪猪影视 手机版 崩溃报告 ==========\r\n");
+        sb.append("========== PTV 手机版 崩溃报告 ==========\r\n");
         sb.append("时间    : ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date())).append("\r\n");
         sb.append("机型    : ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append("\r\n");
         sb.append("系统    : Android ").append(Build.VERSION.RELEASE)

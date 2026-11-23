@@ -26,7 +26,7 @@ import java.util.Locale;
 public class CrashHandler implements Thread.UncaughtExceptionHandler {
 
     private static final String TAG = "CrashHandler";
-    private static final String FILE_NAME = "猪猪影视-崩溃日志.txt";
+    private static final String FILE_NAME = "PTV-崩溃日志.txt";
 
     private final Context appContext;
     private final Thread.UncaughtExceptionHandler defaultHandler;
