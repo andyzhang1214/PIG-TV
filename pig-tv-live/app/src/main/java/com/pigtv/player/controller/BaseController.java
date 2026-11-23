@@ -117,6 +117,13 @@ public abstract class BaseController extends BaseVideoController implements Gest
     private TextView mSpeedTextHide;
     private LinearLayout mSpeedTop;
 
+    /**
+     * 缓冲时是否允许弹出右上角的「台名 + 码率」块。
+     * 直播端关掉：它和播放页顶栏的时钟在同一个角，一缓冲就两个数字叠着印
+     * （实测「0.03 Mbps」直接压掉「12:53」）。码率对直播没有意义，只有点播才要看。
+     */
+    protected boolean mSpeedBlockEnabled = true;
+
     private LinearLayout mDialogVolume;
     private LinearLayout mDialogBrightness;
     private ProgressBar mDialogVolumeProgressBar;
@@ -201,7 +208,9 @@ public abstract class BaseController extends BaseVideoController implements Gest
             case VideoView.STATE_BUFFERING:
                 mLoading.setVisibility(VISIBLE);
                 mLoadingHide.setVisibility(VISIBLE);
-                mSpeedTop.setVisibility(VISIBLE);
+                // 注意这里是**每次缓冲都会执行**，所以只能在这里拦，
+                // 从 Activity 侧 setVisibility(GONE) 一次会被下一次缓冲重新翻回 VISIBLE。
+                mSpeedTop.setVisibility(mSpeedBlockEnabled ? VISIBLE : GONE);
                 break;
             case VideoView.STATE_PLAYBACK_COMPLETED:
                 mLoading.setVisibility(GONE);

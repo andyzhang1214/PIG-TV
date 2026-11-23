@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    「直播」小徽标：只在正在播的那一行出现。
+
+    用红色是刻意跳出这套蓝白配色的 —— 它要回答的是「正在放的是哪个」，
+    和面板里其他灰白信息不是一类东西，颜色不跳出来就没人会注意到。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/v8_live_badge_radius" />
+    <solid android:color="@color/v8_live_badge" />
+</shape>

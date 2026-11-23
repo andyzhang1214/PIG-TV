@@ -97,6 +97,12 @@ public class HawkConfig {
     public static final String LIVE_SKIP_PASSWORD = "live_skip_password";
     public static final String LIVE_PLAYER_TYPE = "live_player_type"; // 0 系统 1 ijk 2 exo
     /**
+     * 直播画面比例（0 默认 / 1 16:9 / 2 4:3 / 3 填充 / 4 原始 / 5 裁剪）。
+     * 和点播的 {@link #PLAY_SCALE} 分开存：电影要留黑边看完整构图，直播是「打开就要占满屏幕」，
+     * 两边默认值不该绑在一起。直播默认 5（裁剪），否则 4:3 的老源会在左右各留一条黑边。
+     */
+    public static final String LIVE_PLAY_SCALE = "live_play_scale";
+    /**
      * 收藏的频道（JSON 数组，每项 名字/地址/分组/时间），由 {@link FavoriteStore} 读写。
      *
      * <p>存名字+地址而不是下标：频道表是按当前源现拉的，换源以后下标全变，

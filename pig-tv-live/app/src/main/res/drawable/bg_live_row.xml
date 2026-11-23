@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    播放页频道列表里的一行。
+
+    三档状态：
+      · 焦点行   → 12% 白底 + 92% 白描边，是整块面板里最亮的一处；
+      · 正在播的行 → 6% 白底，没有描边。焦点移到别处时，用户还要能一眼看出
+        「现在播的是这个」，所以它不能是完全透明的；
+      · 其余     → 透明。
+
+    不用主题色：这面板压在视频上，主题色在浅色主题下是粉色系，落在深底上发灰。
+    白色只用透明度分层，跟底色的对比度是恒定的。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/v8_live_row_radius" />
+            <solid android:color="@color/v8_live_row_focus_fill" />
+            <stroke
+                android:width="1.2mm"
+                android:color="@color/v8_live_row_focus_stroke" />
+        </shape>
+    </item>
+
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/v8_live_row_radius" />
+            <solid android:color="@color/v8_live_row_sel_fill" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/v8_live_row_radius" />
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+</selector>

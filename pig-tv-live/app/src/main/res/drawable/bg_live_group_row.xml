@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    播放页左列（分组导航）的一行。
+
+    和右边的频道行刻意做轻一档：焦点底只有 14% 白、且没有描边。
+    分组是「筛子」，频道才是「内容」，两列都用白描边的话，一屏里会出现两个焦点，
+    用户不知道该按右键还是按 OK。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/v8_live_row_radius" />
+            <solid android:color="@color/v8_live_group_focus_fill" />
+        </shape>
+    </item>
+
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/v8_live_row_radius" />
+            <solid android:color="@color/v8_live_group_sel_fill" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/v8_live_row_radius" />
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+</selector>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    播放页左侧面板（频道列表 / EPG / 播放设置）的底：深色玻璃。
+
+    这份**不跟主题走**：它整块压在视频画面上，浅色主题下换成浅灰会直接糊进画面里，
+    而视频每一帧的颜色都是随机的，没有任何一个浅色能保证文字读得清。
+    深色 + 8% 白描边是唯一在亮场景（雪景、白墙）和暗场景下都站得住的方案。
+
+    透明度取 80%：再透一点，快剪的新闻画面会让台名一行行「闪」，眼睛很累；
+    再实一点（90%+）就完全看不见后面的画面，等于给电视插了一块黑板。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/v8_live_panel_radius" />
+    <solid android:color="@color/v8_live_panel_bg" />
+    <stroke
+        android:width="0.8mm"
+        android:color="@color/v8_live_panel_stroke" />
+</shape>

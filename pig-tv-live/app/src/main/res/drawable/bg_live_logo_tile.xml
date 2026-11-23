@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    频道行里台标的那块白底。
+
+    台标图大多是为白底做的（CCTV 系整张是白字、湖南卫视是彩色实心），
+    直接贴在深色面板上有近一半的台会看不见；垫一块白牌就都成立了，
+    顺带把几百个大小不一的台标统一成同一个尺寸的视觉锚点。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/v8_live_logo_radius" />
+    <solid android:color="#FFFFFFFF" />
+</shape>

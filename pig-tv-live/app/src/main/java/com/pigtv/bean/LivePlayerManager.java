@@ -27,7 +27,10 @@ public class LivePlayerManager {
             defaultPlayerConfig.put("pl", playerType);
             defaultPlayerConfig.put("ijk", Hawk.get(HawkConfig.IJK_CODEC, "软解码"));
             defaultPlayerConfig.put("pr", Hawk.get(HawkConfig.PLAY_RENDER, 0));
-            defaultPlayerConfig.put("sc", Hawk.get(HawkConfig.PLAY_SCALE, 0));
+            // 直播默认「裁剪」：默认比例会把 4:3 的老源按原比例缩进去，左右各留一条大黑边。
+            // 直播是电视墙，占满屏幕比保住完整构图重要；要看完整可以菜单里改回「默认」。
+            defaultPlayerConfig.put("sc", Hawk.get(HawkConfig.LIVE_PLAY_SCALE,
+                    VideoView.SCREEN_SCALE_CENTER_CROP));
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -138,6 +141,9 @@ public class LivePlayerManager {
 
     public void changeLivePlayerScale(@NonNull VideoView videoView, int playerScale, String channelName){
         videoView.setScreenScaleType(playerScale);
+        // 顺手记成「直播默认」：原来只写当前频道，换个台就回到旧比例，
+        // 用户以为设置没生效，每个台都要重设一遍。
+        Hawk.put(HawkConfig.LIVE_PLAY_SCALE, playerScale);
 
         JSONObject playerConfig = currentPlayerConfig;
         try {

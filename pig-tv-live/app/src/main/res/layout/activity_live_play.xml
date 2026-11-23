@@ -48,220 +48,296 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
+        <!--
+        切换频道面板（深色玻璃，压在画面上）
+
+        结构照观众熟悉的直播客户端来：左边一列分组、右边一列频道、顶上牌子、
+        底下一行按键提示。原来的三块用 1dp 竖线隔开，视觉上是三个独立盒子；
+        现在收进一块整体圆角面板里，只用留白和字号分栏，画面仍然从面板右侧露出来。
+
+        面板宽度 = 14 + 140 + 6 + 296 + 22 + 14 ≈ 492mm（55 寸屏约 40%），
+        剩下的画面始终可见 —— 用户是在「边看边挑台」，不是在填表。
+    -->
     <LinearLayout
         android:id="@+id/tvLeftChannelListLayout"
-        android:layout_width="wrap_content"
+        android:layout_width="@dimen/v8_live_panel_w"
         android:layout_height="match_parent"
         android:layout_marginStart="@dimen/vs_20"
-        android:layout_marginTop="78mm"
+        android:layout_marginTop="@dimen/vs_60"
         android:layout_marginEnd="@dimen/vs_20"
         android:layout_marginBottom="@dimen/vs_20"
-        android:background="@drawable/bg_live"
+        android:background="@drawable/bg_live_panel"
         android:baselineAligned="false"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        android:padding="@dimen/v8_live_panel_pad">
 
-        <com.owen.tvrecyclerview.widget.TvRecyclerView
-            android:id="@+id/mGroupGridView"
-            android:layout_width="@dimen/vs_200"
-            android:layout_height="match_parent"
-            android:divider="@null"
-            android:fadeScrollbars="false"
-            android:listSelector="@drawable/item_bg_selector_left"
-            android:padding="@dimen/vs_15"
-            android:scrollbars="none"
-            app:tv_selectedItemIsCentered="true"
-            app:tv_verticalSpacingWithMargins="10mm" />
-
+        <!-- 牌子：应用图标 + PLIVE，右侧当前分组的台数。
+             台数放在这里而不是标题里，是因为它跟着分组变，
+             换分组时数字在同一个位置变化，比重新读一遍标题快。 -->
         <LinearLayout
-            android:id="@+id/mDivLeft"
-            android:layout_width="30dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:background="@drawable/shape_live_select"
-            android:clickable="true"
-            android:focusable="true"
-            android:onClick="divLoadEpgL"
-            android:orientation="vertical"
-            android:paddingTop="@dimen/vs_15"
-            android:paddingBottom="@dimen/vs_15"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/tv_arrow0"
-                android:layout_width="20dp"
-                android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:paddingBottom="5dp"
-                android:shadowColor="@color/color_000000_80"
-                android:shadowDx="0"
-                android:shadowDy="0"
-                android:shadowRadius="3"
-                android:text="更 多"
-                android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_18"
-                android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <ImageView
-                android:id="@+id/iv_arrow2"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:padding="@dimen/vs_4"
-                android:src="@drawable/scrollviewleft" />
+                android:layout_width="@dimen/v8_live_brand_icon"
+                android:layout_height="@dimen/v8_live_brand_icon"
+                android:contentDescription="@null"
+                android:scaleType="fitCenter"
+                android:src="@drawable/app_icon" />
 
             <TextView
-                android:id="@+id/tv_arrow3"
-                android:layout_width="20dp"
-                android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:paddingTop="5dp"
-                android:shadowColor="@color/color_000000_80"
-                android:shadowDx="0"
-                android:shadowDy="0"
-                android:shadowRadius="3"
-                android:text="节 目"
-                android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_18"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8mm"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.06"
+                android:text="@string/app_name"
+                android:textColor="@color/v8_live_row_tx"
+                android:textSize="@dimen/v8_live_brand_tx"
                 android:textStyle="bold" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvPanelCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:textColor="@color/v8_live_row_sub"
+                android:textSize="@dimen/v8_live_grp_num_tx" />
+
         </LinearLayout>
 
         <View
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:layout_margin="1dp"
-            android:background="@color/color_3D3D3D" />
-
-        <com.owen.tvrecyclerview.widget.TvRecyclerView
-            android:id="@+id/mChannelGridView"
-            android:layout_width="@dimen/vs_340"
-            android:layout_height="match_parent"
-            android:divider="@null"
-            android:fadeScrollbars="false"
-            android:focusable="true"
-            android:listSelector="@drawable/item_bg_selector_right"
-            android:padding="@dimen/vs_15"
-            android:scrollbars="none"
-            app:tv_selectedItemIsCentered="true"
-            app:tv_verticalSpacingWithMargins="10mm" />
-
-        <View
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:layout_margin="1dp"
-            android:background="@color/color_3D3D3D" />
+            android:layout_width="match_parent"
+            android:layout_height="0.6mm"
+            android:layout_marginTop="10mm"
+            android:layout_marginBottom="8mm"
+            android:background="@color/v8_live_panel_stroke" />
 
         <LinearLayout
-            android:id="@+id/mDivRight"
-            android:layout_width="30dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:background="@drawable/shape_live_select"
-            android:clickable="true"
-            android:focusable="true"
-            android:onClick="divLoadEpgR"
-            android:orientation="vertical"
-            android:paddingTop="@dimen/vs_15"
-            android:paddingBottom="@dimen/vs_15">
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:baselineAligned="false"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/tv_arrow"
-                android:layout_width="20dp"
-                android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:paddingBottom="5dp"
-                android:shadowColor="@color/color_000000_80"
-                android:shadowDx="0"
-                android:shadowDy="0"
-                android:shadowRadius="3"
-                android:text="节 目"
-                android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_18"
-                android:textStyle="bold" />
-
-            <ImageView
-                android:id="@+id/iv_arrow"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:padding="@dimen/vs_4"
-                android:src="@drawable/scrollviewright" />
-
-            <TextView
-                android:id="@+id/tv_arrow2"
-                android:layout_width="20dp"
-                android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:paddingTop="5dp"
-                android:shadowColor="@color/color_000000_80"
-                android:shadowDx="0"
-                android:shadowDy="0"
-                android:shadowRadius="3"
-                android:text="信 息"
-                android:textColor="@color/color_FFFFFF"
-                android:textSize="@dimen/ts_18"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/mGroupEPG"
-            android:layout_width="@dimen/vs_460"
-            android:layout_height="match_parent"
-            android:layout_gravity="center_horizontal"
-            android:orientation="horizontal"
-            android:visibility="gone">
-
+            <!-- 左列：分组。不画台标、不画图标，只有名字和台数 —— 分组本身就是个筛子，
+                 给它配图标只会让这一列看起来比右边频道列更重要。 -->
             <com.owen.tvrecyclerview.widget.TvRecyclerView
-                android:id="@+id/mEpgDateGridView"
-                android:layout_width="@dimen/vs_120"
+                android:id="@+id/mGroupGridView"
+                android:layout_width="@dimen/v8_live_panel_grp_w"
                 android:layout_height="match_parent"
-                android:layout_marginStart="@dimen/vs_10"
-                android:layout_marginLeft="@dimen/vs_10"
-                android:layout_marginTop="@dimen/vs_10"
-                android:layout_marginBottom="@dimen/vs_10"
+                android:clipChildren="false"
+                android:clipToPadding="false"
                 android:divider="@null"
                 android:fadeScrollbars="false"
-                android:focusable="true"
-                android:listSelector="@drawable/item_bg_selector_right"
-                android:paddingLeft="@dimen/vs_5"
-                android:paddingTop="@dimen/vs_5"
-                android:paddingBottom="@dimen/vs_5"
-                android:textColor="@color/color_FFFFFF"
+                android:paddingTop="2mm"
+                android:paddingBottom="2mm"
+                android:scrollbars="none"
                 app:tv_selectedItemIsCentered="true"
-                app:tv_verticalSpacingWithMargins="10mm" />
+                app:tv_verticalSpacingWithMargins="2mm" />
 
+            <!-- 左列与右列之间的「更多节目」入口（老逻辑，平时 GONE） -->
+            <LinearLayout
+                android:id="@+id/mDivLeft"
+                android:layout_width="@dimen/v8_live_div_w"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:background="@drawable/bg_live_group_row"
+                android:clickable="true"
+                android:focusable="true"
+                android:onClick="divLoadEpgL"
+                android:orientation="vertical"
+                android:paddingTop="@dimen/vs_15"
+                android:paddingBottom="@dimen/vs_15"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_arrow0"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:paddingBottom="5dp"
+                    android:text="@string/v8_live_panel_epg"
+                    android:textColor="@color/v8_live_row_sub"
+                    android:textSize="@dimen/v8_live_badge_tx" />
+
+                <ImageView
+                    android:id="@+id/iv_arrow2"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:padding="@dimen/vs_4"
+                    android:src="@drawable/scrollviewleft" />
+
+                <TextView
+                    android:id="@+id/tv_arrow3"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:paddingTop="5dp"
+                    android:text="@string/v8_live_panel_info"
+                    android:textColor="@color/v8_live_row_sub"
+                    android:textSize="@dimen/v8_live_badge_tx" />
+            </LinearLayout>
+
+            <!-- 右列：频道行（台标 + 台名 + 线路数 + 正在播徽标） -->
             <com.owen.tvrecyclerview.widget.TvRecyclerView
-                android:id="@+id/mEpgInfoGridView"
-                android:layout_width="match_parent"
+                android:id="@+id/mChannelGridView"
+                android:layout_width="@dimen/v8_live_panel_ch_w"
                 android:layout_height="match_parent"
-                android:layout_margin="@dimen/vs_10"
+                android:layout_marginStart="6mm"
+                android:clipChildren="false"
+                android:clipToPadding="false"
                 android:divider="@null"
                 android:fadeScrollbars="false"
                 android:focusable="true"
-                android:listSelector="@drawable/item_bg_selector_right"
-                android:padding="@dimen/vs_5"
-                android:scrollbars="none" />
+                android:paddingTop="2mm"
+                android:paddingBottom="2mm"
+                android:scrollbars="none"
+                app:tv_selectedItemIsCentered="true"
+                app:tv_verticalSpacingWithMargins="2mm" />
 
-            <TextView
-                android:id="@+id/txtNoEpg"
-                android:layout_width="match_parent"
+            <!-- 「节目 / 信息」竖条：按右键从频道行过来，展开 EPG。
+                 高度只占中段一小块（不是撑满）—— 撑满时「节目」贴顶、「信息」贴底，
+                 两字隔了半屏，看着像两条不相干的浮字；这是一枚页签，不是分栏边。 -->
+            <LinearLayout
+                android:id="@+id/mDivRight"
+                android:layout_width="@dimen/v8_live_div_w"
+                android:layout_height="@dimen/v8_live_div_h"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="4mm"
+                android:background="@drawable/bg_live_group_row"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:onClick="divLoadEpgR"
+                android:orientation="vertical"
+                android:paddingTop="@dimen/vs_15"
+                android:paddingBottom="@dimen/vs_15">
+
+                <TextView
+                    android:id="@+id/tv_arrow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="@string/v8_live_panel_epg"
+                    android:textColor="@color/v8_live_row_sub"
+                    android:textSize="@dimen/v8_live_badge_tx" />
+
+                <ImageView
+                    android:id="@+id/iv_arrow"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:padding="@dimen/vs_4"
+                    android:src="@drawable/scrollviewright" />
+
+                <TextView
+                    android:id="@+id/tv_arrow2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="@string/v8_live_panel_info"
+                    android:textColor="@color/v8_live_row_sub"
+                    android:textSize="@dimen/v8_live_badge_tx" />
+            </LinearLayout>
+
+            <!-- EPG：展开时频道列和分组列都收起，整块面板宽度都给它，
+                 否则 460dp 的日期列 + 节目单会盖在频道行上面（实测就是这个叠法）。 -->
+            <LinearLayout
+                android:id="@+id/mGroupEPG"
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:text="暂无节目信息…"
-                android:textColor="@color/color_FFFFFF"
-                android:visibility="gone" />
+                android:layout_gravity="center_horizontal"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <com.owen.tvrecyclerview.widget.TvRecyclerView
+                    android:id="@+id/mEpgDateGridView"
+                    android:layout_width="@dimen/vs_120"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/vs_10"
+                    android:layout_marginLeft="@dimen/vs_10"
+                    android:layout_marginTop="@dimen/vs_10"
+                    android:layout_marginBottom="@dimen/vs_10"
+                    android:divider="@null"
+                    android:fadeScrollbars="false"
+                    android:focusable="true"
+                    android:paddingLeft="@dimen/vs_5"
+                    android:paddingTop="@dimen/vs_5"
+                    android:paddingBottom="@dimen/vs_5"
+                    android:textColor="@color/color_FFFFFF"
+                    app:tv_selectedItemIsCentered="true"
+                    app:tv_verticalSpacingWithMargins="10mm" />
+
+                <!-- 节目单：0dp + weight，别用 match_parent ——
+                     横向 LinearLayout 里 match_parent 会把后面的占位文字挤出屏幕，
+                     「正在加载节目单…」就永远看不见。 -->
+                <com.owen.tvrecyclerview.widget.TvRecyclerView
+                    android:id="@+id/mEpgInfoGridView"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_margin="@dimen/vs_10"
+                    android:layout_weight="1"
+                    android:divider="@null"
+                    android:fadeScrollbars="false"
+                    android:focusable="true"
+                    android:padding="@dimen/vs_5"
+                    android:scrollbars="none" />
+
+                <TextView
+                    android:id="@+id/txtNoEpg"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:paddingEnd="10mm"
+                    android:text="@string/v8_epg_none"
+                    android:textColor="@color/v8_live_row_sub"
+                    android:textSize="@dimen/v8_live_row_sub_tx"
+                    android:visibility="gone" />
+
+            </LinearLayout>
 
         </LinearLayout>
+
+        <!-- 按键提示：只写真的能用的键，不写「长按收藏」这类播放页没实现的 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10mm"
+            android:includeFontPadding="false"
+            android:text="@string/v8_live_hint_nav"
+            android:textColor="#8C93A6"
+            android:textSize="@dimen/v8_live_hint_tx" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3mm"
+            android:includeFontPadding="false"
+            android:text="@string/v8_live_hint_back"
+            android:textColor="#6E7688"
+            android:textSize="@dimen/v8_live_hint_tx" />
 
     </LinearLayout>
 
-    <LinearLayout
+<LinearLayout
         android:id="@+id/tvRightSettingLayout"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
@@ -728,9 +804,12 @@
         android:paddingBottom="16mm"
         android:visibility="gone">
 
+        <!-- 这一行的高度不能写死 38mm：右边是「时间 + 日期」两行（25.5 + 1.9 + 19 ≈ 47mm），
+             写死就会把日期裁成一条上边缘（实测右上角只剩「11月18日 周…」的字头）。
+             标签条自己的高度由 liveNavBox 的 v8_nav_h 撑着，这里交给 wrap_content 取最大值。 -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="@dimen/v8_nav_h"
+            android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 

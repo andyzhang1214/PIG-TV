@@ -11,8 +11,8 @@ android {
         targetSdkVersion 28
         // 独立直播 app，applicationId 与主 app 无关；
         // 2026-11-18 起版本号对齐主 app（原为独立的 1.0.x 线，停在 1.0.1）
-        versionCode 1120
-        versionName "1.2.0"
+        versionCode 1121
+        versionName "1.2.1"
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {

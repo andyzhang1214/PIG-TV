@@ -461,4 +461,18 @@
     <string name="v8_src_fail_title">直播源打不开</string>
     <string name="v8_src_fail_desc">「%1$s」%2$s\n按 OK 重试，或按 ↑ 到右上角「配置」换一条</string>
 
+    <!-- ============ 播放页切换面板 ============
+         只写**真的可用**的键：长按收藏在播放页没有实现，不能先写在提示里。 -->
+    <string name="v8_live_hint_nav">↑↓ 选择　OK 播放</string>
+    <string name="v8_live_hint_back">返回 关闭　菜单 设置</string>
+    <string name="v8_live_row_lines">%1$d 条线路</string>
+    <string name="v8_live_row_live">直播</string>
+    <string name="v8_live_panel_count">%1$d 个台</string>
+    <string name="v8_live_panel_epg">节目</string>
+    <string name="v8_live_panel_info">信息</string>
+    <!-- 和 initEpgDateView 里写死的「今天」保持一致，用来在日期列里定位当天 -->
+    <string name="v8_epg_today">今天</string>
+    <string name="v8_epg_loading">正在加载节目单…</string>
+    <string name="v8_epg_none">暂无节目信息…</string>
+
 </resources>

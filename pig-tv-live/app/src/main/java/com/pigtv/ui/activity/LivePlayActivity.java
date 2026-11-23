@@ -112,6 +112,8 @@ public class LivePlayActivity extends BaseActivity {
     private View liveTopBar;
     private View liveNavCurrent;
     private boolean liveTopBarShown = false;
+    /** 播放器自带的码率块（tag = top_container_hide），顶栏出现时让位 */
+    private View mSpeedTop;
 
     // Left Channel View
     private LinearLayout tvLeftChannelListLayout;
@@ -458,8 +460,27 @@ public class LivePlayActivity extends BaseActivity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
+            // 换台面板开着时，任何一次按键都把 6 秒倒计时重新拨满：
+            // 计时从「最后一次动手」算起，不是从「面板弹出」算起。
+            // 只在 super 里靠 findFocus 判断是不行的 —— 焦点一直在面板里，
+            // 面板就永远不收，自动收起等于失效。
+            if (tvLeftChannelListLayout != null
+                    && tvLeftChannelListLayout.getVisibility() == View.VISIBLE) {
+                mHandler.removeCallbacks(mHideChannelListRun);
+                mHandler.postDelayed(mHideChannelListRun, 6000);
+            }
             // 顶栏 ↔ 频道列表的上下焦点桥，必须在其它按键处理之前
             if (handleTopBarKey(keyCode)) return true;
+            // 面板里左右两列之间的桥：系统默认的焦点搜索在这里找不到左邻（中间隔着
+            // mDivLeft，它是 GONE 的），按左键就原地不动，分组列等于进不去。
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && mChannelGridView.hasFocus()) {
+                mGroupGridView.requestFocus();
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && mGroupGridView.hasFocus()) {
+                mChannelGridView.requestFocus();
+                return true;
+            }
             // 空态/失败态：OK 就是「重试」。这里必须先拦，否则会走下面
             // showChannelList()，弹一个没有频道的列表出来，等于二次伤害。
             // 焦点在顶栏上时不拦 —— 那一下 OK 是给导航项自己的。
@@ -583,15 +604,22 @@ public class LivePlayActivity extends BaseActivity {
 
     private void showChannelList() {
         mBack.setVisibility(View.INVISIBLE);
+        // 信息栏先收起，但**同一个按键继续往下开面板**。
+        // 原来这里是「只收信息栏就 return」：刚切完台想马上换下一个，
+        // 第一次按 OK 只是把信息栏收掉，看起来像按键没反应。
         if (tvBottomLayout.getVisibility() == View.VISIBLE) {
             mHandler.removeCallbacks(mHideChannelInfoRun);
             mHandler.post(mHideChannelInfoRun);
-        } else if (tvRightSettingLayout.getVisibility() == View.VISIBLE) {
+        }
+        if (tvRightSettingLayout.getVisibility() == View.VISIBLE) {
             mHandler.removeCallbacks(mHideSettingLayoutRun);
             mHandler.post(mHideSettingLayoutRun);
-        } else if (tvLeftChannelListLayout.getVisibility() == View.INVISIBLE & tvRightSettingLayout.getVisibility() == View.INVISIBLE) {
+            return;
+        }
+        if (tvLeftChannelListLayout.getVisibility() == View.INVISIBLE) {
             //重新载入上一次状态
             liveChannelItemAdapter.setNewData(getLiveChannels(currentChannelGroupIndex));
+            updatePanelCount(getLiveChannels(currentChannelGroupIndex).size());
             if (currentLiveChannelIndex > -1)
                 mChannelGridView.scrollToPosition(currentLiveChannelIndex);
             mChannelGridView.setSelection(currentLiveChannelIndex);
@@ -600,26 +628,81 @@ public class LivePlayActivity extends BaseActivity {
             mHandler.postDelayed(mFocusCurrentChannelAndShowChannelList, 200);
             mHandler.post(tv_sys_timeRunnable);
         } else {
-            mBack.setVisibility(View.INVISIBLE);
             mHandler.removeCallbacks(mHideChannelListRun);
             mHandler.post(mHideChannelListRun);
             mHandler.removeCallbacks(tv_sys_timeRunnable);
         }
     }
 
+    /** 把面板切回「分组 + 频道」两列（离开 EPG 页签或重开面板时用） */
+    private void resetPanelToListMode() {
+        mGroupGridView.setVisibility(View.VISIBLE);
+        mChannelGridView.setVisibility(View.VISIBLE);
+        mEpgInfoGridView.setVisibility(View.GONE);
+        mGroupEPG.setVisibility(View.GONE);
+        mDivLeft.setVisibility(View.GONE);
+        mDivRight.setVisibility(View.VISIBLE);
+    }
+
     //频道列表
     public void divLoadEpgR(View view) {
         mGroupGridView.setVisibility(View.GONE);
+        // 频道行也要收：面板宽度是固定的，留着一列频道，EPG 的节目单就会压在上面
+        mChannelGridView.setVisibility(View.GONE);
         mEpgInfoGridView.setVisibility(View.VISIBLE);
         mGroupEPG.setVisibility(View.VISIBLE);
         mDivLeft.setVisibility(View.VISIBLE);
         mDivRight.setVisibility(View.GONE);
         tvLeftChannelListLayout.setVisibility(View.INVISIBLE);
         showChannelList();
+        loadEpgForCurrentDate();
+        // 页签本身 GONE 掉了，焦点没地方落 —— 直接交给节目单，否则方向键会回到频道行
+        mEpgInfoGridView.postDelayed(() -> {
+            if (!mEpgInfoGridView.hasFocus()) {
+                if (epgListAdapter != null && epgListAdapter.getItemCount() > 0) {
+                    mEpgInfoGridView.requestFocus();
+                } else {
+                    mEpgDateGridView.requestFocus();
+                }
+            }
+        }, 500);
+    }
+
+    /**
+     * 展开 EPG 时先把当前选中那天的节目单拉下来。
+     * 原来只有「点某一天」才触发 getEpg，页签一点开就是整片空白，看着像坏了。
+     */
+    private void loadEpgForCurrentDate() {
+        if (epgDateAdapter == null || epgDateAdapter.getData().isEmpty()) return;
+        int idx = epgDateAdapter.getSelectedIndex();
+        if (idx < 0 || idx >= epgDateAdapter.getData().size()) {
+            idx = -1;
+            for (int i = 0; i < epgDateAdapter.getData().size(); i++) {
+                if (getString(R.string.v8_epg_today).equals(epgDateAdapter.getData().get(i).getDatePresented())) {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+        if (idx >= 0) {
+            epgDateAdapter.setSelectedIndex(idx);
+            mEpgDateGridView.setSelectedPosition(idx);
+            mEpgDateGridView.setSelection(idx);
+        }
+        // EPG 是网络请求，慢的时候整片空白容易以为坏了；先给一句占位，拿到数据再撤
+        TextView placeholder = findViewById(R.id.txtNoEpg);
+        if (placeholder != null && mEpgInfoGridView != null) {
+            placeholder.setText(R.string.v8_epg_loading);
+            placeholder.setVisibility(View.VISIBLE);
+            // 两个都是 weight=1，同屏会五五分；占位期间把列表收起来
+            mEpgInfoGridView.setVisibility(View.GONE);
+        }
+        if (idx >= 0) getEpg(epgDateAdapter.getData().get(idx).getDateParamVal());
     }
 
     public void divLoadEpgL(View view) {
         mGroupGridView.setVisibility(View.VISIBLE);
+        mChannelGridView.setVisibility(View.VISIBLE);
         mEpgInfoGridView.setVisibility(View.GONE);
         mGroupEPG.setVisibility(View.GONE);
         mDivLeft.setVisibility(View.GONE);
@@ -668,11 +751,6 @@ public class LivePlayActivity extends BaseActivity {
     private final Runnable mHideChannelListRun = new Runnable() {
         @Override
         public void run() {
-            // 焦点已经上到顶栏：列表先别收，否则用户在标签间挪一步就踩空
-            if (liveTopBar != null && liveTopBar.hasFocus()) {
-                mHandler.postDelayed(this, 3000);
-                return;
-            }
             ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) tvLeftChannelListLayout.getLayoutParams();
             if (tvLeftChannelListLayout.getVisibility() == View.VISIBLE) {
                 tvLeftChannelListLayout.animate()
@@ -686,6 +764,13 @@ public class LivePlayActivity extends BaseActivity {
                                 super.onAnimationEnd(animation);
                                 tvLeftChannelListLayout.setVisibility(View.INVISIBLE);
                                 tvLeftChannelListLayout.clearAnimation();
+                                // 面板真的收掉了才复位：停在 EPG 页签里下次重开要回到频道列表。
+                                // 放进 showChannelList() 会连 divLoadEpgR 那次调用一起复位，
+                                // 页签刚点开就自己弹回列表（实测就是这个）。
+                                resetPanelToListMode();
+                                // 面板收了，右侧那个返回圆钮也得跟着走，
+                                // 否则它会一个人留在屏幕右边中间（实测会一直挂着）
+                                mBack.setVisibility(View.INVISIBLE);
                                 hideLiveTopBar();
                             }
                         });
@@ -700,6 +785,12 @@ public class LivePlayActivity extends BaseActivity {
         if (supportsTouch()) {
             mBack.setVisibility(View.VISIBLE);
         }
+
+        // 换台面板 / 设置面板开着的时候不弹底部信息栏。
+        // 信息栏是从屏幕底部升上来的，正好压住面板最后两三行频道；
+        // 而且「在放哪个台」面板里已经用红色直播徽标回答了，这一栏此时是纯干扰。
+        // 它还会被连接失败的重试循环每 6 秒重新弹一次，所以必须在入口就拦住。
+        if (isListOrSettingLayoutVisible()) return;
 
         if (tvBottomLayout.getVisibility() == View.GONE || tvBottomLayout.getVisibility() == View.INVISIBLE) {
             tvBottomLayout.setVisibility(View.VISIBLE);
@@ -758,6 +849,12 @@ public class LivePlayActivity extends BaseActivity {
 
     //显示侧边EPG
     private void showEpg(Date date, ArrayList<Epginfo> arrayList) {
+        // 数据到了（哪怕是空）占位就先撤，剩下交给列表自己说
+        TextView placeholder = findViewById(R.id.txtNoEpg);
+        if (placeholder != null) placeholder.setVisibility(View.GONE);
+        if (mEpgInfoGridView != null && mGroupEPG.getVisibility() == View.VISIBLE) {
+            mEpgInfoGridView.setVisibility(View.VISIBLE);
+        }
         if (arrayList != null && arrayList.size() > 0) {
             epgdata = arrayList;
             epgListAdapter.CanBack(currentLiveChannelItem.getinclude_back());
@@ -2085,6 +2182,7 @@ public class LivePlayActivity extends BaseActivity {
         liveTopBar.setVisibility(View.VISIBLE);
         liveTopBar.animate().alpha(1f).setDuration(160)
                 .setInterpolator(new DecelerateInterpolator()).start();
+        setPlayerSpeedVisible(false);
     }
 
     private void hideLiveTopBar() {
@@ -2100,6 +2198,22 @@ public class LivePlayActivity extends BaseActivity {
         liveTopBar.animate().cancel();
         liveTopBar.setAlpha(1f);
         liveTopBar.setVisibility(View.GONE);
+        setPlayerSpeedVisible(true);
+    }
+
+    /**
+     * 播放器自带的码率 + 转圈（tag = top_container_hide）和 v8 顶栏的时钟在同一个角上，
+     * 顶栏一出来就是两个数字叠着印（实测「0.06 Mbps」直接压掉「12:53」）。
+     * 顶栏可见时把它整块收掉，顶栏收起来再还原 —— 码率本身没丢，只是让位。
+     */
+    private void setPlayerSpeedVisible(boolean visible) {
+        if (mSpeedTop == null) {
+            View root = findViewById(android.R.id.content);
+            if (root == null) return;
+            mSpeedTop = root.findViewWithTag("top_container_hide");
+            if (mSpeedTop == null) return;
+        }
+        mSpeedTop.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -2321,6 +2435,7 @@ public class LivePlayActivity extends BaseActivity {
 
     private void loadChannelGroupDataAndPlay(int groupIndex, int liveChannelIndex) {
         liveChannelItemAdapter.setNewData(getLiveChannels(groupIndex));
+        updatePanelCount(getLiveChannels(groupIndex).size());
         if (groupIndex == currentChannelGroupIndex) {
             if (currentLiveChannelIndex > -1)
                 mChannelGridView.scrollToPosition(currentLiveChannelIndex);
@@ -2336,6 +2451,12 @@ public class LivePlayActivity extends BaseActivity {
             mChannelGridView.scrollToPosition(liveChannelIndex);
             playChannel(groupIndex, liveChannelIndex, false);
         }
+    }
+
+    /** 面板牌子右上角的「N 个台」：跟着当前分组变，换分组时数字原地跳 */
+    private void updatePanelCount(int count) {
+        TextView tv = findViewById(R.id.tvPanelCount);
+        if (tv != null) tv.setText(getString(R.string.v8_live_panel_count, count));
     }
 
     private boolean isNeedInputPassword(int groupIndex) {

@@ -105,4 +105,18 @@
 
     </array>
 
+    <!-- ============ 播放页切换面板（压在视频上的深色玻璃） ============
+         这一组刻意不跟主题走：面板底下是每一帧都在变的画面，
+         只有「深底 + 白字 + 靠透明度分层」在亮场景和暗场景下都稳。 -->
+    <color name="v8_live_panel_bg">#E0101218</color>
+    <color name="v8_live_panel_stroke">#26FFFFFF</color>
+    <color name="v8_live_row_focus_fill">#1FFFFFFF</color>
+    <color name="v8_live_row_focus_stroke">#EBFFFFFF</color>
+    <color name="v8_live_row_sel_fill">#0FFFFFFF</color>
+    <color name="v8_live_group_focus_fill">#24FFFFFF</color>
+    <color name="v8_live_group_sel_fill">#14FFFFFF</color>
+    <color name="v8_live_row_tx">#FFFFFFFF</color>
+    <color name="v8_live_row_sub">#99A0B0</color>
+    <color name="v8_live_badge">#E5484D</color>
+
 </resources>

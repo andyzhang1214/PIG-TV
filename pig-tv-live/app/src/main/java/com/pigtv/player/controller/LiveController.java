@@ -2,6 +2,7 @@ package com.pigtv.player.controller;
 
 import android.content.Context;
 import android.view.MotionEvent;
+import android.view.View;
 import android.widget.ProgressBar;
 
 import com.pigtv.R;
@@ -30,6 +31,18 @@ public class LiveController extends BaseController {
     protected void initView() {
         super.initView();
         mLoading = findViewById(R.id.loading);
+        // 直播不显示码率块（和播放页顶栏时钟叠在同一个角），只留转圈
+        mSpeedBlockEnabled = false;
+        // 控制条里有两套「台名 + 码率」：缓冲用的 top_container_hide、
+        // 暂停用的 top_container。两套都会在右上角印字，一并收掉，
+        // 否则顶栏在的时候就是一个数字压在时钟上。
+        hideSpeedBlock("top_container_hide");
+        hideSpeedBlock("top_container");
+    }
+
+    private void hideSpeedBlock(String tag) {
+        View v = findViewWithTag(tag);
+        if (v != null) v.setVisibility(View.GONE);
     }
 
     public interface LiveControlListener {
@@ -64,6 +77,9 @@ public class LiveController extends BaseController {
     @Override
     protected void onPlayStateChanged(int playState) {
         super.onPlayStateChanged(playState);
+        // 状态一变播放器就可能把这两套「台名 + 码率」重新翻出来，跟着再压一次
+        hideSpeedBlock("top_container_hide");
+        hideSpeedBlock("top_container");
         listener.playStateChanged(playState);
     }
 

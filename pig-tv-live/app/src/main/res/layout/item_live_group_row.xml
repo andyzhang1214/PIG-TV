@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    播放页切换面板左列（分组导航）的一行：分组名 + 台数。
+
+    台数靠右、比名字小两档、颜色暗一档：它是用来「横向比大小」的
+    （哪个分组台多、哪个是空壳），不是在读信息，抢过名字就变成一列数字墙了。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/v8_live_grp_h"
+    android:background="@drawable/bg_live_group_row"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="6mm"
+    android:paddingEnd="6mm">
+
+    <TextView
+        android:id="@+id/tvGroupName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:textColor="@color/v8_live_row_tx"
+        android:textSize="@dimen/v8_live_grp_tx" />
+
+    <TextView
+        android:id="@+id/tvGroupCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4mm"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:textColor="@color/v8_live_row_sub"
+        android:textSize="@dimen/v8_live_grp_num_tx" />
+
+</LinearLayout>

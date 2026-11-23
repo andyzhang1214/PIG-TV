@@ -254,4 +254,42 @@
     <dimen name="v8_src_input_pad">10mm</dimen>
     <dimen name="v8_src_input_tx">15mm</dimen>
 
+    <!-- ============ 播放页切换面板 ============
+         单位是 mm（物理毫米），和这一页原有的 vs_* 一致：
+         电视尺寸差别很大，用 dp 在 43 寸上字会显得过大、在 75 寸上又偏小。 -->
+    <dimen name="v8_live_panel_radius">18mm</dimen>
+    <dimen name="v8_live_panel_pad">14mm</dimen>
+    <!-- 面板总宽必须显式写死，不能用 wrap_content：
+         根节点在 FrameLayout 里 wrap_content 时，只要内部有一个 match_parent 的子节点，
+         测量就会拿到「可用宽度」，整个面板被撑到满屏（实测 1920 宽全被盖住，
+         只留右侧一条视频缝）。这里按各列相加算死：
+         14(pad) + 128(分组) + 6(gap) + 268(频道) + 4(gap) + 22(节目竖条) + 14(pad) = 456mm -->
+    <dimen name="v8_live_panel_w">456mm</dimen>
+    <dimen name="v8_live_panel_grp_w">128mm</dimen>
+    <dimen name="v8_live_panel_ch_w">268mm</dimen>
+    <dimen name="v8_live_brand_icon">30mm</dimen>
+    <dimen name="v8_live_brand_tx">22mm</dimen>
+    <!-- 行高 42mm：一屏能放 10 行左右，和遥控器的选择节奏对得上；
+         再矮就会变成「一场马拉松」，再高则一屏只有 5 个台，找台更慢。 -->
+    <dimen name="v8_live_row_h">42mm</dimen>
+    <dimen name="v8_live_row_radius">10mm</dimen>
+    <dimen name="v8_live_row_pad">7mm</dimen>
+    <dimen name="v8_live_logo_box">28mm</dimen>
+    <dimen name="v8_live_logo_radius">7mm</dimen>
+    <dimen name="v8_live_logo_pad">3mm</dimen>
+    <dimen name="v8_live_row_name_tx">16mm</dimen>
+    <dimen name="v8_live_row_sub_tx">10mm</dimen>
+    <!-- 台标白牌里的兜底字：白牌 28mm 见方、内边距 3mm，只装得下 22mm。
+         用副标题的 10mm 会折成「4 中」+「…」两行还被截断，压到 8.5mm 才能容下 4 个字 -->
+    <dimen name="v8_live_tile_tx">7.5mm</dimen>
+    <dimen name="v8_live_grp_h">34mm</dimen>
+    <dimen name="v8_live_grp_tx">15mm</dimen>
+    <dimen name="v8_live_grp_num_tx">10mm</dimen>
+    <dimen name="v8_live_badge_tx">9mm</dimen>
+    <dimen name="v8_live_badge_radius">4mm</dimen>
+    <dimen name="v8_live_hint_tx">10mm</dimen>
+    <dimen name="v8_live_div_w">22mm</dimen>
+    <!-- 「节目 / 信息」页签高度：约占面板中段，太高会把两字拉开半个屏 -->
+    <dimen name="v8_live_div_h">110mm</dimen>
+
 </resources>
