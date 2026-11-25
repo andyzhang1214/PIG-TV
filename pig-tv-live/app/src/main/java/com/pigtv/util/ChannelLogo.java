@@ -15,8 +15,10 @@ import java.util.regex.Pattern;
 /**
  * 频道台标（logo）地址解析。
  *
- * <p>三级来源，逐级降级：
+ * <p>四级来源，逐级降级：
  * <ol>
+ *   <li><b>源自带的 {@code tvg-logo}</b>（m3u 里写着，见 {@link #candidates(Context, String, String)}）：
+ *       最准的一级，县级台（「象山综合」）只有它认得。聚合源 589 条里 372 条能拉到图；</li>
  *   <li>本地表：{@code assets/epg_data.json} 里 615 条「台名 → 台标地址」的映射，
  *       覆盖央视、卫视和各省台，离线可用、命中即准；</li>
  *   <li>按命名规则猜：台标库 {@code live.fanmingming.com/tv/} 的文件名基本等于台名
@@ -25,6 +27,10 @@ import java.util.regex.Pattern;
  *       猜不中时先按归一化名字精确对一遍，再按前缀做一次模糊匹配
  *       （「浙江教科」→「浙江教科影视」、「TVBS-Asia」→「TVBS」）。</li>
  * </ol>
+ *
+ * <p>第 1 级是 1.3.2 补上的：以前解析层把 {@code tvg-logo} 直接丢了，只剩按台名猜库，
+ * 而那个库只有 930 个文件、几乎没有县级台 —— 实测 589 个频道只对上 193 个（32.8%），
+ * 频道墙上大片格子只有台名没有图。补上之后同样的源能到 394 个（66.9%）。
  *
      * <p>拿不到时由卡面显示完整台名，不猜缩写，也不继续盲发一串必然 404 的请求。
  *
@@ -78,12 +84,41 @@ public final class ChannelLogo {
 
     /** 这个台名可以试哪几个台标地址，可能为空 */
     public static String[] candidates(Context ctx, String channelName) {
-        if (channelName == null || channelName.trim().isEmpty()) return new String[0];
-        String[] hit = CACHE.get(channelName);
+        return candidates(ctx, channelName, null);
+    }
+
+    /**
+     * 带「源自带台标」的版本。
+     *
+     * @param sourceLogo 源里写的 {@code tvg-logo}，可以为空。
+     *                   有值就排在候选第一位先用它 —— 聚合源给的图比按台名猜的准，
+     *                   县级台（「象山综合」）在公共台标库里根本没有，只有这条有图。
+     *                   它 404 了会自动落回后面那几个猜测地址，不影响老路径。
+     */
+    public static String[] candidates(Context ctx, String channelName, String sourceLogo) {
+        String logo = validUrl(sourceLogo) ? sourceLogo.trim() : "";
+        if ((channelName == null || channelName.trim().isEmpty()) && logo.isEmpty()) {
+            return new String[0];
+        }
+        String key = cacheKey(channelName, logo);
+        String[] hit = CACHE.get(key);
         if (hit != null) return hit;
-        String[] built = build(ctx, channelName);
-        CACHE.put(channelName, built);
+        String[] built = build(ctx, channelName, logo);
+        CACHE.put(key, built);
         return built;
+    }
+
+    /** 缓存键：带源台标时要把地址算进去，否则同一个台名换个源会命中上一个源的图 */
+    private static String cacheKey(String channelName, String logo) {
+        String n = channelName == null ? "" : channelName;
+        return logo.isEmpty() ? n : n + '\u0000' + logo;
+    }
+
+    /** 只认 http(s) 绝对地址，别的一律当没有（源里见过空值和写成 # 的） */
+    private static boolean validUrl(String s) {
+        if (s == null) return false;
+        String v = s.trim().toLowerCase(Locale.ROOT);
+        return v.startsWith("http://") || v.startsWith("https://");
     }
 
     /** 候选地址全部加载失败：记下来，这个台名以后直接走占位图 */
@@ -91,7 +126,9 @@ public final class ChannelLogo {
         if (channelName != null) CACHE.put(channelName, new String[0]);
     }
 
-    private static String[] build(Context ctx, String channelName) {
+    private static String[] build(Context ctx, String channelName, String sourceLogo) {
+        // 只带 tvg-logo、台名为空也能走通：下面按台名猜的部分对空串是无害的空转
+        if (channelName == null) channelName = "";
         // 先把「可能是哪几个文件名」凑出来。
         //
         // 以前这里把「猜出来的名字」不加验证就当成候选：台标库里根本没有这个文件，
@@ -126,6 +163,9 @@ public final class ChannelLogo {
         }
 
         List<String> out = new ArrayList<>(MAX_CANDIDATES);
+        // 源自己给的台标排最前：它进候选**不过索引**（那份索引是我们自己盯的
+        // fanmingming 库，跟源用的图床没关系），404 了再由下面几个猜测地址兜底
+        if (sourceLogo != null && !sourceLogo.isEmpty()) out.add(sourceLogo);
         for (String file : files) {
             addUrl(out, file);
         }

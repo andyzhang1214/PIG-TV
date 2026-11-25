@@ -308,6 +308,18 @@ public final class LogoStore {
      * 台与台之间停 80ms：后台下载不能把前台够图要用的带宽吃干净。
      */
     public static void preload(Context ctx, List<String> channelNames, boolean light) {
+        preload(ctx, channelNames, null, light);
+    }
+
+    /**
+     * 同上，但带上「台名 → 源自带台标」的映射。
+     *
+     * <p>不带这份映射的预热会去下「按台名猜出来的那张」；前台实际要的是源给的那张
+     * （见 {@link ChannelLogo#candidates(Context, String, String)} 的第 1 级），
+     * 于是同一个台要下两遍图，还都占缓存 —— 589 个台里能差出两百多份。
+     */
+    public static void preload(Context ctx, List<String> channelNames,
+                               final Map<String, String> sourceLogos, boolean light) {
         if (channelNames == null || channelNames.isEmpty()) return;
         final Context app = ctx.getApplicationContext();
         // 逐张串行 + 80ms 间隔的老做法跑完 246 个台要一分半，用户头一分钟看到的
@@ -318,7 +330,8 @@ public final class LogoStore {
             PRELOAD_POOL.execute(new Runnable() {
                 @Override
                 public void run() {
-                    String[] urls = ChannelLogo.candidates(app, name);
+                    String srcLogo = sourceLogos == null ? null : sourceLogos.get(name);
+                    String[] urls = ChannelLogo.candidates(app, name, srcLogo);
                     if (urls.length == 0) return;
                     File have = cached(app, urls);
                     if (have != null) {
@@ -402,6 +415,13 @@ public final class LogoStore {
                 part.delete();
                 return false;
             }
+            // 有些站 404 不返 404，而是 200 加一页 HTML（或被劫持的跳转页）。
+            // 这种文件存下来永远解不出来，还会把「这个台没图」变成「这个台有个破图」，
+            // 顺手用文件头挡掉：不是 PNG/JPEG/GIF/WEBP/BMP 就当这次没下到。
+            if (!looksLikeImage(part)) {
+                part.delete();
+                return false;
+            }
             if (target.exists()) target.delete();
             return part.renameTo(target);
         } catch (Throwable th) {
@@ -417,6 +437,46 @@ public final class LogoStore {
     /** 一个地址对应哪个本地文件：按 URL 里的文件名存，两个域名共用一份 */
     private static File fileOf(Context ctx, String url) {
         return new File(dir(ctx), keyOf(url) + ".img");
+    }
+
+    /**
+     * 文件头是不是图片。
+     *
+     * <p>只认这五种：PNG / JPEG / GIF / WebP / BMP —— 台标库和源给的图床都不会超出这个范围，
+     * 而误伤正常台标的代价（这个台永远没图）比漏掉一张冷门格式高得多，所以判据放得很宽。
+     */
+    private static boolean looksLikeImage(File f) {
+        java.io.FileInputStream in = null;
+        try {
+            in = new java.io.FileInputStream(f);
+            byte[] h = new byte[12];
+            int n = 0;
+            while (n < h.length) {
+                int r = in.read(h, n, h.length - n);
+                if (r <= 0) break;
+                n += r;
+            }
+            if (n < 4) return false;
+            // PNG: 89 50 4E 47
+            if ((h[0] & 0xFF) == 0x89 && h[1] == 'P' && h[2] == 'N' && h[3] == 'G') return true;
+            // JPEG: FF D8 FF
+            if ((h[0] & 0xFF) == 0xFF && (h[1] & 0xFF) == 0xD8 && (h[2] & 0xFF) == 0xFF) return true;
+            // GIF: "GIF8"
+            if (h[0] == 'G' && h[1] == 'I' && h[2] == 'F' && h[3] == '8') return true;
+            // BMP: "BM"
+            if (h[0] == 'B' && h[1] == 'M') return true;
+            // WEBP: "RIFF" .... "WEBP"
+            if (n >= 12 && h[0] == 'R' && h[1] == 'I' && h[2] == 'F' && h[3] == 'F'
+                    && h[8] == 'W' && h[9] == 'E' && h[10] == 'B' && h[11] == 'P') return true;
+            return false;
+        } catch (Throwable t) {
+            return false;
+        } finally {
+            if (in != null) try {
+                in.close();
+            } catch (IOException ignored) {
+            }
+        }
     }
 
     private static String keyOf(String url) {

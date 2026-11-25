@@ -88,7 +88,8 @@ public class LiveChannelItemAdapter extends BaseQuickAdapter<LiveChannelItem, Ba
         holder.getView(R.id.tvRowLive).setVisibility(
                 item.getChannelIndex() == selectedChannelIndex ? View.VISIBLE : View.GONE);
 
-        bindLogo(holder.getView(R.id.tvRowLogo), holder.getView(R.id.tvRowLogoName), name, rawName);
+        bindLogo(holder.getView(R.id.tvRowLogo), holder.getView(R.id.tvRowLogoName), name, rawName,
+                item.getLogoUrl());
     }
 
     /**
@@ -124,9 +125,9 @@ public class LiveChannelItemAdapter extends BaseQuickAdapter<LiveChannelItem, Ba
      * 等图的那几百毫秒里不能是一排空白牌）。
      */
     private void bindLogo(final ImageView iv, final TextView fallback,
-                          final String name, final String rawName) {
+                          final String name, final String rawName, final String srcLogo) {
         final Context ctx = iv.getContext();
-        final String[] urls = ChannelLogo.candidates(ctx, rawName);
+        final String[] urls = ChannelLogo.candidates(ctx, rawName, srcLogo);
         // 异步回来时这一行可能已经复用给别的台了，用它判断「这张图还是不是这一行的」
         iv.setTag(rawName);
         Glide.with(iv).clear(iv);

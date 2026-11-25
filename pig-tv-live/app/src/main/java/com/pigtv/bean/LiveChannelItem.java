@@ -21,6 +21,14 @@ public class LiveChannelItem {
     private String channelName;
     private ArrayList<String> channelSourceNames;
     private ArrayList<String> channelUrls;
+    /**
+     * 源自带的台标地址（m3u 里的 {@code tvg-logo}），可能为空。
+     *
+     * <p>不是所有源都写这个属性（内置的 txt 表就没有），所以它只是**首选**：
+     * 有就先用它，404 了再退回 {@link com.pigtv.util.ChannelLogo} 那套「按台名猜库」。
+     * 县级台（「象山综合」）在公共台标库里根本没有，只有这条能救。
+     */
+    private String logoUrl;
     public int sourceIndex = 0;
     public int sourceNum = 0;
     public boolean include_back = false;
@@ -93,6 +101,15 @@ public class LiveChannelItem {
 
     public ArrayList<String> getChannelSourceNames() {
         return channelSourceNames;
+    }
+
+    /** 源自带台标，没有就是空串（不给 null，调用方不用到处判） */
+    public String getLogoUrl() {
+        return logoUrl == null ? "" : logoUrl;
+    }
+
+    public void setLogoUrl(String logoUrl) {
+        this.logoUrl = logoUrl == null ? "" : logoUrl.trim();
     }
 
     public void setChannelSourceNames(ArrayList<String> channelSourceNames) {

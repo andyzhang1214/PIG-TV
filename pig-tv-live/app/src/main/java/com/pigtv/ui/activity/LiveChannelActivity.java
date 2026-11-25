@@ -176,11 +176,14 @@ public class LiveChannelActivity extends BaseActivity {
         final int srcs;
         /** 第一路地址，4K 视图靠它认「两个名字不同、其实是同一条流」的台 */
         final String firstUrl;
+        /** 源自带的台标地址（m3u 的 tvg-logo），没有就是空串 */
+        final String logoUrl;
         final boolean locked;
         /** 台名里带 4K / 2160 / UHD，判断规则见 LiveChannelCardAdapter.is4k() */
         final boolean is4k;
 
-        Raw(int gi, int ci, String name, String groupName, int num, List<String> urls, boolean locked) {
+        Raw(int gi, int ci, String name, String groupName, int num, List<String> urls, boolean locked,
+            String logoUrl) {
             this.gi = gi;
             this.ci = ci;
             this.name = name;
@@ -188,6 +191,7 @@ public class LiveChannelActivity extends BaseActivity {
             this.num = num;
             this.srcs = urls == null ? 0 : urls.size();
             this.firstUrl = (urls == null || urls.isEmpty() || urls.get(0) == null) ? "" : urls.get(0);
+            this.logoUrl = logoUrl == null ? "" : logoUrl;
             this.locked = locked;
             this.is4k = LiveChannelCardAdapter.is4k(name);
         }
@@ -457,7 +461,8 @@ public class LiveChannelActivity extends BaseActivity {
                             gname,
                             it.getChannelNum(),
                             it.getChannelUrls(),
-                            locked));
+                            locked,
+                            it.getLogoUrl()));
                 }
             }
         }
@@ -495,15 +500,21 @@ public class LiveChannelActivity extends BaseActivity {
         if (logoWarmed || rawAll.isEmpty()) return;
         logoWarmed = true;
         final List<String> names = new ArrayList<>();
+        // 台名 → 源自带台标。预热走的是同一套 {@link ChannelLogo#candidates}，
+        // 不把 tvg-logo 一起带下去的话，预热下的是「猜出来的那张」，
+        // 前台要的是「源给的那张」，两张都得下一遍，白烧一倍流量
+        final java.util.Map<String, String> logos = new java.util.HashMap<>();
         java.util.Set<String> seen = new java.util.HashSet<>();
         for (Raw r : rawAll) {
-            if (!TextUtils.isEmpty(r.name) && seen.add(r.name)) names.add(r.name);
+            if (TextUtils.isEmpty(r.name) || !seen.add(r.name)) continue;
+            names.add(r.name);
+            if (!TextUtils.isEmpty(r.logoUrl)) logos.put(r.name, r.logoUrl);
         }
         final boolean light = UiTheme.isLight(mContext);
         new Thread(new Runnable() {
             @Override
             public void run() {
-                LogoStore.preload(mContext, names, light);
+                LogoStore.preload(mContext, names, logos, light);
             }
         }, "logo-preload").start();
     }
@@ -609,7 +620,7 @@ public class LiveChannelActivity extends BaseActivity {
 
     private LiveChannelCardAdapter.Cell newCell(Raw r) {
         LiveChannelCardAdapter.Cell cell =
-                new LiveChannelCardAdapter.Cell(r.gi, r.ci, r.name, tagOf(r), r.firstUrl);
+                new LiveChannelCardAdapter.Cell(r.gi, r.ci, r.name, tagOf(r), r.firstUrl, r.logoUrl);
         // 收藏状态铺表时一次算好，适配器只管按这个标记画金星还是空星
         cell.fav = FavoriteStore.isFav(r.name, r.firstUrl);
         return cell;
@@ -921,7 +932,7 @@ public class LiveChannelActivity extends BaseActivity {
 
         detailDlg = new LiveChannelDetailDialog(mContext, cell.rawName, cell.name, cell.tag,
                 cell.is4k, r.groupName, cell.firstUrl,
-                FavoriteStore.isFav(r.name, r.firstUrl));
+                FavoriteStore.isFav(r.name, r.firstUrl), cell.logoUrl);
         detailDlg.setOnAction(new LiveChannelDetailDialog.OnAction() {
             @Override
             public void onFavToggle() {

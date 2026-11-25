@@ -2243,7 +2243,7 @@ public class LivePlayActivity extends BaseActivity {
             @Override
             public void onSuccess(Response<String> response) {
                 JsonArray livesArray;
-                LinkedHashMap<String, LinkedHashMap<String, ArrayList<String>>> linkedHashMap = new LinkedHashMap<>();
+                LinkedHashMap<String, LinkedHashMap<String, TxtSubscribe.Channel>> linkedHashMap = new LinkedHashMap<>();
                 TxtSubscribe.parse(linkedHashMap, response.body());
                 livesArray = TxtSubscribe.live2JsonArray(linkedHashMap);
 

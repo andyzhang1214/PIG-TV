@@ -99,12 +99,15 @@ public class LiveChannelCardAdapter extends BaseQuickAdapter<LiveChannelCardAdap
         public final boolean is4k;
         /** 首路地址：收藏按「名字 + 地址」认台，格子里得带着它 */
         public final String firstUrl;
+        /** 源自带的台标（m3u 的 tvg-logo），没有就是空串 —— 见 {@link ChannelLogo#candidates} */
+        public final String logoUrl;
         /** 上次看的那个台，进页面时描一圈边 */
         public boolean selected = false;
         /** 这一格是不是已收藏：决定左下角那颗星是金色实心还是空轮廓 */
         public boolean fav = false;
 
-        public         Cell(int groupIndex, int channelIndex, String name, String tag, String firstUrl) {
+        public         Cell(int groupIndex, int channelIndex, String name, String tag, String firstUrl,
+                            String logoUrl) {
             this.groupIndex = groupIndex;
             this.channelIndex = channelIndex;
             this.rawName = name == null ? "" : name;
@@ -114,6 +117,7 @@ public class LiveChannelCardAdapter extends BaseQuickAdapter<LiveChannelCardAdap
             this.tag = tag == null ? "" : tag;
             this.is4k = is4k(name);
             this.firstUrl = firstUrl == null ? "" : firstUrl;
+            this.logoUrl = logoUrl == null ? "" : logoUrl;
         }
     }
 
@@ -149,14 +153,14 @@ public class LiveChannelCardAdapter extends BaseQuickAdapter<LiveChannelCardAdap
         // 等价于浅色主题。焦点变化时重绑一次，除焦点卡外其余格子不受影响。
         final boolean lightTheme = isLightTheme(helper.itemView.getContext());
         bindLogo(helper.getView(R.id.tvLogo), helper.getView(R.id.tvFallbackName),
-                item.name, item.rawName, lightTheme || helper.itemView.isFocused(), false);
+                item.name, item.rawName, item.logoUrl, lightTheme || helper.itemView.isFocused(), false);
         helper.itemView.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
                 // keepCurrent=true：焦点移动时保持现有图，等黑版就位再换，
                 // 否则每挪一格焦点，刚亮起来的那张卡都要先闪一下台名
                 bindLogo(v.findViewById(R.id.tvLogo), v.findViewById(R.id.tvFallbackName),
-                        item.name, item.rawName, lightTheme || hasFocus, true);
+                        item.name, item.rawName, item.logoUrl, lightTheme || hasFocus, true);
             }
         });
 
@@ -181,12 +185,13 @@ public class LiveChannelCardAdapter extends BaseQuickAdapter<LiveChannelCardAdap
      *
      * @param fallback 写台名的 TextView
      * @param name     台名（已去掉画质标记）
+     * @param srcLogo  源自带的台标地址（m3u 的 tvg-logo），可为空
      */
     private void bindLogo(final ImageView iv, final TextView fallback,
-                          final String name, final String rawName,
+                          final String name, final String rawName, final String srcLogo,
                           final boolean light, final boolean keepCurrent) {
         final Context ctx = iv.getContext();
-        final String[] urls = ChannelLogo.candidates(ctx, rawName);
+        final String[] urls = ChannelLogo.candidates(ctx, rawName, srcLogo);
         // 记住这一格现在该显示谁：加载是异步的，等它回来时这个 View 可能已经被
         // 滚出去复用给别的台了，那时再往上面塞图就成了「CCTV-5 的位置贴着湖南卫视的标」
         iv.setTag(rawName);

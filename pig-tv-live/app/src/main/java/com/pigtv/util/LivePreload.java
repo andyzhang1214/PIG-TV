@@ -131,7 +131,7 @@ public final class LivePreload {
                     return;
                 }
                 try {
-                    LinkedHashMap<String, LinkedHashMap<String, ArrayList<String>>> map = new LinkedHashMap<>();
+                    LinkedHashMap<String, LinkedHashMap<String, TxtSubscribe.Channel>> map = new LinkedHashMap<>();
                     TxtSubscribe.parse(map, response.body() == null ? "" : response.body());
                     JsonArray arr = TxtSubscribe.live2JsonArray(map);
                     ApiConfig.get().loadLives(arr);

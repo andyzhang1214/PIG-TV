@@ -55,6 +55,8 @@ public class LiveChannelDetailDialog extends BaseDialog {
 
     /** 台标加载要用的原始名（带画质标记，查台标库用），和卡面一致 */
     private final String rawName;
+    /** 源自带的台标（m3u 的 tvg-logo），没有就是空串 —— 和卡面走同一条优先级 */
+    private final String srcLogo;
 
     private OnAction action;
     /** 关闭后不再接收台标回调；不能用 isShowing() 代替（构造期同步回调尚未 show） */
@@ -68,12 +70,15 @@ public class LiveChannelDetailDialog extends BaseDialog {
      * @param group   分组名，可空
      * @param url     首路地址，可空
      * @param fav     当前是否已收藏
+     * @param logoUrl 源自带台标（tvg-logo），可空
      */
     public LiveChannelDetailDialog(Context ctx, String rawName, String name, String tag,
-                                   boolean is4k, String group, String url, boolean fav) {
+                                   boolean is4k, String group, String url, boolean fav,
+                                   String logoUrl) {
         super(ctx);
         setContentView(R.layout.dialog_live_channel_detail);
         this.rawName = rawName == null ? "" : rawName;
+        this.srcLogo = logoUrl == null ? "" : logoUrl;
 
         ivLogo = findViewById(R.id.ivLogo);
         tvLogoName = findViewById(R.id.tvLogoName);
@@ -185,7 +190,7 @@ public class LiveChannelDetailDialog extends BaseDialog {
     private void bindLogo(String name) {
         final Context ctx = getContext();
         showName(name);
-        String[] urls = ChannelLogo.candidates(ctx, rawName);
+        String[] urls = ChannelLogo.candidates(ctx, rawName, srcLogo);
         if (urls.length == 0) return;
         LogoStore.load(ctx, urls, UiTheme.isLight(ctx), new LogoStore.Callback() {
             @Override

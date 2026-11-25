@@ -1259,6 +1259,14 @@ public class ApiConfig {
                 }
                 liveChannelItem.setChannelSourceNames(sourceNames);
                 liveChannelItem.setChannelUrls(sourceUrls);
+                // 源自带的台标（m3u 的 tvg-logo）。老缓存里没有这个字段，
+                // 取不到就是空串，下游自然会退回「按台名猜库」那条老路。
+                try {
+                    if (obj.has("logo") && !obj.get("logo").isJsonNull()) {
+                        liveChannelItem.setLogoUrl(obj.get("logo").getAsString());
+                    }
+                } catch (Throwable ignored) {
+                }
                 liveChannelGroup.getLiveChannels().add(liveChannelItem);
             }
             liveChannelGroupList.add(liveChannelGroup);
@@ -1382,7 +1390,7 @@ public class ApiConfig {
             return false;
         }
         try {
-            LinkedHashMap<String, LinkedHashMap<String, ArrayList<String>>> map = new LinkedHashMap<>();
+            LinkedHashMap<String, LinkedHashMap<String, TxtSubscribe.Channel>> map = new LinkedHashMap<>();
             TxtSubscribe.parse(map, txt);
             JsonArray arr = TxtSubscribe.live2JsonArray(map);
             if (arr == null || arr.size() == 0) {

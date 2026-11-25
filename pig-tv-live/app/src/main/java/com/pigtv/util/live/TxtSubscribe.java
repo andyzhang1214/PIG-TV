@@ -15,8 +15,24 @@ public class TxtSubscribe {
 
     private static final Pattern NAME_PATTERN = Pattern.compile(".*,(.+?)$");
     private static final Pattern GROUP_PATTERN = Pattern.compile("group-title=\"(.*?)\"");
+    private static final Pattern LOGO_PATTERN = Pattern.compile("tvg-logo=\"([^\"]*)\"");
 
-    public static void parse(LinkedHashMap<String, LinkedHashMap<String, ArrayList<String>>> linkedHashMap, String str) {
+    /**
+     * 一个频道：线路表 + 源自带的台标地址。
+     *
+     * <p>为什么要把台标一起带出来：{@link com.pigtv.util.ChannelLogo} 只能靠台名去猜
+     * 公共台标库（fanmingming 那套 930 个文件），央视、卫视、省台猜得中，
+     * 县级台（「象山综合」「苍南新闻综合」）库里压根没有 —— 实测 589 个频道只对上 193 个。
+     * 而聚合源的 m3u 里本来就写着 {@code tvg-logo="…"}（Guovin 那份 589 条一条不缺），
+     * 解析层以前直接把它丢了，等于把现成的台标扔掉再去猜。
+     */
+    public static class Channel {
+        public final ArrayList<String> urls = new ArrayList<>();
+        /** 源自带的台标地址，可能为空 */
+        public String logo;
+    }
+
+    public static void parse(LinkedHashMap<String, LinkedHashMap<String, Channel>> linkedHashMap, String str) {
         if (str.startsWith("#EXTM3U")) {
             parseM3u(linkedHashMap, str);
         } else {
@@ -24,12 +40,11 @@ public class TxtSubscribe {
         }
     }
 
-    private static void parseM3u(LinkedHashMap<String, LinkedHashMap<String, ArrayList<String>>> linkedHashMap, String str) {
-        ArrayList<String> urls;
+    private static void parseM3u(LinkedHashMap<String, LinkedHashMap<String, Channel>> linkedHashMap, String str) {
         try {
             BufferedReader bufferedReader = new BufferedReader(new StringReader(str));
-            LinkedHashMap<String, ArrayList<String>> channel = new LinkedHashMap<>();
-            LinkedHashMap<String, ArrayList<String>> channelTemp = channel;
+            LinkedHashMap<String, Channel> channel = new LinkedHashMap<>();
+            LinkedHashMap<String, Channel> channelTemp = channel;
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 if (line.equals("")) continue;
@@ -37,6 +52,7 @@ public class TxtSubscribe {
                 if (line.startsWith("#EXTINF")) {
                     String name = getStrByRegex(NAME_PATTERN, line);
                     String group = cleanGroupName(getStrByRegex(GROUP_PATTERN, line));
+                    String logo = cleanLogo(getStrOrNull(LOGO_PATTERN, line));
                     // 此时再读取一行，就是对应的 url 链接了
                     String next = bufferedReader.readLine();
                     String url = next == null ? "" : next.trim();
@@ -50,13 +66,16 @@ public class TxtSubscribe {
                         channelTemp = new LinkedHashMap<>();
                         linkedHashMap.put(group, channelTemp);
                     }
-                    if (null != channelTemp && channelTemp.containsKey(name)) {
-                        urls = channelTemp.get(name);
-                    } else {
-                        urls = new ArrayList<>();
-                        channelTemp.put(name, urls);
+                    Channel ch = channelTemp.get(name);
+                    if (ch == null) {
+                        ch = new Channel();
+                        channelTemp.put(name, ch);
                     }
-                    if (null != urls && !urls.contains(url)) urls.add(url);
+                    // 同名台的第一条**带台标的**说了算：同一个台的几条线路通常指向
+                    // 同一张图，不必覆盖；但首条偶尔是别人手写的、没写 tvg-logo，
+                    // 那就等后面那条补上（以前只在新建时赋值，这种台就永远没图）
+                    if ((ch.logo == null || ch.logo.isEmpty()) && !logo.isEmpty()) ch.logo = logo;
+                    if (!ch.urls.contains(url)) ch.urls.add(url);
                 }
             }
             bufferedReader.close();
@@ -66,6 +85,26 @@ public class TxtSubscribe {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * tvg-logo 的清洗：只收 http(s) 绝对地址。
+     *
+     * <p>源的写法不统一 —— 空的（{@code tvg-logo=""}）、只写文件名的、
+     * 甚至写成 {@code #} 占位的都有。这类值交给图片加载器只会多发一次必挂的请求，
+     * 卡面还得等它失败，不如当没有。
+     *
+     * <p>{@code &amp;} 是 m3u 里常见的转义（签名参数里带 {@code &}），
+     * 不解开的话请求会被截断在第一个参数上。
+     */
+    private static String cleanLogo(String logo) {
+        if (logo == null) return "";
+        String s = logo.trim().replace("&amp;", "&");
+        if (s.isEmpty()) return "";
+        String lower = s.toLowerCase();
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) return "";
+        // 离谱长度直接毙掉，免得把整行地址塞进 JSON
+        return s.length() > 512 ? "" : s;
     }
 
     /** 能交给播放器的地址：http(s)、rtsp、rtmp。其它一律不进线路表 */
@@ -113,12 +152,12 @@ public class TxtSubscribe {
      *
      * <p>顺带把解析出来的空分组一并清掉，否则左栏会出现一排点了没反应的条目。
      */
-    private static void dropTimestampGroups(LinkedHashMap<String, LinkedHashMap<String, ArrayList<String>>> map) {
+    private static void dropTimestampGroups(LinkedHashMap<String, LinkedHashMap<String, Channel>> map) {
         try {
             java.util.Iterator<String> it = map.keySet().iterator();
             while (it.hasNext()) {
                 String key = it.next();
-                LinkedHashMap<String, ArrayList<String>> group = map.get(key);
+                LinkedHashMap<String, Channel> group = map.get(key);
                 if (group == null || group.isEmpty()) {
                     it.remove();
                     continue;
@@ -144,13 +183,18 @@ public class TxtSubscribe {
         return pattern.pattern().equals(GROUP_PATTERN.pattern()) ? "未分组" : "未命名";
     }
 
-    private static void parseTxt(LinkedHashMap<String, LinkedHashMap<String, ArrayList<String>>> linkedHashMap, String str) {
-        ArrayList<String> arrayList;
+    /** 取不到就返回 null —— 用来区分「源里没写这个属性」和「写了个空值」，两者都不用兜底文案 */
+    private static String getStrOrNull(Pattern pattern, String line) {
+        Matcher matcher = pattern.matcher(line);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private static void parseTxt(LinkedHashMap<String, LinkedHashMap<String, Channel>> linkedHashMap, String str) {
         try {
             BufferedReader bufferedReader = new BufferedReader(new StringReader(str));
             String readLine = bufferedReader.readLine();
-            LinkedHashMap<String, ArrayList<String>> linkedHashMap2 = new LinkedHashMap<>();
-            LinkedHashMap<String, ArrayList<String>> linkedHashMap3 = linkedHashMap2;
+            LinkedHashMap<String, Channel> linkedHashMap2 = new LinkedHashMap<>();
+            LinkedHashMap<String, Channel> linkedHashMap3 = linkedHashMap2;
             while (readLine != null) {
                 if (readLine.trim().isEmpty()) {
                     readLine = bufferedReader.readLine();
@@ -172,14 +216,13 @@ public class TxtSubscribe {
                             for (String str2 : split[1].trim().split("#")) {
                                 String trim3 = str2.trim();
                                 if (!trim3.isEmpty() && (trim3.startsWith("http") || trim3.startsWith("rtsp") || trim3.startsWith("rtmp"))) {
-                                    if (!linkedHashMap3.containsKey(trim2)) {
-                                        arrayList = new ArrayList<>();
-                                        linkedHashMap3.put(trim2, arrayList);
-                                    } else {
-                                        arrayList = linkedHashMap3.get(trim2);
+                                    Channel ch = linkedHashMap3.get(trim2);
+                                    if (ch == null) {
+                                        ch = new Channel();
+                                        linkedHashMap3.put(trim2, ch);
                                     }
-                                    if (!arrayList.contains(trim3)) {
-                                        arrayList.add(trim3);
+                                    if (!ch.urls.contains(trim3)) {
+                                        ch.urls.add(trim3);
                                     }
                                 }
                             }
@@ -197,27 +240,31 @@ public class TxtSubscribe {
         }
     }
 
-    public static JsonArray live2JsonArray(LinkedHashMap<String, LinkedHashMap<String, ArrayList<String>>> linkedHashMap) {
+    public static JsonArray live2JsonArray(LinkedHashMap<String, LinkedHashMap<String, Channel>> linkedHashMap) {
         JsonArray jsonarr = new JsonArray();
         for (String str : linkedHashMap.keySet()) {
             JsonArray jsonarr2 = new JsonArray();
-            LinkedHashMap<String, ArrayList<String>> linkedHashMap2 = linkedHashMap.get(str);
+            LinkedHashMap<String, Channel> linkedHashMap2 = linkedHashMap.get(str);
             if (!linkedHashMap2.isEmpty()) {
                 for (String str2 : linkedHashMap2.keySet()) {
-                    ArrayList<String> arrayList = linkedHashMap2.get(str2);
-                    if (!arrayList.isEmpty()) {
-                        JsonArray jsonarr3 = new JsonArray();
-                        for (int i = 0; i < arrayList.size(); i++) {
-                            jsonarr3.add(arrayList.get(i));
-                        }
-                        JsonObject jsonobj = new JsonObject();
-                        try {
-                            jsonobj.addProperty("name", str2);
-                            jsonobj.add("urls", jsonarr3);
-                        } catch (Throwable e) {
-                        }
-                        jsonarr2.add(jsonobj);
+                    Channel ch = linkedHashMap2.get(str2);
+                    if (ch == null || ch.urls.isEmpty()) continue;
+                    JsonArray jsonarr3 = new JsonArray();
+                    for (int i = 0; i < ch.urls.size(); i++) {
+                        jsonarr3.add(ch.urls.get(i));
                     }
+                    JsonObject jsonobj = new JsonObject();
+                    try {
+                        jsonobj.addProperty("name", str2);
+                        jsonobj.add("urls", jsonarr3);
+                        // 源自带的台标：下游（LiveChannelItem.logoUrl）优先用它，
+                        // 猜不到库的县级台就靠这一条才有图
+                        if (ch.logo != null && !ch.logo.isEmpty()) {
+                            jsonobj.addProperty("logo", ch.logo);
+                        }
+                    } catch (Throwable e) {
+                    }
+                    jsonarr2.add(jsonobj);
                 }
                 JsonObject jsonobj2 = new JsonObject();
                 try {
