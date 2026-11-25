@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    推荐源弹窗里的一行。
+
+    视觉和源管理页的行（item_live_source）同一套：暗底细描边 / 焦点白底反黑 /
+    当前项金描边。区别只在右侧那颗「带 EPG」的小标签 —— 推荐源都是整行可点、
+    没有删除按钮，用户按 → 也不会有第二个焦点，一屏三行左右，操作路径最短。
+
+    子控件一律 duplicateParentState：拿到焦点的是外层 LinearLayout，
+    不复制父状态的话焦点反白后会变成白底白字。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/itemRoot"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/v8_src_item_h"
+    android:background="@drawable/v8_source_item_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:focusableInTouchMode="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/v8_src_pad"
+    android:paddingEnd="@dimen/v8_src_pad">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:duplicateParentState="true"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:duplicateParentState="true"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:singleLine="true"
+            android:textColor="@color/v8_source_item_tx"
+            android:textSize="@dimen/v8_src_name_tx" />
+
+        <TextView
+            android:id="@+id/tvSub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/v8_src_sub_mt"
+            android:duplicateParentState="true"
+            android:ellipsize="end"
+            android:includeFontPadding="false"
+            android:maxLines="2"
+            android:textColor="@color/v8_source_item_sub"
+            android:textSize="@dimen/v8_src_sub_tx" />
+
+    </LinearLayout>
+
+    <!-- 「带 EPG」：只显示不聚焦，和源管理页的「当前」标记同一个位置、同一档字号 -->
+    <TextView
+        android:id="@+id/tvEpg"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/v8_src_badge_gap"
+        android:duplicateParentState="true"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:text="@string/v8_src_preset_epg"
+        android:textColor="@color/v8_source_tag_tx"
+        android:textSize="@dimen/v8_src_tag_tx"
+        android:visibility="gone" />
+
+</LinearLayout>

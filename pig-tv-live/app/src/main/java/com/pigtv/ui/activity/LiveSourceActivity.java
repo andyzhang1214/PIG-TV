@@ -19,7 +19,9 @@ import com.pigtv.server.ControlManager;
 import com.pigtv.server.RemoteServer;
 import com.pigtv.ui.adapter.LiveSourceAdapter;
 import com.pigtv.ui.dialog.LiveSourceAddDialog;
+import com.pigtv.ui.dialog.LiveSourcePresetDialog;
 import com.pigtv.ui.dialog.TipDialog;
+import com.pigtv.util.LiveSourcePresets;
 import com.pigtv.util.LiveSourceStore;
 import com.pigtv.util.V8TopBar;
 import com.owen.tvrecyclerview.widget.TvRecyclerView;
@@ -47,6 +49,7 @@ public class LiveSourceActivity extends BaseActivity {
     private TextView tvCurStat;
     private TextView tvWebHint;
     private View btnAdd;
+    private View btnPreset;
 
     private LiveSourceAdapter adapter;
 
@@ -70,6 +73,7 @@ public class LiveSourceActivity extends BaseActivity {
         tvCurStat = findViewById(R.id.tvCurStat);
         tvWebHint = findViewById(R.id.tvWebHint);
         btnAdd = findViewById(R.id.btnAdd);
+        btnPreset = findViewById(R.id.btnPreset);
 
         mSourceList = findViewById(R.id.mSourceList);
         mSourceList.setHasFixedSize(true);
@@ -87,14 +91,13 @@ public class LiveSourceActivity extends BaseActivity {
                 confirmDelete(source);
             }
         });
-        // 列表最后一行按 ↓ 交给「添加」按钮。默认的 focusSearch 从 RecyclerView
+        // 列表最后一行按 ↓ 交给左边那颗「推荐源」。默认的 focusSearch 从 RecyclerView
         // 内部往上/下找，常常直接跳到底部按钮再跳到别的容器，落点不稳定。
         mSourceList.setOnInBorderKeyEventListener(new TvRecyclerView.OnInBorderKeyEventListener() {
             @Override
             public boolean onInBorderKeyEvent(int direction, View focused) {
                 if (direction == View.FOCUS_DOWN) {
-                    btnAdd.requestFocus();
-                    return true;
+                    return btnPreset.requestFocus();
                 }
                 return false;
             }
@@ -106,16 +109,31 @@ public class LiveSourceActivity extends BaseActivity {
                 showAddDialog();
             }
         });
-        // 从「添加」按 ↑ 回列表最后一行；不接管的话会跳到标题行上去
-        btnAdd.setOnKeyListener(new View.OnKeyListener() {
+        btnPreset.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showPresetDialog();
+            }
+        });
+        // 两颗按钮各自接 ↑ 回列表最后一行：不接管的话系统会去找「上方的视图」，
+        // 落到标题行或者干脆不动。← → 在两颗按钮之间显式互跳，
+        // 中间没有别的可聚焦点，findFocus 也能找到，但显式写死落点更稳。
+        View.OnKeyListener footKey = new View.OnKeyListener() {
             @Override
             public boolean onKey(View v, int keyCode, KeyEvent event) {
-                if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                    return focusLastRow();
+                if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return focusLastRow();
+                if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && v == btnAdd) {
+                    return btnPreset.requestFocus();
+                }
+                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v == btnPreset) {
+                    return btnAdd.requestFocus();
                 }
                 return false;
             }
-        });
+        };
+        btnAdd.setOnKeyListener(footKey);
+        btnPreset.setOnKeyListener(footKey);
 
         // 手机网页那条路要真能用，得把本地服务起起来。原版在 HomeActivity 里做，
         // 独立直播版没有 HomeActivity —— 之前一直没人调，9978 端口根本听不到。
@@ -255,6 +273,36 @@ public class LiveSourceActivity extends BaseActivity {
     }
 
     /**
+     * 推荐源：列几条公开聚合源，选一条就加进清单并切过去。
+     *
+     * <p>和手动添加走的是同一条路（add → apply → 重启），所以这里不额外做什么校验 ——
+     * 地址都是写死在 {@link LiveSourcePresets} 里的，不会非法。
+     *
+     * <p>已经在用的那条再点一次，只提示不动：重启一次要一两秒，
+     * 用户点重复了不该被白白踢回首页。
+     */
+    private void showPresetDialog() {
+        LiveSourcePresetDialog dialog = new LiveSourcePresetDialog(this);
+        dialog.setOnPickListener(new LiveSourcePresetDialog.OnPickListener() {
+            @Override
+            public void onPick(LiveSourcePresets.Preset preset) {
+                if (preset == null || restarting) return;
+                if (preset.url.equalsIgnoreCase(LiveSourceStore.currentUrl())) {
+                    Toast.makeText(mContext, "已经在用这一条", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (!LiveSourceStore.add(preset.name, preset.url)) {
+                    Toast.makeText(mContext, R.string.v8_src_bad_url, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                LiveSourceStore.apply(new LiveSourceStore.Source(preset.name, preset.url));
+                restartWithTip(getString(R.string.v8_src_added_switch, preset.name));
+            }
+        });
+        dialog.show();
+    }
+
+    /**
      * 落盘之后的重启。
      *
      * <p>为什么必须重启：{@code Hawk(LIVE_URL)} 是 ApiConfig 启动时一次性算进
@@ -367,7 +415,8 @@ public class LiveSourceActivity extends BaseActivity {
     @Override
     public void onWindowFocusChanged(boolean hasWindowFocus) {
         super.onWindowFocusChanged(hasWindowFocus);
-        if (hasWindowFocus && !restarting && !isInside(mSourceList) && !isInside(btnAdd)) {
+        if (hasWindowFocus && !restarting && !isInside(mSourceList)
+                && !isInside(btnAdd) && !isInside(btnPreset)) {
             focusInitial(0);
         }
     }

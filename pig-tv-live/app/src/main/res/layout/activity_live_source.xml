@@ -140,9 +140,28 @@
         android:paddingBottom="26mm">
 
         <TextView
+            android:id="@+id/btnPreset"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/v8_btn_ghost"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="false"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:paddingStart="@dimen/v8_btn_pad"
+            android:paddingTop="6mm"
+            android:paddingEnd="@dimen/v8_btn_pad"
+            android:paddingBottom="6mm"
+            android:text="@string/v8_src_preset"
+            android:textColor="@color/v8_btn_ghost_tx"
+            android:textSize="@dimen/v8_btn_tx" />
+
+        <TextView
             android:id="@+id/btnAdd"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/v8_btn_gap"
             android:background="@drawable/v8_btn_ghost"
             android:clickable="true"
             android:focusable="true"

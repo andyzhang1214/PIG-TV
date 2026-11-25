@@ -8,6 +8,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
@@ -40,6 +41,14 @@ import java.util.ArrayList;
  */
 public class LiveChannelItemAdapter extends BaseQuickAdapter<LiveChannelItem, BaseViewHolder> {
 
+    /**
+     * 「线路暂不可用」这个副标题保留多久。
+     *
+     * <p>一分钟：够用户从这个台上切走、在别的台上按几下、再切回来还能看到；
+     * 又不至于久到线路早就恢复了、面板还在说它坏。
+     */
+    private static final long FAIL_HINT_WINDOW_MS = 60_000L;
+
     /** 当前正在播的台号（channelIndex，不是列表下标）—— 徽标挂在这一行上 */
     private int selectedChannelIndex = -1;
     /** 焦点所在的列表下标；保留是因为外部（顶部栏焦点桥、滚动）还在用它做判断 */
@@ -56,11 +65,18 @@ public class LiveChannelItemAdapter extends BaseQuickAdapter<LiveChannelItem, Ba
         holder.setText(R.id.tvRowName, name);
         holder.itemView.setContentDescription(name);
 
-        // 线路数：多线路是「这个台不容易挂」的唯一直观信号，值得占一行副标题
+        // 副标题两档：刚刚「全源失败」的台优先显示不可用（比线路数有用得多），
+        // 否则退回「N 条线路」——多线路是「这个台不容易挂」的唯一直观信号。
+        // 两档都要显式 setTextColor：这行会被复用，不设回去就会串上一个台的颜色。
         TextView sub = holder.getView(R.id.tvRowSub);
         int lines = item.getChannelUrls() == null ? 0 : item.getChannelUrls().size();
-        if (lines > 1) {
+        if (item.isAllSourceFailed(FAIL_HINT_WINDOW_MS)) {
+            sub.setText(R.string.v8_live_row_all_failed);
+            sub.setTextColor(ContextCompat.getColor(mContext, R.color.v8_live_badge));
+            sub.setVisibility(View.VISIBLE);
+        } else if (lines > 1) {
             sub.setText(mContext.getString(R.string.v8_live_row_lines, lines));
+            sub.setTextColor(ContextCompat.getColor(mContext, R.color.v8_live_row_sub));
             sub.setVisibility(View.VISIBLE);
         } else {
             sub.setVisibility(View.GONE);

@@ -52,10 +52,10 @@
         切换频道面板（深色玻璃，压在画面上）
 
         结构照观众熟悉的直播客户端来：左边一列分组、右边一列频道、顶上牌子、
-        底下一行按键提示。原来的三块用 1dp 竖线隔开，视觉上是三个独立盒子；
-        现在收进一块整体圆角面板里，只用留白和字号分栏，画面仍然从面板右侧露出来。
+        底部一条「节目单」横条、最下一行按键提示。全部收在一块整体圆角面板里，
+        只用留白和字号分栏，画面仍然从面板右侧露出来。
 
-        面板宽度 = 14 + 140 + 6 + 296 + 22 + 14 ≈ 492mm（55 寸屏约 40%），
+        面板宽度 = 14 + 128 + 6 + 294 + 14 = 456mm（55 寸屏约 40%），
         剩下的画面始终可见 —— 用户是在「边看边挑台」，不是在填表。
     -->
     <LinearLayout
@@ -139,58 +139,13 @@
                 android:clipToPadding="false"
                 android:divider="@null"
                 android:fadeScrollbars="false"
-                android:paddingTop="2mm"
-                android:paddingBottom="2mm"
+                android:fadingEdgeLength="16mm"
+                android:paddingTop="6mm"
+                android:paddingBottom="6mm"
+                android:requiresFadingEdge="vertical"
                 android:scrollbars="none"
                 app:tv_selectedItemIsCentered="true"
                 app:tv_verticalSpacingWithMargins="2mm" />
-
-            <!-- 左列与右列之间的「更多节目」入口（老逻辑，平时 GONE） -->
-            <LinearLayout
-                android:id="@+id/mDivLeft"
-                android:layout_width="@dimen/v8_live_div_w"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:background="@drawable/bg_live_group_row"
-                android:clickable="true"
-                android:focusable="true"
-                android:onClick="divLoadEpgL"
-                android:orientation="vertical"
-                android:paddingTop="@dimen/vs_15"
-                android:paddingBottom="@dimen/vs_15"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/tv_arrow0"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="center"
-                    android:gravity="center"
-                    android:paddingBottom="5dp"
-                    android:text="@string/v8_live_panel_epg"
-                    android:textColor="@color/v8_live_row_sub"
-                    android:textSize="@dimen/v8_live_badge_tx" />
-
-                <ImageView
-                    android:id="@+id/iv_arrow2"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                    android:gravity="center"
-                    android:padding="@dimen/vs_4"
-                    android:src="@drawable/scrollviewleft" />
-
-                <TextView
-                    android:id="@+id/tv_arrow3"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="center"
-                    android:gravity="center"
-                    android:paddingTop="5dp"
-                    android:text="@string/v8_live_panel_info"
-                    android:textColor="@color/v8_live_row_sub"
-                    android:textSize="@dimen/v8_live_badge_tx" />
-            </LinearLayout>
 
             <!-- 右列：频道行（台标 + 台名 + 线路数 + 正在播徽标） -->
             <com.owen.tvrecyclerview.widget.TvRecyclerView
@@ -202,58 +157,14 @@
                 android:clipToPadding="false"
                 android:divider="@null"
                 android:fadeScrollbars="false"
+                android:fadingEdgeLength="16mm"
                 android:focusable="true"
-                android:paddingTop="2mm"
-                android:paddingBottom="2mm"
+                android:paddingTop="6mm"
+                android:paddingBottom="6mm"
+                android:requiresFadingEdge="vertical"
                 android:scrollbars="none"
                 app:tv_selectedItemIsCentered="true"
                 app:tv_verticalSpacingWithMargins="2mm" />
-
-            <!-- 「节目 / 信息」竖条：按右键从频道行过来，展开 EPG。
-                 高度只占中段一小块（不是撑满）—— 撑满时「节目」贴顶、「信息」贴底，
-                 两字隔了半屏，看着像两条不相干的浮字；这是一枚页签，不是分栏边。 -->
-            <LinearLayout
-                android:id="@+id/mDivRight"
-                android:layout_width="@dimen/v8_live_div_w"
-                android:layout_height="@dimen/v8_live_div_h"
-                android:layout_gravity="center_vertical"
-                android:layout_marginStart="4mm"
-                android:background="@drawable/bg_live_group_row"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:onClick="divLoadEpgR"
-                android:orientation="vertical"
-                android:paddingTop="@dimen/vs_15"
-                android:paddingBottom="@dimen/vs_15">
-
-                <TextView
-                    android:id="@+id/tv_arrow"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="@string/v8_live_panel_epg"
-                    android:textColor="@color/v8_live_row_sub"
-                    android:textSize="@dimen/v8_live_badge_tx" />
-
-                <ImageView
-                    android:id="@+id/iv_arrow"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                    android:gravity="center"
-                    android:padding="@dimen/vs_4"
-                    android:src="@drawable/scrollviewright" />
-
-                <TextView
-                    android:id="@+id/tv_arrow2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="@string/v8_live_panel_info"
-                    android:textColor="@color/v8_live_row_sub"
-                    android:textSize="@dimen/v8_live_badge_tx" />
-            </LinearLayout>
 
             <!-- EPG：展开时频道列和分组列都收起，整块面板宽度都给它，
                  否则 460dp 的日期列 + 节目单会盖在频道行上面（实测就是这个叠法）。 -->
@@ -313,6 +224,56 @@
                     android:visibility="gone" />
 
             </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- 节目单横条。
+             这里原来是一根竖在频道列右边的 22mm 窄条，两个汉字竖排，旁边还有
+             一条 4mm 间距 —— 在 1080p 上看起来就像面板被裁掉了一截，
+             而且白吃掉 26mm 宽度，台名稍长就只剩省略号。
+             现在改成占满面板宽度的一行矮条：左边那句写「现在是什么」
+             （节目单 / 返回频道列表），右边那句写「按了会怎样」
+             （按 OK 展开 › / 按 OK 或 BACK）。一个控件两种角色，
+             点击时按 mGroupEPG 的可见性分发，省掉原来左右两个页签各自一套 id 和显隐。 -->
+        <LinearLayout
+            android:id="@+id/mEpgBar"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/v8_live_epg_bar_h"
+            android:layout_marginTop="8mm"
+            android:background="@drawable/bg_live_epg_bar"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="false"
+            android:gravity="center_vertical"
+            android:onClick="onEpgBarClick"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/v8_live_row_pad"
+            android:paddingEnd="@dimen/v8_live_row_pad">
+
+            <TextView
+                android:id="@+id/tvEpgBarTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:includeFontPadding="false"
+                android:text="@string/v8_live_epg_bar"
+                android:textColor="@color/v8_live_row_tx"
+                android:textSize="@dimen/v8_live_epg_bar_tx" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvEpgBarAction"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:includeFontPadding="false"
+                android:text="@string/v8_live_epg_bar_open"
+                android:textColor="@color/v8_live_row_sub"
+                android:textSize="@dimen/v8_live_epg_bar_tx" />
 
         </LinearLayout>
 

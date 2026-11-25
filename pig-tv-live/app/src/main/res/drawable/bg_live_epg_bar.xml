@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    播放页面板底部的「节目单」横条。
+
+    比频道行轻一档、比分组行重一点：它有 6% 白底和一圈 0.8mm 描边，
+    平时看得出是个可点的条，但不会像频道行那样亮到抢走视线；
+    聚焦时抬到 18% 白 + 1.2mm 白描边，遥控器焦点在哪儿一眼能分辨。
+
+    和频道行一样不用主题色 —— 这块面板压在视频上，浅色主题的主题色
+    落在深底上会发灰，白色只靠透明度分层，对比度是恒定的。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/v8_live_row_radius" />
+            <solid android:color="@color/v8_live_epg_bar_focus_fill" />
+            <stroke
+                android:width="1.2mm"
+                android:color="@color/v8_live_row_focus_stroke" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/v8_live_row_radius" />
+            <solid android:color="@color/v8_live_epg_bar_fill" />
+            <stroke
+                android:width="0.8mm"
+                android:color="@color/v8_live_panel_stroke" />
+        </shape>
+    </item>
+</selector>

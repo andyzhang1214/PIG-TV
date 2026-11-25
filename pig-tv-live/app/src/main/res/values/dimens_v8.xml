@@ -247,6 +247,9 @@
     <dimen name="v8_src_row_gap">9mm</dimen>
     <!-- 输入弹窗：地址那一行要能塞下一条完整 URL，所以比普通弹窗宽 -->
     <dimen name="v8_src_dlg_w">720mm</dimen>
+    <!-- 推荐源弹窗里的列表高度：item 76mm + 间距 8mm，一屏露出 3~4 条，
+         再多就自己滚。写死是为了以后加预设时弹窗高度不变。 -->
+    <dimen name="v8_preset_list_h">260mm</dimen>
     <dimen name="v8_src_dlg_pad">26mm</dimen>
     <dimen name="v8_src_dlg_tx">20mm</dimen>
     <dimen name="v8_src_dlg_hint_tx">13mm</dimen>
@@ -263,10 +266,12 @@
          根节点在 FrameLayout 里 wrap_content 时，只要内部有一个 match_parent 的子节点，
          测量就会拿到「可用宽度」，整个面板被撑到满屏（实测 1920 宽全被盖住，
          只留右侧一条视频缝）。这里按各列相加算死：
-         14(pad) + 128(分组) + 6(gap) + 268(频道) + 4(gap) + 22(节目竖条) + 14(pad) = 456mm -->
+         14(pad) + 128(分组) + 6(gap) + 294(频道) + 14(pad) = 456mm
+         原来右侧还有一条 22mm 的「节目/信息」竖条，现在改成面板底部的横条，
+         这 26mm（22 + 4 的间距）整条让给频道列 —— 台名不再被压成省略号。 -->
     <dimen name="v8_live_panel_w">456mm</dimen>
     <dimen name="v8_live_panel_grp_w">128mm</dimen>
-    <dimen name="v8_live_panel_ch_w">268mm</dimen>
+    <dimen name="v8_live_panel_ch_w">294mm</dimen>
     <dimen name="v8_live_brand_icon">30mm</dimen>
     <dimen name="v8_live_brand_tx">22mm</dimen>
     <!-- 行高 42mm：一屏能放 10 行左右，和遥控器的选择节奏对得上；
@@ -289,7 +294,13 @@
     <dimen name="v8_live_badge_radius">4mm</dimen>
     <dimen name="v8_live_hint_tx">10mm</dimen>
     <dimen name="v8_live_div_w">22mm</dimen>
-    <!-- 「节目 / 信息」页签高度：约占面板中段，太高会把两字拉开半个屏 -->
+    <!-- 「节目 / 信息」页签高度：约占面板中段，太高会把两字拉开半个屏。
+         （11-25 起这两个竖条已被底部横条取代，dimen 留着是因为
+         layout-v21 之外还有旧包资源在引用，删了 aapt2 会报找不到） -->
     <dimen name="v8_live_div_h">110mm</dimen>
+    <!-- 底部节目单横条：一行高，和频道行 42mm 比起来明显矮一档，
+         视觉上是「附属入口」而不是第三列 -->
+    <dimen name="v8_live_epg_bar_h">26mm</dimen>
+    <dimen name="v8_live_epg_bar_tx">12mm</dimen>
 
 </resources>

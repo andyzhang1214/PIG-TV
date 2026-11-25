@@ -3,7 +3,7 @@ CCTV-4 中文国际 [1080P],https://live-play-hls.cctvnews.cctv.com/CCTVChannel/
 CCTV-4K 高清 [1080P],https://live-play-hls.cctvnews.cctv.com/CCTVChannel/channel_cctv4k_mbd.m3u8?auth_key=1794884400-1-b59134a2ead43d7f783f943c8f535e7bb80c5169575b2e8efcd5b3ddea21b41c-cc8be6bc1868e27ff1bca440fe2f3407&yid=b59134a2ead43d7f783f943c8f535e7bb80c5169575b2e8efcd5b3ddea21b41c
 CCTV-9 [1080P],https://xykt-fix.github.io/Y77.m3u8
 CCTV12 [1080P],http://124.165.251.82:85/tsfile/live/0012_1.m3u8?key=txiptv&playlive=1&authid=0
-CCTV13 [1080P],http://ali-m-l.cztv.com/channels/lantian/channel21/1080p.m3u8
+CCTV13 [1080P],http://120.76.248.139/live/bfgd/4200000067.m3u8
 CCTV15 [1080P],http://gmxw.7766.org:808/hls/102/index.m3u8
 CCTV16 [1080P],http://gmxw.7766.org:808/hls/169/index.m3u8
 CCTV5 [1080P],http://gmxw.7766.org:808/hls/93/index.m3u8

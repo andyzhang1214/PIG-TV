@@ -159,4 +159,42 @@ public class LiveChannelItem {
         sourceIndex = ni;
         return changed;
     }
+
+    // =====================================================================
+    //  线路健康状态（只影响面板上那一行怎么显示，不参与播放决策）
+    // =====================================================================
+
+    /**
+     * 本台所有线路都试完且全挂的时刻（{@link android.os.SystemClock#elapsedRealtime()}）。
+     *
+     * <p>以前这种情况是静默跳到下一个台：用户按了确定、画面黑一下就换了个频道，
+     * 既不知道「刚才那个台挂了」，也不知道「是我按错了还是它自己跳的」。
+     * 记下这个时刻，面板上那一行就能挂一行「线路暂不可用」的副标题。
+     *
+     * <p>用 elapsedRealtime 而不是墙钟：机顶盒校时、跨时区、用户手动改时间都不影响它。
+     * transient：这个状态跟设备此刻的网络有关，不该跟着收藏或源表被序列化出去。
+     */
+    private transient volatile long allSourceFailAt = 0L;
+
+    /** 刚把本台所有线路试完，全失败 */
+    public void markAllSourceFailed() {
+        allSourceFailAt = android.os.SystemClock.elapsedRealtime();
+    }
+
+    /** 播通了，把失败标记清掉 */
+    public void clearAllSourceFailed() {
+        allSourceFailAt = 0L;
+    }
+
+    /**
+     * 最近 {@code windowMs} 毫秒内是否「所有线路都失败过」。
+     *
+     * <p>加时间窗而不是永久置位：线路是别人家的服务器，几分钟后可能自己活了，
+     * 一直挂着「不可用」会变成误导。
+     */
+    public boolean isAllSourceFailed(long windowMs) {
+        long at = allSourceFailAt;
+        if (at <= 0L) return false;
+        return android.os.SystemClock.elapsedRealtime() - at < windowMs;
+    }
 }

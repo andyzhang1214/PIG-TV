@@ -118,5 +118,10 @@
     <color name="v8_live_row_tx">#FFFFFFFF</color>
     <color name="v8_live_row_sub">#99A0B0</color>
     <color name="v8_live_badge">#E5484D</color>
+    <!-- 面板底部「节目单」横条：平时 6% 白（看得出是个可点的条，又不抢频道行的视线），
+         聚焦抬到 18% 白。中间那档是为了和分组行（14%）区分开 ——
+         分组是新的一列，横条只是附属入口，两者焦点不该长得一样。 -->
+    <color name="v8_live_epg_bar_fill">#0FFFFFFF</color>
+    <color name="v8_live_epg_bar_focus_fill">#2EFFFFFF</color>
 
 </resources>

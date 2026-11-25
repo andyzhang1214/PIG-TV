@@ -383,8 +383,10 @@
     <string name="v8_live_all">全部</string>
     <!-- 左栏里「全部/收藏/超清」与真实分组之间那行小标题 -->
     <string name="v8_live_rail_group">分组</string>
-    <!-- 跨分组的聚合视图：把台名里带 4K / 2160 / UHD 的台挑到一起，不是源里的一组台 -->
-    <string name="v8_live_group_4k">4K 超清</string>
+    <!-- 跨分组的聚合视图：把台名里带 4K / 2160 / UHD 的台挑到一起，不是源里的一组台。
+         文案只写「专区」，前面那颗金色 4K 徽标已经交代了画质，
+         再写「4K 超清」左栏会变成「4K 4K 超清」，两个字读起来像卡带。 -->
+    <string name="v8_live_group_4k">专区</string>
     <!-- 设置 · 界面明暗（整块界面白底还是黑底，和强调色皮肤是两件事） -->
     <string name="mn_ui_mode">界面明暗</string>
     <string name="v8_ui_mode_dark">深色</string>
@@ -438,6 +440,11 @@
     <string name="v8_src_current">当前</string>
     <string name="v8_src_delete">删除</string>
     <string name="v8_src_add">＋ 添加直播源</string>
+    <string name="v8_src_preset">推荐源</string>
+    <string name="v8_src_preset_title">推荐直播源</string>
+    <string name="v8_src_preset_desc">这些是公开聚合源，自带分组、台标和 EPG，频道数比内置表多几倍。\n选中后会自动添加并切换，之后想换回来点「内置频道表」即可。</string>
+    <string name="v8_src_preset_epg">台名规范</string>
+    <string name="v8_src_preset_hint">OK 添加并切换 · BACK 返回</string>
     <string name="v8_src_web_hint">手机浏览器打开 %1$s 也能添加，比遥控器输入快</string>
     <string name="v8_src_del_title">删除直播源</string>
     <string name="v8_src_del_msg">确定删除「%1$s」吗？\n删掉后这条地址要重新输入才能找回。</string>
@@ -467,9 +474,21 @@
     <string name="v8_live_hint_back">返回 关闭　菜单 设置</string>
     <string name="v8_live_row_lines">%1$d 条线路</string>
     <string name="v8_live_row_live">直播</string>
+    <!-- 本台所有线路刚试完且全挂：替换掉「N 条线路」，比线路数更有用 -->
+    <string name="v8_live_row_all_failed">线路暂不可用</string>
+    <!-- 全源失败跳台前的提示：%1$s 台名，%2$d 试过的线路数 -->
+    <string name="v8_live_all_failed_switch">「%1$s」%2$d 条线路都没连上，已切到下一个台</string>
+    <!-- 断网时不换源、原地等恢复 -->
+    <string name="v8_live_net_lost">网络已断开，恢复后自动续播</string>
     <string name="v8_live_panel_count">%1$d 个台</string>
     <string name="v8_live_panel_epg">节目</string>
     <string name="v8_live_panel_info">信息</string>
+    <!-- 面板底部那条「节目单」横条：列表态是入口，EPG 态是返回。
+         左边那句是「现在是什么」，右边那句是「按了会怎样」—— 两态都按这个分工写。 -->
+    <string name="v8_live_epg_bar">节目单</string>
+    <string name="v8_live_epg_bar_open">按 OK 展开 ›</string>
+    <string name="v8_live_epg_bar_back_title">返回频道列表</string>
+    <string name="v8_live_epg_bar_back">按 OK 或 BACK</string>
     <!-- 和 initEpgDateView 里写死的「今天」保持一致，用来在日期列里定位当天 -->
     <string name="v8_epg_today">今天</string>
     <string name="v8_epg_loading">正在加载节目单…</string>

@@ -43,6 +43,7 @@ import com.pigtv.bean.LiveSettingItem;
 import com.pigtv.event.RefreshEvent;
 import com.pigtv.player.controller.LiveController;
 import com.pigtv.ui.adapter.ApiHistoryDialogAdapter;
+import com.pigtv.ui.adapter.LiveChannelCardAdapter;
 import com.pigtv.ui.adapter.LiveChannelGroupAdapter;
 import com.pigtv.ui.adapter.LiveChannelItemAdapter;
 import com.pigtv.ui.adapter.LiveEpgAdapter;
@@ -59,6 +60,7 @@ import com.pigtv.util.HawkUtils;
 import com.pigtv.util.JavaUtil;
 import com.pigtv.util.LOG;
 import com.pigtv.util.LivePreload;
+import com.pigtv.util.LocalIPAddress;
 import com.pigtv.util.V8TopBar;
 import com.pigtv.util.live.LiveLineProbe;
 import com.pigtv.util.live.TxtSubscribe;
@@ -118,9 +120,11 @@ public class LivePlayActivity extends BaseActivity {
     // Left Channel View
     private LinearLayout tvLeftChannelListLayout;
     private TvRecyclerView mGroupGridView;
-    private LinearLayout mDivLeft;
     private TvRecyclerView mChannelGridView;
-    private LinearLayout mDivRight;
+    /** 面板底部「节目单」横条：列表态是入口，EPG 态是返回。两个角色共用一个控件 */
+    private LinearLayout mEpgBar;
+    private TextView tvEpgBarTitle;
+    private TextView tvEpgBarAction;
     private LinearLayout mGroupEPG;
     private TvRecyclerView mEpgDateGridView;
     private TvRecyclerView mEpgInfoGridView;
@@ -147,6 +151,18 @@ public class LivePlayActivity extends BaseActivity {
     private final LivePlayerManager livePlayerManager = new LivePlayerManager();
     private final ArrayList<Integer> channelGroupPasswordConfirmed = new ArrayList<>();
     private int currentLiveChangeSourceTimes = 0;
+
+    /**
+     * 断网期间已经原地等了几轮。
+     *
+     * <p>断网时不换源（换了也是白换，还会把好线路记成失败），但要有个上限：
+     * 见 {@link #MAX_NETWORK_WAIT_TIMES}。
+     */
+    private int networkWaitTimes = 0;
+    /** 断网最多原地等 3 轮，每轮 10 秒 = 30 秒，之后无论网络状态都照常换源 */
+    private static final int MAX_NETWORK_WAIT_TIMES = 3;
+    /** 断网时的重试间隔 */
+    private static final long NETWORK_WAIT_RETRY_MS = 10 * 1000L;
 
     // Bottom Channel View
     private LinearLayout tvBottomLayout;
@@ -277,8 +293,9 @@ public class LivePlayActivity extends BaseActivity {
 
         // EPG Info
         mGroupEPG = findViewById(R.id.mGroupEPG);
-        mDivRight = findViewById(R.id.mDivRight);
-        mDivLeft = findViewById(R.id.mDivLeft);
+        mEpgBar = findViewById(R.id.mEpgBar);
+        tvEpgBarTitle = findViewById(R.id.tvEpgBarTitle);
+        tvEpgBarAction = findViewById(R.id.tvEpgBarAction);
         mEpgDateGridView = findViewById(R.id.mEpgDateGridView);
         mEpgInfoGridView = findViewById(R.id.mEpgInfoGridView);
 
@@ -386,6 +403,14 @@ public class LivePlayActivity extends BaseActivity {
             super.onBackPressed();
             return;
         }
+        // EPG 展开着：返回键先退回「分组 + 频道」两列，再按一次才收面板。
+        // 原来 EPG 是靠左侧那根竖排页签退回的，页签改成底部横条后，
+        // 遥控器上最顺手的退路就是 BACK —— 层级退一步，和「页签→列表→面板」一致。
+        if (mGroupEPG != null && mGroupEPG.getVisibility() == View.VISIBLE) {
+            divLoadEpgL(null);
+            focusChannelColumn();
+            return;
+        }
         // 焦点正停在顶栏：先把它收掉、焦点还给频道列表，再按一次才是收列表
         if (liveTopBarShown && liveTopBar != null && liveTopBar.hasFocus()) {
             focusBackToChannelList();
@@ -427,8 +452,16 @@ public class LivePlayActivity extends BaseActivity {
             int chaIndx = 0;
             int getMin = 1;
             int getMax;
-            for (int j = 0; j < 20; j++) {
-                getMax = getMin + getLiveChannels(j).size() - 1;
+            // 上限必须取实际分组数：原来写死 20，源里分组少于 20 时
+            // getLiveChannels(j) 会直接越界崩掉；分组多于 20 时（推荐源就有 40 组）
+            // 第 21 组往后根本进不了循环，数字键按下去只会得到一个 chaIndx=0，
+            // 最后 playChannel(0, -1) 落到一个不存在的下标上。
+            int groupCount = liveChannelGroupList.size();
+            for (int j = 0; j < groupCount; j++) {
+                int size = getLiveChannels(j).size();
+                // 空分组不占号（加密分组 getLiveChannels 会返回空表）
+                if (size <= 0) continue;
+                getMax = getMin + size - 1;
 
                 if (selectedChannelNumber >= getMin && selectedChannelNumber <= getMax) {
                     grpIndx = j;
@@ -439,7 +472,10 @@ public class LivePlayActivity extends BaseActivity {
                 }
             }
 
-            if (selectedChannelNumber > 0) {
+            // chaIndx 为 0 = 输入的数字超出了所有台的编号范围，什么都不做。
+            // 原来判的是 selectedChannelNumber > 0，那只代表「按过数字」，
+            // 不代表「这个号存在」。
+            if (chaIndx > 0) {
                 playChannel(grpIndx, chaIndx - 1, false);
             }
             selectedChannelNumber = 0;
@@ -471,8 +507,9 @@ public class LivePlayActivity extends BaseActivity {
             }
             // 顶栏 ↔ 频道列表的上下焦点桥，必须在其它按键处理之前
             if (handleTopBarKey(keyCode)) return true;
-            // 面板里左右两列之间的桥：系统默认的焦点搜索在这里找不到左邻（中间隔着
-            // mDivLeft，它是 GONE 的），按左键就原地不动，分组列等于进不去。
+            // 面板里左右两列之间的桥：系统默认的焦点搜索在这里找不到左邻
+            // （分组列和频道列之间只隔着 6mm 间距），按左键就原地不动，
+            // 分组列等于进不去。
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && mChannelGridView.hasFocus()) {
                 mGroupGridView.requestFocus();
                 return true;
@@ -480,6 +517,40 @@ public class LivePlayActivity extends BaseActivity {
             if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && mGroupGridView.hasFocus()) {
                 mChannelGridView.requestFocus();
                 return true;
+            }
+            // 频道列往右 = 展开节目单。原来右边是「节目/信息」竖排页签，
+            // 得先按右键挪过去、再按一次 OK 才展开；页签改成底部横条后右边没有邻居，
+            // 直接把右键映射成展开，少按一次，也符合「往右是看更详细的东西」。
+            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && mChannelGridView.hasFocus()) {
+                divLoadEpgR(null);
+                return true;
+            }
+            // 焦点在底部横条上：↑ 回内容列，← → 在分组列和频道列之间跳。
+            // 不接管的话 findFocus 会去找「横条左边最近的视图」，落点常在分组列中间，
+            // 用户按一次上就跳到别的台去了。
+            if (mEpgBar != null && mEpgBar.hasFocus()) {
+                boolean epgMode = mGroupEPG.getVisibility() == View.VISIBLE;
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    if (epgMode) {
+                        mEpgInfoGridView.requestFocus();
+                    } else if (!mChannelGridView.requestFocus()) {
+                        mGroupGridView.requestFocus();
+                    }
+                    return true;
+                }
+                // EPG 态下两列都是 GONE，左右没有落点，直接吃掉这次按键，
+                // 免得走到默认焦点搜索里到处乱跳
+                if (epgMode) {
+                    if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                        return true;
+                    }
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    mGroupGridView.requestFocus();
+                    return true;
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    mChannelGridView.requestFocus();
+                    return true;
+                }
             }
             // 空态/失败态：OK 就是「重试」。这里必须先拦，否则会走下面
             // showChannelList()，弹一个没有频道的列表出来，等于二次伤害。
@@ -640,8 +711,49 @@ public class LivePlayActivity extends BaseActivity {
         mChannelGridView.setVisibility(View.VISIBLE);
         mEpgInfoGridView.setVisibility(View.GONE);
         mGroupEPG.setVisibility(View.GONE);
-        mDivLeft.setVisibility(View.GONE);
-        mDivRight.setVisibility(View.VISIBLE);
+        setEpgBarMode(false);
+    }
+
+    /**
+     * 底部横条切到哪一档。
+     *
+     * <p>列表态：「节目单 / 按 OK 展开 ›」，OK 展开 EPG；
+     * EPG 态：「节目单 / ‹ 返回频道列表」，OK 退回两列。
+     * 左边标题两个字不变、只换右边动作 —— 用户看到的是同一条横条在换动作，
+     * 而不是凭空多出或少掉一个按钮（原来左右两个竖排页签就是这种「凭空出现」）。
+     */
+    private void setEpgBarMode(boolean epgMode) {
+        if (tvEpgBarAction == null) return;
+        tvEpgBarAction.setText(epgMode ? R.string.v8_live_epg_bar_back : R.string.v8_live_epg_bar_open);
+        if (tvEpgBarTitle != null) {
+            tvEpgBarTitle.setText(epgMode
+                    ? R.string.v8_live_epg_bar_back_title
+                    : R.string.v8_live_epg_bar);
+        }
+    }
+
+    /** 横条的点击/OK：列表态展开 EPG，EPG 态退回列表 */
+    public void onEpgBarClick(View view) {
+        if (mGroupEPG != null && mGroupEPG.getVisibility() == View.VISIBLE) {
+            divLoadEpgL(view);
+            focusChannelColumn();
+        } else {
+            divLoadEpgR(view);
+        }
+    }
+
+    /** 把焦点送回频道列（当前选中那行；列表还没测量出来就交给整列） */
+    private void focusChannelColumn() {
+        mChannelGridView.post(new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing() || mChannelGridView == null) return;
+                int idx = currentLiveChannelIndex >= 0 ? currentLiveChannelIndex : 0;
+                RecyclerView.ViewHolder holder = mChannelGridView.findViewHolderForAdapterPosition(idx);
+                if (holder != null && holder.itemView.requestFocus()) return;
+                mChannelGridView.requestFocus();
+            }
+        });
     }
 
     //频道列表
@@ -651,12 +763,11 @@ public class LivePlayActivity extends BaseActivity {
         mChannelGridView.setVisibility(View.GONE);
         mEpgInfoGridView.setVisibility(View.VISIBLE);
         mGroupEPG.setVisibility(View.VISIBLE);
-        mDivLeft.setVisibility(View.VISIBLE);
-        mDivRight.setVisibility(View.GONE);
+        setEpgBarMode(true);
         tvLeftChannelListLayout.setVisibility(View.INVISIBLE);
         showChannelList();
         loadEpgForCurrentDate();
-        // 页签本身 GONE 掉了，焦点没地方落 —— 直接交给节目单，否则方向键会回到频道行
+        // 频道列刚被 GONE 掉，焦点没地方落 —— 直接交给节目单，否则方向键会回到频道行
         mEpgInfoGridView.postDelayed(() -> {
             if (!mEpgInfoGridView.hasFocus()) {
                 if (epgListAdapter != null && epgListAdapter.getItemCount() > 0) {
@@ -705,8 +816,7 @@ public class LivePlayActivity extends BaseActivity {
         mChannelGridView.setVisibility(View.VISIBLE);
         mEpgInfoGridView.setVisibility(View.GONE);
         mGroupEPG.setVisibility(View.GONE);
-        mDivLeft.setVisibility(View.GONE);
-        mDivRight.setVisibility(View.VISIBLE);
+        setEpgBarMode(false);
         tvLeftChannelListLayout.setVisibility(View.INVISIBLE);
         showChannelList();
     }
@@ -1240,6 +1350,12 @@ public class LivePlayActivity extends BaseActivity {
                     case VideoView.STATE_BUFFERED:
                     case VideoView.STATE_PLAYING:
                         currentLiveChangeSourceTimes = 0;
+                        networkWaitTimes = 0;
+                        // 出画面了：这个台刚被记过的「线路暂不可用」要撤掉，
+                        // 否则面板上会一直挂着一个已经好了的故障
+                        if (currentLiveChannelItem != null) {
+                            currentLiveChannelItem.clearAllSourceFailed();
+                        }
                         mHandler.removeCallbacks(mConnectTimeoutChangeSourceRun);
                         mHandler.removeCallbacks(mConnectTimeoutReplayRun);
                         break;
@@ -1289,6 +1405,25 @@ public class LivePlayActivity extends BaseActivity {
         public void run() {
             if (currentLiveChannelItem == null) return;
 
+            // ---- 断网先别换 ----
+            // 家里 WiFi 抖一下、路由器重连时，所有线路会「同时」连不上。原来的处理是把这
+            // 当成线路挂了：一轮换过去，用户从 CCTV1 被连跳到 CCTV5，还得自己找回原台。
+            // 这里先看网络：真断了就原地等，最多 3 轮（30 秒），之后无论网络状态如何都照常
+            // 换源 —— 宁可切台，也不能永远卡在一个台上。
+            // 等的时候不计入 currentLiveChangeSourceTimes，所以网络恢复后仍然从当前这条
+            // 线路往下试，不会因为「等了两轮」就白白跳过两条好线路。
+            if (networkWaitTimes < MAX_NETWORK_WAIT_TIMES
+                    && !LocalIPAddress.isNetworkAvailable(mContext)) {
+                networkWaitTimes++;
+                if (networkWaitTimes == 1) {
+                    Toast.makeText(mContext, R.string.v8_live_net_lost, Toast.LENGTH_SHORT).show();
+                }
+                mHandler.removeCallbacks(this);
+                mHandler.postDelayed(this, NETWORK_WAIT_RETRY_MS);
+                return;
+            }
+            networkWaitTimes = 0;
+
             // ---- 线路择优 ----
             // 原来是无脑 nextSource()：五条线里四条是死的，用户就得挨四次超时才换得走。
             // 这里在<b>第一次</b>失败时把线路按「失败次数 + 上次测速分数」重排一次，
@@ -1310,6 +1445,20 @@ public class LivePlayActivity extends BaseActivity {
             currentLiveChangeSourceTimes++;
             if (total == currentLiveChangeSourceTimes) {
                 currentLiveChangeSourceTimes = 0;
+
+                // 这一台的一轮线路全试完了 —— 把「本台挂了」这件事说出来，再跳下一个台。
+                // 以前是静默跳：用户按了确定，画面黑一下换了个频道，既不知道刚才那个台挂了，
+                // 也不知道是自己按错了、还是它自己跳的。面板上那一行同时也打上「线路暂不可用」，
+                // 切回来还能看见（时间窗见 LiveChannelItemAdapter.FAIL_HINT_WINDOW_MS）。
+                final String failName = LiveChannelCardAdapter.cleanName(
+                        currentLiveChannelItem.getChannelName() == null
+                                ? "" : currentLiveChannelItem.getChannelName());
+                currentLiveChannelItem.markAllSourceFailed();
+                refreshChannelRow(currentLiveChannelItem);
+                Toast.makeText(mContext,
+                        mContext.getString(R.string.v8_live_all_failed_switch, failName, total),
+                        Toast.LENGTH_SHORT).show();
+
                 Integer[] groupChannelIndex = getNextChannel(Hawk.get(HawkConfig.LIVE_CHANNEL_REVERSE, false) ? -1 : 1);
                 playChannel(groupChannelIndex[0], groupChannelIndex[1], false);
             } else {
@@ -1324,6 +1473,18 @@ public class LivePlayActivity extends BaseActivity {
             replayChannel();
         }
     };
+
+    /**
+     * 让面板里某一行重新走一遍 bind。
+     *
+     * <p>用在「刚被打上线路故障标记」这种场合：面板此刻可能是收起状态，
+     * notifyItemChanged 对不可见的列表是零成本的，等下次展开自然就是新状态。
+     */
+    private void refreshChannelRow(LiveChannelItem item) {
+        if (item == null || liveChannelItemAdapter == null) return;
+        int pos = liveChannelItemAdapter.getData().indexOf(item);
+        if (pos >= 0) liveChannelItemAdapter.notifyItemChanged(pos);
+    }
 
     private void initEpgListView() {
         mEpgInfoGridView.setHasFixedSize(true);
@@ -1615,6 +1776,20 @@ public class LivePlayActivity extends BaseActivity {
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 FastClickCheckUtil.check(view);
                 clickLiveChannel(position);
+            }
+        });
+
+        // 频道列选到最后一行再按 ↓ = 去底部「节目单」横条。
+        // 交给默认的 focusSearch 也行，但它会先在 RecyclerView 内部找出屏的 item、
+        // 落点经常跑到分组列那一侧；这里显式接管，方向是确定的。
+        mChannelGridView.setOnInBorderKeyEventListener(new TvRecyclerView.OnInBorderKeyEventListener() {
+            @Override
+            public boolean onInBorderKeyEvent(int direction, View focused) {
+                if (direction == View.FOCUS_DOWN && mEpgBar != null
+                        && mEpgBar.getVisibility() == View.VISIBLE) {
+                    return mEpgBar.requestFocus();
+                }
+                return false;
             }
         });
     }
