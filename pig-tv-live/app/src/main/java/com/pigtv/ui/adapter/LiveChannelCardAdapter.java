@@ -107,7 +107,7 @@ public class LiveChannelCardAdapter extends BaseQuickAdapter<LiveChannelCardAdap
         public boolean fav = false;
 
         public         Cell(int groupIndex, int channelIndex, String name, String tag, String firstUrl,
-                            String logoUrl) {
+                            String logoUrl, boolean is4k) {
             this.groupIndex = groupIndex;
             this.channelIndex = channelIndex;
             this.rawName = name == null ? "" : name;
@@ -115,7 +115,9 @@ public class LiveChannelCardAdapter extends BaseQuickAdapter<LiveChannelCardAdap
             // 卡片宽度有限，留着这几个字，后半截台名必被省略号吃掉。
             this.name = cleanName(name);
             this.tag = tag == null ? "" : tag;
-            this.is4k = is4k(name);
+            // 由调用方按「台名 + 分组 + 地址」算好传进来：同一个判定在
+            // LiveChannelActivity.Raw 里已经算过一遍，两边各算一次迟早会分叉
+            this.is4k = is4k;
             this.firstUrl = firstUrl == null ? "" : firstUrl;
             this.logoUrl = logoUrl == null ? "" : logoUrl;
         }
@@ -341,14 +343,38 @@ public class LiveChannelCardAdapter extends BaseQuickAdapter<LiveChannelCardAdap
     // =====================================================================
 
     /**
-     * 这一格是不是 4K 频道。
+     * 这一格是不是 4K 频道（只看台名）。
      *
-     * <p>判断依据只有台名：源站给的 TXT 里没有画质字段，M3U 的 {@code #EXTINF} 也常常不写分辨率，
-     * 名字里的「4K / 2160 / UHD」是唯一稳定信号。名字标了 4K 但实际推 1080P 的源也有
+     * <p>名字里的「4K / 2160 / UHD」是最直接的信号。名字标了 4K 但实际推 1080P 的源也有
      * （央视那几条就是），这种情况以名字为准 —— 用户按名字挑台，看到的和挑的一致才不困惑。
      */
     public static boolean is4k(String name) {
         return name != null && UHD.matcher(name).find();
+    }
+
+    /**
+     * 4K 判定（台名 + 分组名 + 地址三条线索，任一命中即算）。
+     *
+     * <p>只看台名不够，实测两份公开源各有各的写法：
+     * <ul>
+     *   <li>suxuang 把超高清单独归到 {@code group-title="4K频道"}，里面大半台名里
+     *       根本不带 4K（{@code Love Nature}、{@code RHK 31}），只看台名会漏掉 16 个；</li>
+     *   <li>Guovin 的台名规整成 {@code CCTV-4}，可它的线路是 {@code cctv4k.m3u8} ——
+     *       名字看不出是 4K，地址写着。</li>
+     * </ul>
+     *
+     * <p>地址这一条<b>必须</b>沿用台名那套「前面不能是数字」的正则、且只比路径不比查询串：
+     * 蜻蜓fm 的音频线路全是 {@code /live/1650/64k.m3u8}，宽松地找 {@code 4k} 会把
+     * 13 条广播当成 4K 频道塞进专区（实测过一次，全是「黑龙江新闻」这种）。
+     */
+    public static boolean is4k(String name, String group, String url) {
+        if (is4k(name)) return true;
+        if (group != null && UHD.matcher(group).find()) return true;
+        if (url != null) {
+            int q = url.indexOf('?');
+            return UHD.matcher(q >= 0 ? url.substring(0, q) : url).find();
+        }
+        return false;
     }
 
     /**

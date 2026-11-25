@@ -380,6 +380,10 @@
     <string name="v8_live_title">直播</string>
     <string name="v8_live_hint">OK 播放 · ↑ ↓ 选择 · BACK 返回</string>
     <string name="v8_live_stat">%1$d 个频道 · %2$d 个分组</string>
+    <!-- 4K 专区里的统计：这个专区是从**当前这条源**里筛出来的，不是固定节目单，
+         换个源数字就变 —— 不写清楚，用户会以为「4K 专区被我改没了」 -->
+    <string name="v8_live_stat_4k">本源 %1$d 个 4K 台</string>
+    <string name="v8_live_stat_4k_few">本源只有 %1$d 个 4K 台 · 源管理里有更多</string>
     <string name="v8_live_all">全部</string>
     <!-- 左栏里「全部/收藏/超清」与真实分组之间那行小标题 -->
     <string name="v8_live_rail_group">分组</string>
@@ -414,6 +418,9 @@
     <string name="v8_fav_empty_desc">在任意频道上按 MENU 看详情并收藏，\n也可以直接长按 OK 收藏，再长按一次取消。\n收藏的台固定待在这一档，换直播源以后只要能对上名字就还在。</string>
     <string name="v8_fav_missing_title">收藏的台都不在当前源里</string>
     <string name="v8_fav_missing_desc">你收藏了 %1$d 个台，当前这个直播源里一个都对不上。\n换回原来那个源，或者在这里重新收藏。</string>
+    <!-- 4K 专区空态：它不是固定频道单，是从当前这条源里筛出来的 -->
+    <string name="v8_4k_empty_title">本源没有 4K 台</string>
+    <string name="v8_4k_empty_desc">4K 专区是从当前直播源里筛出来的，不是固定的频道单 —— 换一条源，数字就变。\n左栏最下面「配置」→「推荐源」→「4K 与咪咕」，约 35 个 4K 台。</string>
     <!-- 收藏/取消收藏后的提示，%1$s 是台名 -->
     <string name="v8_fav_toast_add">已收藏「%1$s」</string>
     <string name="v8_fav_toast_del">已取消收藏「%1$s」</string>

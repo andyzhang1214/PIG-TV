@@ -14,8 +14,9 @@ android {
         // 1.3.0：面板右侧竖排页签改成底部「节目单」横条 + 源管理页加「推荐源」
         // 1.3.1：模拟器实测修三处 —— 列表上下渐隐、推荐源弹窗默认焦点、左栏「4K 专区」重字
         // 1.3.2：解析 m3u 的 tvg-logo，县级台不再只有台名没有图（589 台命中 193 → 394）
-        versionCode 1132
-        versionName "1.3.2"
+        // 1.3.3：4K 专区按「台名 + 分组 + 地址」判定并常驻左栏，空了说明原因
+        versionCode 1133
+        versionName "1.3.3"
         multiDexEnabled true
         //设置room的Schema的位置
         javaCompileOptions {

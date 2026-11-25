@@ -193,9 +193,10 @@
                 app:tv_horizontalSpacingWithMargins="@dimen/v8_live_card_gap"
                 app:tv_verticalSpacingWithMargins="@dimen/v8_live_card_gap" />
 
-            <!-- 收藏档专用的空提示：这一档没有台时，不能借用下面那个 liveEmptyBox ——
-                 那个会把整条导航一起隐藏掉，用户就退不出「收藏」这一档了。
-                 这里只盖住频道墙那块区域，左栏照常可点。 -->
+            <!-- 收藏 / 4K 两个聚合档共用的空提示：这一档没有台时，不能借用下面那个
+                 liveEmptyBox —— 那个会把整条导航一起隐藏掉，用户就退不出这一档了。
+                 这里只盖住频道墙那块区域，左栏照常可点。
+                 4K 档进来时图标是那个金色 4K 徽标，收藏档是星星，见 updateFavHint()。 -->
             <LinearLayout
                 android:id="@+id/favHintBox"
                 android:layout_width="match_parent"
@@ -205,6 +206,7 @@
                 android:visibility="gone">
 
                 <ImageView
+                    android:id="@+id/ivHintIcon"
                     android:layout_width="@dimen/v8_fav_empty_star"
                     android:layout_height="@dimen/v8_fav_empty_star"
                     android:layout_marginBottom="14mm"

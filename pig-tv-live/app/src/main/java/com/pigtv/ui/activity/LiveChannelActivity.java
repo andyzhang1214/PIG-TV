@@ -90,8 +90,9 @@ public class LiveChannelActivity extends BaseActivity {
     private TextView btnEmptyAction;
     private View liveEmptyBox;
     private View navCurrent;
-    /** 收藏档为空时的提示（不借用 liveEmptyBox：那个会把胶囊行一起藏掉，用户就退不出收藏档了） */
+    /** 收藏 / 4K 两个聚合档为空时的提示（不借用 liveEmptyBox：那个会把胶囊行一起藏掉，用户就退不出这一档了） */
     private View favHintBox;
+    private android.widget.ImageView ivHintIcon;
     private TextView tvFavHintTitle;
     private TextView tvFavHintDesc;
 
@@ -193,7 +194,8 @@ public class LiveChannelActivity extends BaseActivity {
             this.firstUrl = (urls == null || urls.isEmpty() || urls.get(0) == null) ? "" : urls.get(0);
             this.logoUrl = logoUrl == null ? "" : logoUrl;
             this.locked = locked;
-            this.is4k = LiveChannelCardAdapter.is4k(name);
+            // 三条线索都看：台名、分组名（源把超高清单独归一组）、地址（名字规整但流是 4k）
+            this.is4k = LiveChannelCardAdapter.is4k(name, groupName, this.firstUrl);
         }
     }
 
@@ -222,6 +224,7 @@ public class LiveChannelActivity extends BaseActivity {
         btnEmptyAction = findViewById(R.id.btnEmptyAction);
         liveEmptyBox = findViewById(R.id.liveEmptyBox);
         favHintBox = findViewById(R.id.favHintBox);
+        ivHintIcon = findViewById(R.id.ivHintIcon);
         tvFavHintTitle = findViewById(R.id.tvFavHintTitle);
         tvFavHintDesc = findViewById(R.id.tvFavHintDesc);
 
@@ -467,14 +470,14 @@ public class LiveChannelActivity extends BaseActivity {
             }
         }
 
-        k4Count = 0;
-        for (Raw r : rawAll) {
-            if (r.is4k) k4Count++;
-        }
-        // 「★ 收藏」常驻一个胶囊，不管里面有没有东西 —— 它是这个功能的唯一入口，
-        // 藏起来等于没人知道能收藏；「4K 超清」只在真有 4K 台时出现（空分类没有意义）。
-        // 两个聚合档都算进「M 个分类」，否则用户数着胶囊、上面写着十个分组，会以为少显示了一组
-        catCount = groups.size() + 1 + (k4Count > 0 ? 1 : 0);
+        // 徽标上的数字要和墙上真正铺出来的格数一致：同一个超高清台在源里
+        // 常挂在两三处（苏州4K / 苏州4k、河北4K / Hebei TV），4K 视图会去重，
+        // 这里不去重就会出现「左栏写 8、墙上有 5 格」的错觉
+        k4Count = count4k();
+        // 「★ 收藏」和「4K 专区」常驻两个聚合档，不管里面有没有东西 —— 它们是这两个
+        // 功能的唯一入口，藏起来等于没人知道。两个都算进「M 个分类」，
+        // 否则用户数着左栏、上面写着十个分组，会以为少显示了一组
+        catCount = groups.size() + 2;
         updateStat(rawAll.size());
         buildChips();
 
@@ -519,6 +522,25 @@ public class LiveChannelActivity extends BaseActivity {
         }, "logo-preload").start();
     }
 
+    /**
+     * 4K 专区的格数（按 {@link #renderCards()} 同一套去重规则算）。
+     *
+     * <p>分成两处各算一次是有代价的：任何一边改了规则，左栏的数字和墙上的格数就会分叉。
+     * 所以两边的键都取自这里同一套东西 —— 台名（去画质标记、转小写）+ 首路地址。
+     */
+    private int count4k() {
+        java.util.Set<String> seenName = new java.util.HashSet<String>();
+        java.util.Set<String> seenUrl = new java.util.HashSet<String>();
+        int n = 0;
+        for (Raw r : rawAll) {
+            if (!r.is4k) continue;
+            if (!seenName.add(LiveChannelCardAdapter.cleanName(r.name).toLowerCase())) continue;
+            if (!r.firstUrl.isEmpty() && !seenUrl.add(normUrl(r.firstUrl))) continue;
+            n++;
+        }
+        return n;
+    }
+
     private void buildChips() {
         List<LiveRailAdapter.Row> rows = new ArrayList<>();
         rows.add(LiveRailAdapter.Row.entry(getString(R.string.v8_live_all), "",
@@ -527,11 +549,13 @@ public class LiveChannelActivity extends BaseActivity {
         // 这一档一直在，哪怕里面是空的 —— 空的时候进去有提示，告诉用户长按就能收藏
         rows.add(LiveRailAdapter.Row.entry(getString(R.string.v8_live_fav), FAV_VALUE,
                 String.valueOf(FavoriteStore.count()), R.drawable.ic_fav_star_outline, false));
-        // 超清专区紧跟「收藏」：它是挑台时最先想筛的一档（大屏电视买来就是为了看超高清）
-        if (k4Count > 0) {
-            rows.add(LiveRailAdapter.Row.entry(getString(R.string.v8_live_group_4k), K4_VALUE,
-                    String.valueOf(k4Count), 0, true));
-        }
+        // 超清专区紧跟「收藏」：它是挑台时最先想筛的一档（大屏电视买来就是为了看超高清）。
+        // 这一档和「收藏」一样**常驻**，0 个台也留在左栏 —— 以前是 0 就藏起来，
+        // 用户从内置源（7 个 4K 台）换到综合频道表（只剩 3 个、个别源甚至是 0 个）时，
+        // 左栏直接少一行，看起来就像「4K 专区被改没了」。现在进去有话说：说明这个专区
+        // 是从当前源筛出来的，并指路去换一条带 4K 的源。
+        rows.add(LiveRailAdapter.Row.entry(getString(R.string.v8_live_group_4k), K4_VALUE,
+                String.valueOf(k4Count), 0, true));
         // 上面三个是「视图」，下面是源里的真实分组 —— 设计稿里用一行小标题把它们分开
         rows.add(LiveRailAdapter.Row.label(getString(R.string.v8_live_rail_group)));
         for (LiveChannelGroup g : groups) {
@@ -557,6 +581,13 @@ public class LiveChannelActivity extends BaseActivity {
     private void updateStat(int shown) {
         if (onlyFav) {
             tvLiveStat.setText(getString(R.string.v8_fav_stat, shown, FavoriteStore.count()));
+        } else if (only4k) {
+            // 这里的数字必须写「本源」，不能只写「N 个台」：4K 专区是过滤器，
+            // 数字跟着源走。用户从内置源（7 个 4K 台）换到综合频道表（3 个）时，
+            // 最直接的反应就是「我的 4K 专区呢」—— 得让页面上有答案
+            tvLiveStat.setText(shown <= 5
+                    ? getString(R.string.v8_live_stat_4k_few, shown)
+                    : getString(R.string.v8_live_stat_4k, shown));
         } else {
             tvLiveStat.setText(getString(R.string.v8_live_stat, rawAll.size(), catCount));
         }
@@ -620,7 +651,8 @@ public class LiveChannelActivity extends BaseActivity {
 
     private LiveChannelCardAdapter.Cell newCell(Raw r) {
         LiveChannelCardAdapter.Cell cell =
-                new LiveChannelCardAdapter.Cell(r.gi, r.ci, r.name, tagOf(r), r.firstUrl, r.logoUrl);
+                new LiveChannelCardAdapter.Cell(r.gi, r.ci, r.name, tagOf(r), r.firstUrl, r.logoUrl,
+                        r.is4k);
         // 收藏状态铺表时一次算好，适配器只管按这个标记画金星还是空星
         cell.fav = FavoriteStore.isFav(r.name, r.firstUrl);
         return cell;
@@ -635,7 +667,13 @@ public class LiveChannelActivity extends BaseActivity {
     private String tagOf(Raw r) {
         StringBuilder sb = new StringBuilder();
         String quality = LiveChannelCardAdapter.qualityOf(r.name);
-        if (!TextUtils.isEmpty(quality)) sb.append(quality);
+        if (!TextUtils.isEmpty(quality)) {
+            sb.append(quality);
+        } else if (r.is4k) {
+            // 台名里没写画质、但被判成 4K 的（分组叫「4K频道」、或流地址是 xxx4k.m3u8）：
+            // 不给个标，用户在 4K 专区里看到「CCTV-4」「Love Nature」会以为是混进来的普通台
+            sb.append("4K");
+        }
         if (r.srcs > 1) {
             if (sb.length() > 0) sb.append(" · ");
             sb.append(getString(R.string.v8_live_sub_srcs, r.srcs));
@@ -655,11 +693,26 @@ public class LiveChannelActivity extends BaseActivity {
         return null;
     }
 
-    /** 收藏档的空提示：区分「还没收过」和「收过的台这个源里没有」，这两种情况该做的事完全不同 */
+    /**
+     * 收藏 / 4K 两个聚合档的空提示。
+     *
+     * <p>两个档的「空」含义完全不同：收藏空了是「还没收过」或「收过的台这个源里没有」，
+     * 该去收藏；4K 空了是「这条源里就没有 4K 台」，该去换源。所以文案和图标都要分开。
+     */
     private void updateFavHint(int shown) {
         if (favHintBox == null) return;
-        if (!onlyFav || shown > 0) {
+        if ((!onlyFav && !only4k) || shown > 0) {
             favHintBox.setVisibility(View.GONE);
+            return;
+        }
+        if (ivHintIcon != null) {
+            // 星星是「收藏」的语义，4K 档里出现一颗星只会让人以为收藏空了
+            ivHintIcon.setVisibility(only4k ? View.GONE : View.VISIBLE);
+        }
+        if (only4k) {
+            tvFavHintTitle.setText(R.string.v8_4k_empty_title);
+            tvFavHintDesc.setText(R.string.v8_4k_empty_desc);
+            favHintBox.setVisibility(View.VISIBLE);
             return;
         }
         int total = FavoriteStore.count();
